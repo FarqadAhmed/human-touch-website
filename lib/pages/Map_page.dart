@@ -410,6 +410,29 @@ class _MapPageState extends State<MapPage> {
                       ),
                     ),
                   ),
+                  Positioned(
+                    top: 28,
+                    left: 8,
+                    child: IconButton(
+                      onPressed: () {
+                        if (Navigator.canPop(context)) {
+                          Navigator.pop(context);
+                        } else {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const DashboardPage(),
+                            ),
+                          );
+                        }
+                      },
+                      icon: const Icon(
+                        Icons.arrow_back,
+                        size: 28,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
                   const Positioned(
                     top: 36,
                     child: Text(
@@ -478,7 +501,6 @@ class _MapPageState extends State<MapPage> {
                               ),
                             ),
                             const SizedBox(height: 12),
-
                             SizedBox(
                               height: 95,
                               child: ListView(
@@ -492,9 +514,7 @@ class _MapPageState extends State<MapPage> {
                                     .toList(),
                               ),
                             ),
-
                             const SizedBox(height: 8),
-
                             Wrap(
                               spacing: 8,
                               runSpacing: 8,
@@ -505,9 +525,7 @@ class _MapPageState extends State<MapPage> {
                                 _buildQuickChip('Mall'),
                               ],
                             ),
-
                             const SizedBox(height: 10),
-
                             Row(
                               children: [
                                 Expanded(
@@ -556,7 +574,6 @@ class _MapPageState extends State<MapPage> {
                                 ),
                               ],
                             ),
-
                             if (_results.isNotEmpty) ...[
                               const SizedBox(height: 12),
                               SizedBox(

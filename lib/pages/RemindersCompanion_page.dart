@@ -8,8 +8,7 @@ class CompanionRemindersPage extends StatefulWidget {
   const CompanionRemindersPage({super.key});
 
   @override
-  State<CompanionRemindersPage> createState() =>
-      _CompanionRemindersPageState();
+  State<CompanionRemindersPage> createState() => _CompanionRemindersPageState();
 }
 
 class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
@@ -144,10 +143,7 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
     );
   }
 
-  Widget _bottomIcon({
-    required IconData icon,
-    required Widget page,
-  }) {
+  Widget _bottomIcon({required IconData icon, required Widget page}) {
     return IconButton(
       onPressed: () {
         Navigator.pushReplacement(
@@ -155,11 +151,7 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
           MaterialPageRoute(builder: (_) => page),
         );
       },
-      icon: Icon(
-        icon,
-        size: 38,
-        color: Colors.black,
-      ),
+      icon: Icon(icon, size: 38, color: Colors.black),
     );
   }
 
@@ -170,12 +162,25 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
       builder: (context, _) {
         return Scaffold(
           backgroundColor: const Color(0xFFF4F4F4),
-
           appBar: AppBar(
             backgroundColor: const Color(0xFF87CEEB),
             title: const Text('Companion Reminders'),
+            leading: IconButton(
+              onPressed: () {
+                if (Navigator.canPop(context)) {
+                  Navigator.pop(context);
+                } else {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const DashboardPage(),
+                    ),
+                  );
+                }
+              },
+              icon: const Icon(Icons.arrow_back, size: 28),
+            ),
           ),
-
           body: SingleChildScrollView(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -184,22 +189,10 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
                   key: _formKey,
                   child: Column(
                     children: [
-                      _buildInput(
-                        label: 'Title',
-                        controller: _titleController,
-                      ),
-                      _buildInput(
-                        label: 'Time',
-                        controller: _timeController,
-                      ),
-                      _buildInput(
-                        label: 'Day',
-                        controller: _dayController,
-                      ),
-                      _buildInput(
-                        label: 'Emoji',
-                        controller: _emojiController,
-                      ),
+                      _buildInput(label: 'Title', controller: _titleController),
+                      _buildInput(label: 'Time', controller: _timeController),
+                      _buildInput(label: 'Day', controller: _dayController),
+                      _buildInput(label: 'Emoji', controller: _emojiController),
                       const SizedBox(height: 10),
                       ElevatedButton(
                         onPressed: _saveReminder,
@@ -210,14 +203,11 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 20),
-
                 ...store.reminders.map(_buildReminderTile),
               ],
             ),
           ),
-
           bottomNavigationBar: Container(
             height: 65,
             decoration: const BoxDecoration(

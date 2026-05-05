@@ -6,8 +6,10 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 
+import 'Dashboard_page.dart';
 import 'Login_page.dart';
 import 'Profile_page.dart';
+import 'Settings_page.dart';
 import 'profile_store.dart';
 
 class Profile2Page extends StatefulWidget {
@@ -46,6 +48,72 @@ class _Profile2PageState extends State<Profile2Page> {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Widget _buildBottomNavItem({
+    required IconData icon,
+    required VoidCallback onTap,
+    bool isCurrent = false,
+  }) {
+    return IconButton(
+      onPressed: onTap,
+      icon: Icon(
+        icon,
+        size: icon == Icons.settings_outlined ? 45 : 50,
+        color: isCurrent ? const Color(0xFF87CEEB) : Colors.black,
+      ),
+      splashColor: Colors.grey.withOpacity(0.20),
+      highlightColor: Colors.grey.withOpacity(0.12),
+    );
+  }
+
+  Widget _buildBottomNavigation() {
+    return Container(
+      width: double.infinity,
+      height: 60,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(16),
+          topRight: Radius.circular(16),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _buildBottomNavItem(
+            icon: Icons.home_outlined,
+            isCurrent: false,
+            onTap: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const DashboardPage()),
+              );
+            },
+          ),
+          _buildBottomNavItem(
+            icon: Icons.person_outlined,
+            isCurrent: true,
+            onTap: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const ProfilePage()),
+              );
+            },
+          ),
+          _buildBottomNavItem(
+            icon: Icons.settings_outlined,
+            isCurrent: false,
+            onTap: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsPage()),
+              );
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _pickProfileImage(ImageSource source) async {
@@ -143,11 +211,7 @@ class _Profile2PageState extends State<Profile2Page> {
       );
     }
 
-    return const Icon(
-      Icons.person,
-      size: 40,
-      color: Colors.white,
-    );
+    return const Icon(Icons.person, size: 40, color: Colors.white);
   }
 
   Widget _buildTopProfileInfo() {
@@ -564,6 +628,7 @@ class _Profile2PageState extends State<Profile2Page> {
                       ),
                     ),
                   ),
+                  _buildBottomNavigation(),
                 ],
               ),
             ),

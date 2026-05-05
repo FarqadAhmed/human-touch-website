@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'location_picker_page.dart';
 import 'Dashboard_page.dart';
@@ -40,6 +41,14 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
 
+  String _passwordText = '';
+
+  bool get _hasLowercase => RegExp(r'[a-z]').hasMatch(_passwordText);
+  bool get _hasUppercase => RegExp(r'[A-Z]').hasMatch(_passwordText);
+  bool get _hasNumber => RegExp(r'[0-9]').hasMatch(_passwordText);
+  bool get _hasSymbol => RegExp(r'[@#$!]').hasMatch(_passwordText);
+  bool get _hasMinLength => _passwordText.length >= 8;
+
   String? _selectedDisability;
   String? _selectedGender;
 
@@ -73,6 +82,55 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
     _ageFocusNode.dispose();
     _multipleDisabilitiesFocusNode.dispose();
     super.dispose();
+  }
+
+  void _generateStrongPassword() {
+    const chars =
+        'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#\$!';
+    final random = Random();
+
+    String password = '';
+    password += 'a';
+    password += 'A';
+    password += '1';
+    password += '@';
+
+    for (int i = 0; i < 6; i++) {
+      password += chars[random.nextInt(chars.length)];
+    }
+
+    final shuffled = password.split('')..shuffle();
+
+    setState(() {
+      _passwordText = shuffled.join();
+      _passwordController.text = _passwordText;
+      _confirmPasswordController.text = _passwordText;
+    });
+  }
+
+  Widget _passwordRequirement(String text, bool isValid) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          Icon(
+            isValid ? Icons.check_circle : Icons.cancel,
+            size: 16,
+            color: isValid ? Colors.green : Colors.red,
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 12,
+                color: isValid ? Colors.green : Colors.red,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   ButtonStyle _mainButtonStyle() {
@@ -135,10 +193,7 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
       ),
       filled: true,
       fillColor: Colors.white,
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 14,
-        vertical: 18,
-      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(4),
         borderSide: const BorderSide(color: Color(0xFFBDBDBD)),
@@ -164,11 +219,7 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
   }
 
   Widget _buildFieldContainer({required Widget child, double height = 64}) {
-    return SizedBox(
-      width: double.infinity,
-      height: height,
-      child: child,
-    );
+    return SizedBox(width: double.infinity, height: height, child: child);
   }
 
   Future<void> _selectLocation() async {
@@ -280,14 +331,14 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
                         );
                       },
                       style: ButtonStyle(
-                        overlayColor: WidgetStateProperty.resolveWith<Color?>(
-                          (states) {
-                            if (states.contains(WidgetState.pressed)) {
-                              return Colors.grey.withOpacity(0.30);
-                            }
-                            return null;
-                          },
-                        ),
+                        overlayColor: WidgetStateProperty.resolveWith<Color?>((
+                          states,
+                        ) {
+                          if (states.contains(WidgetState.pressed)) {
+                            return Colors.grey.withOpacity(0.30);
+                          }
+                          return null;
+                        }),
                       ),
                       icon: const Icon(
                         Icons.arrow_back,
@@ -307,7 +358,7 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
                           const SizedBox(height: 20),
                           const Center(
                             child: Text(
-                              'Sign Up',
+                              'Sign Up Patient',
                               style: TextStyle(
                                 fontSize: 40,
                                 fontWeight: FontWeight.w300,
@@ -423,14 +474,33 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
                                 ),
                               ),
                               style: const TextStyle(fontSize: 16),
+                              onChanged: (value) {
+                                setState(() {
+                                  _passwordText = value;
+                                });
+                              },
                               validator: (value) {
                                 final text = value ?? '';
+
                                 if (text.isEmpty) {
                                   return 'Please enter password';
+                                }
+                                if (!RegExp(r'[a-z]').hasMatch(text)) {
+                                  return 'Password must contain at least one lowercase letter';
+                                }
+                                if (!RegExp(r'[A-Z]').hasMatch(text)) {
+                                  return 'Password must contain at least one uppercase letter';
+                                }
+                                if (!RegExp(r'[0-9]').hasMatch(text)) {
+                                  return 'Password must contain at least one number';
+                                }
+                                if (!RegExp(r'[@#$!]').hasMatch(text)) {
+                                  return 'Password must contain at least one symbol (@#\$!)';
                                 }
                                 if (text.length < 8) {
                                   return 'Password must be at least 8 characters';
                                 }
+
                                 return null;
                               },
                               onFieldSubmitted: (_) {
@@ -438,6 +508,50 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
                                   context,
                                 ).requestFocus(_confirmPasswordFocusNode);
                               },
+                            ),
+                          ),
+
+                          const SizedBox(height: 6),
+
+                          if (_passwordText.isNotEmpty)
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _passwordRequirement(
+                                  'At least one lowercase letter (a-z)',
+                                  _hasLowercase,
+                                ),
+                                _passwordRequirement(
+                                  'At least one uppercase letter (A-Z)',
+                                  _hasUppercase,
+                                ),
+                                _passwordRequirement(
+                                  'At least one number (0-9)',
+                                  _hasNumber,
+                                ),
+                                _passwordRequirement(
+                                  'At least one symbol (@#\$!)',
+                                  _hasSymbol,
+                                ),
+                                _passwordRequirement(
+                                  'At least 8 characters',
+                                  _hasMinLength,
+                                ),
+                              ],
+                            ),
+
+                          const SizedBox(height: 6),
+
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton.icon(
+                              style: _linkButtonStyle(),
+                              onPressed: _generateStrongPassword,
+                              icon: const Icon(Icons.auto_awesome, size: 18),
+                              label: const Text(
+                                'Generate strong password',
+                                style: TextStyle(fontSize: 13),
+                              ),
                             ),
                           ),
 

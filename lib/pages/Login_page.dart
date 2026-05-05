@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'Dashboard_page.dart';
 import 'ForgetPassword_page.dart';
 import 'SignUp_page.dart';
 import 'profile_store.dart';
+import 'CompanionDashboard_page.dart';
+import 'VolunteerRequests_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -84,20 +88,101 @@ class _LoginPageState extends State<LoginPage> {
       _isLoading = true;
     });
 
-    await _saveLoginData();
-    await profileStore.loadProfile();
-    await Future.delayed(const Duration(milliseconds: 500));
+    try {
+      final UserCredential userCredential = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(
+            email: _emailController.text.trim(),
+            password: _passwordController.text.trim(),
+          );
 
-    if (!mounted) return;
+      final User? user = userCredential.user;
 
-    setState(() {
-      _isLoading = false;
-    });
+      if (user == null) {
+        throw Exception('User not found. Please try again.');
+      }
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const DashboardPage()),
-    );
+      final DocumentSnapshot<Map<String, dynamic>> userDoc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .get();
+
+      if (!userDoc.exists) {
+        throw Exception('User role not found in Firestore.');
+      }
+
+      final String role = (userDoc.data()?['role'] ?? '').toString();
+
+      await _saveLoginData();
+      await profileStore.loadProfile();
+
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (role == 'patient') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const DashboardPage()),
+        );
+      } else if (role == 'companion') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const CompanionDashboardPage(),
+          ),
+        );
+      } else if (role == 'volunteer') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const VolunteerRequestsPage(),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Unknown user role')));
+      }
+    } on FirebaseAuthException catch (e) {
+      String message = 'Email or password is incorrect.';
+
+      if (e.code == 'invalid-email') {
+        message = 'Please enter a valid email.';
+      } else if (e.code == 'user-not-found') {
+        message = 'No account found with this email.';
+      } else if (e.code == 'wrong-password') {
+        message = 'Incorrect password.';
+      } else if (e.code == 'invalid-credential') {
+        message = 'Email or password is incorrect.';
+      } else if (e.code == 'user-disabled') {
+        message = 'This account has been disabled.';
+      } else if (e.message != null && e.message!.trim().isNotEmpty) {
+        message = e.message!;
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
   }
 
   ButtonStyle _linkButtonStyle() {
@@ -142,10 +227,7 @@ class _LoginPageState extends State<LoginPage> {
       fillColor: Colors.white,
       prefixIcon: Icon(icon, color: Colors.grey),
       suffixIcon: suffixIcon,
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 14,
-        vertical: 18,
-      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(4),
         borderSide: const BorderSide(color: Color(0xFFBDBDBD)),
@@ -170,11 +252,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Widget _buildFieldContainer({required Widget child}) {
-    return SizedBox(
-      width: double.infinity,
-      height: 64,
-      child: child,
-    );
+    return SizedBox(width: double.infinity, height: 64, child: child);
   }
 
   @override

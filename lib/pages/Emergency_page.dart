@@ -104,8 +104,9 @@ class _EmergencyPageState extends State<EmergencyPage> {
   }
 
   VolunteerContact? _findNearestVolunteer(Position patientPosition) {
-    final availableVolunteers =
-        _volunteers.where((volunteer) => volunteer.available).toList();
+    final availableVolunteers = _volunteers
+        .where((volunteer) => volunteer.available)
+        .toList();
 
     if (availableVolunteers.isEmpty) return null;
 
@@ -177,7 +178,8 @@ class _EmergencyPageState extends State<EmergencyPage> {
       final locationText =
           'https://maps.google.com/?q=${position.latitude},${position.longitude}';
 
-      final companionMessage = '''
+      final companionMessage =
+          '''
 Emergency alert from Human Touch.
 The patient may need immediate help.
 
@@ -185,7 +187,8 @@ Current location:
 $locationText
 ''';
 
-      String volunteerMessage = '''
+      String volunteerMessage =
+          '''
 Emergency alert from Human Touch.
 A nearby patient may need urgent assistance.
 
@@ -234,9 +237,9 @@ $locationText
         _statusMessage = 'Emergency action completed.';
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_statusMessage)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_statusMessage)));
     } catch (e) {
       if (!mounted) return;
 
@@ -244,9 +247,9 @@ $locationText
         _statusMessage = 'Emergency failed: ${e.toString()}';
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_statusMessage)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_statusMessage)));
     } finally {
       if (mounted) {
         setState(() {
@@ -335,7 +338,6 @@ $locationText
           onTap: () => FocusScope.of(context).unfocus(),
           child: Scaffold(
             backgroundColor: const Color(0xFF87CEEB),
-
             bottomNavigationBar: Container(
               width: double.infinity,
               height: 60,
@@ -365,7 +367,7 @@ $locationText
                     icon: Icons.person_outlined,
                     isCurrent: false,
                     onTap: () {
-                      Navigator.push(
+                      Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
                           builder: (context) => const ProfilePage(),
@@ -377,7 +379,7 @@ $locationText
                     icon: Icons.settings_outlined,
                     isCurrent: false,
                     onTap: () {
-                      Navigator.push(
+                      Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
                           builder: (context) => const SettingsPage(),
@@ -388,7 +390,6 @@ $locationText
                 ],
               ),
             ),
-
             body: SafeArea(
               child: SingleChildScrollView(
                 child: Column(
@@ -400,12 +401,16 @@ $locationText
                         padding: const EdgeInsets.fromLTRB(20, 0, 0, 0),
                         child: IconButton(
                           onPressed: () {
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const DashboardPage(),
-                              ),
-                            );
+                            if (Navigator.canPop(context)) {
+                              Navigator.pop(context);
+                            } else {
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const DashboardPage(),
+                                ),
+                              );
+                            }
                           },
                           icon: const Icon(
                             Icons.arrow_back,
@@ -553,8 +558,10 @@ $locationText
                             ? 'Your current location and emergency message will be shared based on your emergency settings.'
                             : _statusMessage,
                         textAlign: TextAlign.center,
-                        style:
-                            const TextStyle(color: Colors.white, fontSize: 14),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
                   ],

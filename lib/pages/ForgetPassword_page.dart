@@ -41,6 +41,14 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
   int _currentStep = 0;
   String _generatedCode = '';
 
+  String _passwordText = '';
+
+  bool get _hasLowercase => RegExp(r'[a-z]').hasMatch(_passwordText);
+  bool get _hasUppercase => RegExp(r'[A-Z]').hasMatch(_passwordText);
+  bool get _hasNumber => RegExp(r'[0-9]').hasMatch(_passwordText);
+  bool get _hasSymbol => RegExp(r'[@#$!]').hasMatch(_passwordText);
+  bool get _hasMinLength => _passwordText.length >= 8;
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -63,6 +71,55 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
     _newPasswordFocusNode.dispose();
     _confirmPasswordFocusNode.dispose();
     super.dispose();
+  }
+
+  void _generateStrongPassword() {
+    const chars =
+        'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#\$!';
+    final random = Random();
+
+    String password = '';
+    password += 'a';
+    password += 'A';
+    password += '1';
+    password += '@';
+
+    for (int i = 0; i < 6; i++) {
+      password += chars[random.nextInt(chars.length)];
+    }
+
+    final shuffled = password.split('')..shuffle();
+
+    setState(() {
+      _passwordText = shuffled.join();
+      _newPasswordController.text = _passwordText;
+      _confirmPasswordController.text = _passwordText;
+    });
+  }
+
+  Widget _passwordRequirement(String text, bool isValid) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          Icon(
+            isValid ? Icons.check_circle : Icons.cancel,
+            size: 16,
+            color: isValid ? Colors.green : Colors.red,
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 12,
+                color: isValid ? Colors.green : Colors.red,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   ButtonStyle _mainButtonStyle() {
@@ -179,9 +236,6 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
       ),
     );
 
-    // ملاحظة:
-    // هنا مكان ربط إرسال الكود الحقيقي إلى الإيميل لاحقًا.
-    // للتجربة الحالية الكود المتولد هو:
     debugPrint('Generated verification code: $_generatedCode');
   }
 
@@ -195,9 +249,9 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
 
   Future<void> _continueFromCode() async {
     FocusScope.of(context).unfocus();
- 
+
     final enteredCode = _enteredCode();
- 
+
     if (enteredCode.length != 5) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -206,7 +260,7 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
       );
       return;
     }
- 
+
     setState(() {
       _currentStep = 2;
     });
@@ -243,7 +297,7 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: Image.asset(
-                'assets/images/freepik__logo-design-for-human-touch-app-a-stylized-fingerp__64913_(1).png',
+                'assets/logo.png',
                 width: 200,
                 height: 200,
                 fit: BoxFit.cover,
@@ -496,18 +550,80 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
                 ),
               ),
               style: const TextStyle(fontSize: 16),
+              onChanged: (value) {
+                setState(() {
+                  _passwordText = value;
+                });
+              },
               validator: (value) {
                 final text = value ?? '';
+
                 if (text.isEmpty) {
                   return 'Please enter new password';
                 }
-                if (text.length < 6) {
-                  return 'Password must be at least 6 characters';
+                if (!RegExp(r'[a-z]').hasMatch(text)) {
+                  return 'Password must contain at least one lowercase letter';
                 }
+                if (!RegExp(r'[A-Z]').hasMatch(text)) {
+                  return 'Password must contain at least one uppercase letter';
+                }
+                if (!RegExp(r'[0-9]').hasMatch(text)) {
+                  return 'Password must contain at least one number';
+                }
+                if (!RegExp(r'[@#$!]').hasMatch(text)) {
+                  return 'Password must contain at least one symbol (@#\$!)';
+                }
+                if (text.length < 8) {
+                  return 'Password must be at least 8 characters';
+                }
+
                 return null;
               },
             ),
           ),
+
+          if (_passwordText.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _passwordRequirement(
+                  'At least one lowercase letter (a-z)',
+                  _hasLowercase,
+                ),
+                _passwordRequirement(
+                  'At least one uppercase letter (A-Z)',
+                  _hasUppercase,
+                ),
+                _passwordRequirement('At least one number (0-9)', _hasNumber),
+                _passwordRequirement('At least one symbol (@#\$!)', _hasSymbol),
+                _passwordRequirement('At least 8 characters', _hasMinLength),
+              ],
+            ),
+          ],
+
+          const SizedBox(height: 6),
+
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: _generateStrongPassword,
+              icon: const Icon(Icons.auto_awesome, size: 18),
+              label: const Text(
+                'Generate strong password',
+                style: TextStyle(fontSize: 13),
+              ),
+              style: ButtonStyle(
+                padding: WidgetStateProperty.all(EdgeInsets.zero),
+                minimumSize: WidgetStateProperty.all(Size.zero),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                foregroundColor: WidgetStateProperty.all(
+                  const Color(0xFF025590),
+                ),
+              ),
+            ),
+          ),
+
           const SizedBox(height: 10),
           _buildFieldContainer(
             child: TextFormField(

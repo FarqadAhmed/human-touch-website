@@ -194,6 +194,52 @@ class _RemindersPageState extends State<RemindersPage> {
     );
   }
 
+  Widget _buildHeader() {
+    return Stack(
+      alignment: Alignment.topCenter,
+      children: [
+        Container(
+          width: double.infinity,
+          height: 130,
+          color: const Color(0xFF87CEEB),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 100),
+          child: Container(
+            width: double.infinity,
+            height: 41,
+            decoration: const BoxDecoration(
+              color: Color(0xFFF4F4F4),
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(70),
+                topRight: Radius.circular(70),
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          top: 10,
+          left: 12,
+          child: IconButton(
+            onPressed: () {
+              if (Navigator.canPop(context)) {
+                Navigator.pop(context);
+              } else {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const DashboardPage(),
+                  ),
+                );
+              }
+            },
+            icon: const Icon(Icons.arrow_back, size: 28, color: Colors.black),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -201,12 +247,12 @@ class _RemindersPageState extends State<RemindersPage> {
       builder: (context, _) {
         final medicines = store.remindersByCategory(ReminderCategory.medicine);
         final meals = store.remindersByCategory(ReminderCategory.meal);
-        final appointments =
-            store.remindersByCategory(ReminderCategory.appointment);
+        final appointments = store.remindersByCategory(
+          ReminderCategory.appointment,
+        );
 
         return Scaffold(
           backgroundColor: const Color(0xFFF4F4F4),
-
           bottomNavigationBar: Container(
             width: double.infinity,
             height: 70,
@@ -269,34 +315,10 @@ class _RemindersPageState extends State<RemindersPage> {
               ],
             ),
           ),
-
           body: SafeArea(
             child: Column(
               children: [
-                Stack(
-                  alignment: Alignment.topCenter,
-                  children: [
-                    Container(
-                      width: double.infinity,
-                      height: 130,
-                      color: const Color(0xFF87CEEB),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 100),
-                      child: Container(
-                        width: double.infinity,
-                        height: 41,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFF4F4F4),
-                          borderRadius: BorderRadius.only(
-                            topLeft: Radius.circular(70),
-                            topRight: Radius.circular(70),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                _buildHeader(),
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),

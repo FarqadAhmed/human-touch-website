@@ -1,8 +1,10 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+// import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'dashboard_page.dart';
+import 'Profile_page.dart';
+import 'Settings_page.dart';
 import 'SignUpVolunteer_page.dart';
 
 class VolunteerHelpPage extends StatefulWidget {
@@ -15,8 +17,6 @@ class VolunteerHelpPage extends StatefulWidget {
 class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
   final TextEditingController _searchController = TextEditingController();
 
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
   String _searchText = '';
   String _selectedSort = 'A-Z';
   String _selectedGender = 'All';
@@ -24,6 +24,36 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
   String _selectedHelpType = 'All';
 
   List<String> _favoriteIds = [];
+
+  final List<Map<String, dynamic>> _localVolunteers = [
+    {
+      'id': '1',
+      'name': 'Ahmed Ali',
+      'helpType': 'Medical Assistance',
+      'gender': 'Male',
+      'isAvailable': true,
+      'rating': 4.5,
+      'photoUrl': '',
+    },
+    {
+      'id': '2',
+      'name': 'Sara Mohamed',
+      'helpType': 'Delivery',
+      'gender': 'Female',
+      'isAvailable': false,
+      'rating': 4.0,
+      'photoUrl': '',
+    },
+    {
+      'id': '3',
+      'name': 'Fatima Hassan',
+      'helpType': 'Daily Support',
+      'gender': 'Female',
+      'isAvailable': true,
+      'rating': 5.0,
+      'photoUrl': '',
+    },
+  ];
 
   final List<String> _helpTypes = [
     'All',
@@ -39,9 +69,7 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
   ];
 
   final List<String> _genders = ['All', 'Male', 'Female'];
-
   final List<String> _statuses = ['All', 'Available', 'Busy'];
-
   final List<String> _sortOptions = ['A-Z', 'Z-A'];
 
   @override
@@ -59,6 +87,23 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  Widget _buildBottomNavItem({
+    required IconData icon,
+    required VoidCallback onTap,
+    bool isCurrent = false,
+  }) {
+    return IconButton(
+      onPressed: onTap,
+      icon: Icon(
+        icon,
+        size: icon == Icons.settings_outlined ? 45 : 50,
+        color: isCurrent ? const Color(0xFF87CEEB) : Colors.black,
+      ),
+      splashColor: Colors.grey.withOpacity(0.20),
+      highlightColor: Colors.grey.withOpacity(0.12),
+    );
   }
 
   Future<void> _loadFavorites() async {
@@ -86,37 +131,16 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
     required String volunteerId,
     required double rating,
   }) async {
-    try {
-      final volunteerRef = _firestore.collection('volunteers').doc(volunteerId);
+    setState(() {
+      final index = _localVolunteers.indexWhere((v) => v['id'] == volunteerId);
+      if (index != -1) {
+        _localVolunteers[index]['rating'] = rating;
+      }
+    });
 
-      await _firestore.runTransaction((transaction) async {
-        final snapshot = await transaction.get(volunteerRef);
-
-        if (!snapshot.exists) return;
-
-        final data = snapshot.data() as Map<String, dynamic>;
-
-        final double currentRating = (data['rating'] ?? 0).toDouble();
-        final int ratingCount = (data['ratingCount'] ?? 0) as int;
-
-        final double newAverage =
-            ((currentRating * ratingCount) + rating) / (ratingCount + 1);
-
-        transaction.update(volunteerRef, {
-          'rating': double.parse(newAverage.toStringAsFixed(1)),
-          'ratingCount': ratingCount + 1,
-        });
-      });
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Rating submitted successfully')),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to submit rating: $e')));
-    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Rating submitted successfully')),
+    );
   }
 
   void _openFilterSheet() {
@@ -151,7 +175,6 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
                       ),
                     ),
                     const SizedBox(height: 20),
-
                     const Text(
                       'Sort',
                       style: TextStyle(
@@ -177,9 +200,7 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
                       },
                       decoration: _dropdownDecoration(),
                     ),
-
                     const SizedBox(height: 16),
-
                     const Text(
                       'Gender',
                       style: TextStyle(
@@ -205,9 +226,7 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
                       },
                       decoration: _dropdownDecoration(),
                     ),
-
                     const SizedBox(height: 16),
-
                     const Text(
                       'Status',
                       style: TextStyle(
@@ -233,9 +252,7 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
                       },
                       decoration: _dropdownDecoration(),
                     ),
-
                     const SizedBox(height: 16),
-
                     const Text(
                       'Type of Assistance',
                       style: TextStyle(
@@ -261,9 +278,7 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
                       },
                       decoration: _dropdownDecoration(),
                     ),
-
                     const SizedBox(height: 24),
-
                     Row(
                       children: [
                         Expanded(
@@ -277,12 +292,6 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
                               });
                               Navigator.pop(context);
                             },
-                            style: OutlinedButton.styleFrom(
-                              minimumSize: const Size.fromHeight(52),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
                             child: const Text('Reset'),
                           ),
                         ),
@@ -300,10 +309,6 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF87CEEB),
-                              minimumSize: const Size.fromHeight(52),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
                             ),
                             child: const Text(
                               'Apply',
@@ -335,14 +340,8 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
     );
   }
 
-  List<QueryDocumentSnapshot<Map<String, dynamic>>> _applyFilters(
-    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
-  ) {
-    List<QueryDocumentSnapshot<Map<String, dynamic>>> filtered = docs.where((
-      doc,
-    ) {
-      final data = doc.data();
-
+  List<Map<String, dynamic>> _applyFilters(List<Map<String, dynamic>> docs) {
+    List<Map<String, dynamic>> filtered = docs.where((data) {
       final String name = (data['name'] ?? '').toString().toLowerCase();
       final String helpType = (data['helpType'] ?? '').toString();
       final String gender = (data['gender'] ?? '').toString();
@@ -366,8 +365,8 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
     }).toList();
 
     filtered.sort((a, b) {
-      final nameA = (a.data()['name'] ?? '').toString().toLowerCase();
-      final nameB = (b.data()['name'] ?? '').toString().toLowerCase();
+      final nameA = (a['name'] ?? '').toString().toLowerCase();
+      final nameB = (b['name'] ?? '').toString().toLowerCase();
 
       if (_selectedSort == 'A-Z') {
         return nameA.compareTo(nameB);
@@ -400,10 +399,8 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
     );
   }
 
-  Widget _buildVolunteerCard(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
-    final data = doc.data();
-
-    final String volunteerId = doc.id;
+  Widget _buildVolunteerCard(Map<String, dynamic> data) {
+    final String volunteerId = data['id'].toString();
     final String name = (data['name'] ?? 'Unknown').toString();
     final String helpType = (data['helpType'] ?? 'No help type').toString();
     final String gender = (data['gender'] ?? 'Unknown').toString();
@@ -435,7 +432,6 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
                     : null,
               ),
               const SizedBox(width: 12),
-
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -449,69 +445,22 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      helpType,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        color: Colors.black87,
-                      ),
-                    ),
+                    Text(helpType),
                     const SizedBox(height: 4),
-                    Text(
-                      gender,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.black54,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.star,
-                                color: Color(0xFFFFC107),
-                                size: 18,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                rating.toStringAsFixed(1),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          onPressed: () => _toggleFavorite(volunteerId),
-                          icon: Icon(
-                            isFavorite ? Icons.favorite : Icons.favorite_border,
-                            color: isFavorite ? Colors.red : Colors.grey,
-                          ),
-                        ),
-                      ],
-                    ),
+                    Text(gender, style: const TextStyle(color: Colors.black54)),
                   ],
+                ),
+              ),
+              IconButton(
+                onPressed: () => _toggleFavorite(volunteerId),
+                icon: Icon(
+                  isFavorite ? Icons.favorite : Icons.favorite_border,
+                  color: isFavorite ? Colors.red : Colors.grey,
                 ),
               ),
             ],
           ),
-
           const SizedBox(height: 12),
-
           Row(
             children: [
               Container(
@@ -542,8 +491,74 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
     );
   }
 
+  Widget _buildSmallChip(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEAF6FB),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 12,
+          color: Color(0xFF025590),
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomNavigation() {
+    return Container(
+      width: double.infinity,
+      height: 60,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(16),
+          topRight: Radius.circular(16),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _buildBottomNavItem(
+            icon: Icons.home_outlined,
+            onTap: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const DashboardPage()),
+              );
+            },
+          ),
+          _buildBottomNavItem(
+            icon: Icons.person_outlined,
+            onTap: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const ProfilePage()),
+              );
+            },
+          ),
+          _buildBottomNavItem(
+            icon: Icons.settings_outlined,
+            onTap: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsPage()),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final filteredDocs = _applyFilters(_localVolunteers);
+
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
@@ -583,13 +598,23 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
                   ),
                 ],
               ),
-
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
                 child: Row(
                   children: [
                     IconButton(
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: () {
+                        if (Navigator.canPop(context)) {
+                          Navigator.pop(context);
+                        } else {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const DashboardPage(),
+                            ),
+                          );
+                        }
+                      },
                       icon: const Icon(Icons.arrow_back, size: 28),
                     ),
                     const Expanded(
@@ -610,7 +635,6 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
                   ],
                 ),
               ),
-
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Container(
@@ -634,9 +658,7 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 12),
-
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Row(
@@ -647,9 +669,7 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
                   ],
                 ),
               ),
-
               const SizedBox(height: 6),
-
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Row(
@@ -665,100 +685,26 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
                   ],
                 ),
               ),
-
               const SizedBox(height: 12),
-
               Expanded(
-                child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                  stream: _firestore.collection('volunteers').snapshots(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-
-                    if (snapshot.hasError) {
-                      return Center(child: Text('Error: ${snapshot.error}'));
-                    }
-
-                    final docs = snapshot.data?.docs ?? [];
-                    final filteredDocs = _applyFilters(docs);
-
-                    if (filteredDocs.isEmpty) {
-                      return const Center(
+                child: filteredDocs.isEmpty
+                    ? const Center(
                         child: Text(
                           'No volunteers found',
                           style: TextStyle(fontSize: 16),
                         ),
-                      );
-                    }
-
-                    return ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                      itemCount: filteredDocs.length,
-                      itemBuilder: (context, index) {
-                        return _buildVolunteerCard(filteredDocs[index]);
-                      },
-                    );
-                  },
-                ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                        itemCount: filteredDocs.length,
+                        itemBuilder: (context, index) {
+                          return _buildVolunteerCard(filteredDocs[index]);
+                        },
+                      ),
               ),
-
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 8,
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    IconButton(
-                      onPressed: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const DashboardPage(),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.home_outlined, size: 32),
-                    ),
-                    IconButton(
-                      onPressed: () {},
-                      icon: const Icon(Icons.person_outline, size: 32),
-                    ),
-                    IconButton(
-                      onPressed: () {},
-                      icon: const Icon(Icons.settings_outlined, size: 30),
-                    ),
-                  ],
-                ),
-              ),
+              _buildBottomNavigation(),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSmallChip(String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEAF6FB),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontSize: 12,
-          color: Color(0xFF025590),
-          fontWeight: FontWeight.w600,
         ),
       ),
     );

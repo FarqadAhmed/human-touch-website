@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'Dashboard_page.dart';
 import 'Login_page.dart';
 import 'Profile2_page.dart';
 import 'Settings_page.dart';
@@ -20,6 +21,23 @@ class _ProfilePageState extends State<ProfilePage> {
   void initState() {
     super.initState();
     profileStore.loadProfile();
+  }
+
+  Widget _buildBottomNavItem({
+    required IconData icon,
+    required VoidCallback onTap,
+    bool isCurrent = false,
+  }) {
+    return IconButton(
+      onPressed: onTap,
+      icon: Icon(
+        icon,
+        size: icon == Icons.settings_outlined ? 45 : 50,
+        color: isCurrent ? const Color(0xFF87CEEB) : Colors.black,
+      ),
+      splashColor: Colors.grey.withOpacity(0.20),
+      highlightColor: Colors.grey.withOpacity(0.12),
+    );
   }
 
   Widget _buildHeader() {
@@ -63,11 +81,7 @@ class _ProfilePageState extends State<ProfilePage> {
       width: 100,
       height: 100,
       color: const Color(0xFF87CEEB),
-      child: const Icon(
-        Icons.person,
-        size: 55,
-        color: Colors.white,
-      ),
+      child: const Icon(Icons.person, size: 55, color: Colors.white),
     );
   }
 
@@ -172,8 +186,6 @@ class _ProfilePageState extends State<ProfilePage> {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       child: InkWell(
         onTap: onTap,
-        splashColor: Colors.grey.withOpacity(0.15),
-        highlightColor: Colors.grey.withOpacity(0.08),
         child: Container(
           width: double.infinity,
           decoration: BoxDecoration(
@@ -267,6 +279,50 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  Widget _buildBottomNavigation() {
+    return Container(
+      width: double.infinity,
+      height: 60,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(16),
+          topRight: Radius.circular(16),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _buildBottomNavItem(
+            icon: Icons.home_outlined,
+            isCurrent: false,
+            onTap: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const DashboardPage()),
+              );
+            },
+          ),
+          _buildBottomNavItem(
+            icon: Icons.person_outlined,
+            isCurrent: true,
+            onTap: () {},
+          ),
+          _buildBottomNavItem(
+            icon: Icons.settings_outlined,
+            isCurrent: false,
+            onTap: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsPage()),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -319,6 +375,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                     ),
                   ),
+                  _buildBottomNavigation(),
                 ],
               ),
             ),
