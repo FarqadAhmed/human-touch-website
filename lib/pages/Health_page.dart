@@ -17,7 +17,6 @@ class HealthPage extends StatefulWidget {
 class _HealthPageState extends State<HealthPage> {
   String _selectedMood = 'Happy';
   String _userName = 'User';
-
   bool _showAllActivities = false;
 
   final List<HealthMood> _moods = const [
@@ -71,33 +70,6 @@ class _HealthPageState extends State<HealthPage> {
       unit: 'Cups',
       emoji: '💧',
       color: Color(0xFFCAFFBF),
-    ),
-  ];
-
-  final List<HealthTip> _tips = const [
-    HealthTip(
-      personName: 'Dr. Amal',
-      personType: 'Doctor',
-      title: '10 tips for better sleep',
-      shortTip: 'Sleep at the same time every day.',
-      color: Color(0xFFFDFFB6),
-      emoji: '😴',
-    ),
-    HealthTip(
-      personName: 'Ali',
-      personType: 'Volunteer',
-      title: 'Healthy food matters',
-      shortTip: 'Try lighter meals and more water.',
-      color: Color(0xFFFFC6FF),
-      emoji: '🥗',
-    ),
-    HealthTip(
-      personName: 'Sara',
-      personType: 'Companion',
-      title: 'Relax before sleeping',
-      shortTip: 'Take deep breaths and avoid stress.',
-      color: Color(0xFFFFADAD),
-      emoji: '🧠',
     ),
   ];
 
@@ -383,6 +355,179 @@ class _HealthPageState extends State<HealthPage> {
     );
   }
 
+  Widget _buildHealthTipsFromFirebase() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('healthTips')
+          .orderBy('createdAt', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: const Text(
+              'Could not load health tips.',
+              style: TextStyle(fontSize: 15),
+            ),
+          );
+        }
+
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: CircularProgressIndicator(color: Color(0xFF87CEEB)),
+            ),
+          );
+        }
+
+        final docs = snapshot.data?.docs ?? [];
+
+        if (docs.isEmpty) {
+          return Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: _shadow(),
+            ),
+            child: const Text(
+              'No health tips yet. When a volunteer writes a tip, it will appear here.',
+              style: TextStyle(
+                fontSize: 15,
+                color: Colors.black87,
+                height: 1.4,
+              ),
+            ),
+          );
+        }
+
+        return Column(
+          children: docs.map((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+
+            final tip = HealthTip(
+              id: doc.id,
+              personName:
+                  (data['volunteerName'] ??
+                          data['personName'] ??
+                          data['name'] ??
+                          'Volunteer')
+                      .toString(),
+              personType: (data['personType'] ?? 'Volunteer').toString(),
+              title: (data['title'] ?? 'Health Tip').toString(),
+              shortTip:
+                  (data['shortTip'] ??
+                          data['description'] ??
+                          data['tip'] ??
+                          'No details available.')
+                      .toString(),
+              fullTip:
+                  (data['fullTip'] ??
+                          data['description'] ??
+                          data['tip'] ??
+                          data['shortTip'] ??
+                          'No details available.')
+                      .toString(),
+              category: (data['category'] ?? 'Health').toString(),
+              emoji: (data['emoji'] ?? '💙').toString(),
+              createdAt: data['createdAt'],
+            );
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 14),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(28),
+                onTap: () => _openTipDetails(tip),
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFD9F3FF),
+                    borderRadius: BorderRadius.circular(28),
+                    boxShadow: _shadow(),
+                  ),
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  width: 34,
+                                  height: 34,
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.volunteer_activism,
+                                    size: 20,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    '${tip.personName} • ${tip.personType}',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 14),
+                            Text(
+                              tip.title,
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              tip.shortTip,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              tip.category,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFF5D6D7E),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(tip.emoji, style: const TextStyle(fontSize: 52)),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final activitiesToShow = _showAllActivities
@@ -502,82 +647,7 @@ class _HealthPageState extends State<HealthPage> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    ..._tips.map((tip) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 14),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(28),
-                          onTap: () => _openTipDetails(tip),
-                          child: Container(
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              color: tip.color,
-                              borderRadius: BorderRadius.circular(28),
-                            ),
-                            padding: const EdgeInsets.all(16),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Container(
-                                            width: 34,
-                                            height: 34,
-                                            decoration: const BoxDecoration(
-                                              color: Colors.white,
-                                              shape: BoxShape.circle,
-                                            ),
-                                            child: const Icon(
-                                              Icons.person,
-                                              size: 20,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Text(
-                                              '${tip.personName} • ${tip.personType}',
-                                              style: const TextStyle(
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 14),
-                                      Text(
-                                        tip.title,
-                                        style: const TextStyle(
-                                          fontSize: 22,
-                                          fontWeight: FontWeight.w800,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        tip.shortTip,
-                                        style: const TextStyle(
-                                          fontSize: 15,
-                                          color: Colors.black87,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Text(
-                                  tip.emoji,
-                                  style: const TextStyle(fontSize: 56),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    }),
+                    _buildHealthTipsFromFirebase(),
                     const SizedBox(height: 90),
                   ],
                 ),
@@ -622,20 +692,26 @@ class HealthActivity {
 }
 
 class HealthTip {
+  final String id;
   final String personName;
   final String personType;
   final String title;
   final String shortTip;
-  final Color color;
+  final String fullTip;
+  final String category;
   final String emoji;
+  final dynamic createdAt;
 
   const HealthTip({
+    required this.id,
     required this.personName,
     required this.personType,
     required this.title,
     required this.shortTip,
-    required this.color,
+    required this.fullTip,
+    required this.category,
     required this.emoji,
+    required this.createdAt,
   });
 }
 
@@ -644,24 +720,40 @@ class HealthTipDetailsPage extends StatelessWidget {
 
   const HealthTipDetailsPage({super.key, required this.tip});
 
+  String _formatDate(dynamic createdAt) {
+    try {
+      if (createdAt is Timestamp) {
+        final date = createdAt.toDate();
+        return '${date.day}/${date.month}/${date.year}';
+      }
+      return '';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  void _goBack(BuildContext context) {
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const HealthPage()),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final dateText = _formatDate(tip.createdAt);
+
     return Scaffold(
       backgroundColor: const Color(0xFFF4F4F4),
       appBar: AppBar(
         backgroundColor: const Color(0xFF87CEEB),
         elevation: 0,
         leading: IconButton(
-          onPressed: () {
-            if (Navigator.canPop(context)) {
-              Navigator.pop(context);
-            } else {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const DashboardPage()),
-              );
-            }
-          },
+          onPressed: () => _goBack(context),
           icon: const Icon(Icons.arrow_back, size: 28),
         ),
         title: const Text('Tip Details'),
@@ -672,12 +764,21 @@ class HealthTipDetailsPage extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: tip.color,
+            color: const Color(0xFFD9F3FF),
             borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 12,
+                offset: const Offset(0, 5),
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Text(tip.emoji, style: const TextStyle(fontSize: 54)),
+              const SizedBox(height: 12),
               Text(
                 '${tip.personName} • ${tip.personType}',
                 style: const TextStyle(
@@ -685,6 +786,16 @@ class HealthTipDetailsPage extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                 ),
               ),
+              if (dateText.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  dateText,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF5D6D7E),
+                  ),
+                ),
+              ],
               const SizedBox(height: 16),
               Text(
                 tip.title,
@@ -693,15 +804,23 @@ class HealthTipDetailsPage extends StatelessWidget {
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               Text(
-                tip.shortTip,
-                style: const TextStyle(fontSize: 18, color: Colors.black87),
+                tip.category,
+                style: const TextStyle(
+                  fontSize: 15,
+                  color: Color(0xFF5D6D7E),
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-              const SizedBox(height: 20),
-              const Text(
-                'Here you can show full advice details, doctor notes, or more health information.',
-                style: TextStyle(fontSize: 16),
+              const SizedBox(height: 18),
+              Text(
+                tip.fullTip,
+                style: const TextStyle(
+                  fontSize: 17,
+                  color: Colors.black87,
+                  height: 1.5,
+                ),
               ),
             ],
           ),
@@ -976,28 +1095,22 @@ class _AIQuestionsPageState extends State<AIQuestionsPage> {
                       borderRadius: BorderRadius.circular(20),
                     ),
                     const Spacer(),
-                    Center(
-                      child: Column(
-                        children: [
-                          Text(
-                            question.title,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.black,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            question.subtitle,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Color(0xFF5D6D7E),
-                            ),
-                          ),
-                        ],
+                    Text(
+                      question.title,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.black,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      question.subtitle,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF5D6D7E),
                       ),
                     ),
                     const SizedBox(height: 30),
@@ -1072,7 +1185,6 @@ class _AIQuestionsPageState extends State<AIQuestionsPage> {
 
   Widget _buildOptions(AIQuestion question) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: question.options.map((option) {
         final bool selected = _answers[_currentIndex] == option;
 

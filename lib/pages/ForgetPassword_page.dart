@@ -526,6 +526,29 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
         children: [
           _buildStepHeader(title: 'Enter New Password'),
           const SizedBox(height: 10),
+
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: _generateStrongPassword,
+              icon: const Icon(Icons.auto_awesome, size: 18),
+              label: const Text(
+                'Generate strong password',
+                style: TextStyle(fontSize: 13),
+              ),
+              style: ButtonStyle(
+                padding: WidgetStateProperty.all(EdgeInsets.zero),
+                minimumSize: WidgetStateProperty.all(Size.zero),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                foregroundColor: WidgetStateProperty.all(
+                  const Color(0xFF025590),
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 6),
+
           _buildFieldContainer(
             child: TextFormField(
               controller: _newPasswordController,
@@ -602,29 +625,8 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
             ),
           ],
 
-          const SizedBox(height: 6),
-
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton.icon(
-              onPressed: _generateStrongPassword,
-              icon: const Icon(Icons.auto_awesome, size: 18),
-              label: const Text(
-                'Generate strong password',
-                style: TextStyle(fontSize: 13),
-              ),
-              style: ButtonStyle(
-                padding: WidgetStateProperty.all(EdgeInsets.zero),
-                minimumSize: WidgetStateProperty.all(Size.zero),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                foregroundColor: WidgetStateProperty.all(
-                  const Color(0xFF025590),
-                ),
-              ),
-            ),
-          ),
-
           const SizedBox(height: 10),
+
           _buildFieldContainer(
             child: TextFormField(
               controller: _confirmPasswordController,

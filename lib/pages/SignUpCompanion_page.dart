@@ -383,7 +383,7 @@ class _SignUpCompanionPageState extends State<SignUpCompanionPage> {
                                 return 'Please enter your phone number';
                               }
 
-                              if (text.length < 8 || text.length > 8) {
+                              if (text.length != 8) {
                                 return 'Please enter a valid phone number';
                               }
 
@@ -398,6 +398,21 @@ class _SignUpCompanionPageState extends State<SignUpCompanionPage> {
                         ),
 
                         const SizedBox(height: 10),
+
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton.icon(
+                            style: _linkButtonStyle(),
+                            onPressed: _generateStrongPassword,
+                            icon: const Icon(Icons.auto_awesome, size: 18),
+                            label: const Text(
+                              'Generate strong password',
+                              style: TextStyle(fontSize: 13),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 6),
 
                         _buildFieldContainer(
                           child: TextFormField(
@@ -490,21 +505,6 @@ class _SignUpCompanionPageState extends State<SignUpCompanionPage> {
                             ],
                           ),
                         ],
-
-                        const SizedBox(height: 6),
-
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton.icon(
-                            style: _linkButtonStyle(),
-                            onPressed: _generateStrongPassword,
-                            icon: const Icon(Icons.auto_awesome, size: 18),
-                            label: const Text(
-                              'Generate strong password',
-                              style: TextStyle(fontSize: 13),
-                            ),
-                          ),
-                        ),
 
                         const SizedBox(height: 10),
 

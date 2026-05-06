@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'Profile_page.dart';
 import 'Settings_page.dart';
 import 'CompanionDashboard_page.dart';
@@ -19,31 +20,192 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _timeController = TextEditingController();
   final TextEditingController _emojiController = TextEditingController();
+  final TextEditingController _dateController = TextEditingController();
+  final TextEditingController _otherReminderController =
+      TextEditingController();
 
   ReminderCategory _selectedCategory = ReminderCategory.medicine;
   ReminderItem? _editingReminder;
 
-  String _selectedDay = 'Wednesday';
+  late String _selectedDay;
 
   bool _notification = true;
   bool _sound = true;
 
-  final List<String> _days = const [
-    'Sunday',
+  DateTime _selectedTime = DateTime.now();
+  DateTime _selectedDate = DateTime.now();
+
+  String _selectedEmoji = '💊';
+
+  final List<String> _emojiList = const [
+    '💊',
+    '🍽️',
+    '📅',
+    '❤️',
+    '😊',
+    '😴',
+    '🏃‍♀️',
+    '🧘‍♀️',
+    '🚰',
+    '🩺',
+    '🌞',
+    '⭐',
+    '✅',
+    '⏰',
+    '📝',
+    '🧠',
+    '🍎',
+    '🚶‍♀️',
+  ];
+
+  final List<String> _weekDays = const [
     'Monday',
     'Tuesday',
     'Wednesday',
     'Thursday',
     'Friday',
     'Saturday',
+    'Sunday',
   ];
+
+  final List<String> _shortWeekDays = const [
+    'Mon',
+    'Tue',
+    'Wed',
+    'Thu',
+    'Fri',
+    'Sat',
+    'Sun',
+  ];
+
+  final List<String> _months = const [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDay = _formatDate(_selectedDate);
+    _dateController.text = _selectedDay;
+    _emojiController.text = _selectedEmoji;
+  }
 
   @override
   void dispose() {
     _titleController.dispose();
     _timeController.dispose();
     _emojiController.dispose();
+    _dateController.dispose();
+    _otherReminderController.dispose();
     super.dispose();
+  }
+
+  List<DateTime> _currentWeekDates() {
+    final DateTime monday = _selectedDate.subtract(
+      Duration(days: _selectedDate.weekday - 1),
+    );
+
+    return List.generate(7, (index) {
+      return DateTime(monday.year, monday.month, monday.day + index);
+    });
+  }
+
+  String _formatDate(DateTime date) {
+    final String dayName = _weekDays[date.weekday - 1];
+    final String monthName = _months[date.month - 1];
+    final String dayNumber = date.day.toString().padLeft(2, '0');
+
+    return '$dayName, $dayNumber $monthName ${date.year}';
+  }
+
+  void _pickDate() async {
+    final DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2024),
+      lastDate: DateTime(2035),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF69B7E8),
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (pickedDate != null) {
+      setState(() {
+        _selectedDate = pickedDate;
+        _selectedDay = _formatDate(pickedDate);
+        _dateController.text = _selectedDay;
+      });
+    }
+  }
+
+  void _pickTime() async {
+    final TimeOfDay initialTime = TimeOfDay(
+      hour: _selectedTime.hour,
+      minute: _selectedTime.minute,
+    );
+
+    final TimeOfDay? pickedTime = await showTimePicker(
+      context: context,
+      initialTime: initialTime,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF69B7E8),
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
+            ),
+            timePickerTheme: const TimePickerThemeData(
+              backgroundColor: Colors.white,
+              hourMinuteTextColor: Colors.black,
+              dayPeriodTextColor: Colors.black,
+              dialHandColor: Color(0xFF69B7E8),
+              dialBackgroundColor: Color(0xFFF4F4F4),
+              entryModeIconColor: Color(0xFF69B7E8),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (pickedTime != null) {
+      final now = DateTime.now();
+
+      setState(() {
+        _selectedTime = DateTime(
+          now.year,
+          now.month,
+          now.day,
+          pickedTime.hour,
+          pickedTime.minute,
+        );
+
+        _timeController.text = MaterialLocalizations.of(
+          context,
+        ).formatTimeOfDay(pickedTime, alwaysUse24HourFormat: false);
+      });
+    }
   }
 
   void _goBack() {
@@ -188,6 +350,8 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
         return 'Meal';
       case ReminderCategory.appointment:
         return 'Appointment';
+      case ReminderCategory.others:
+        return 'Others';
     }
   }
 
@@ -199,6 +363,8 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
         return Icons.restaurant_outlined;
       case ReminderCategory.appointment:
         return Icons.calendar_month_outlined;
+      case ReminderCategory.others:
+        return Icons.more_horiz_rounded;
     }
   }
 
@@ -207,11 +373,19 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
       _editingReminder = null;
       _titleController.clear();
       _timeController.clear();
-      _emojiController.clear();
+      _otherReminderController.clear();
+
+      _selectedEmoji = '💊';
+      _emojiController.text = _selectedEmoji;
+
       _selectedCategory = ReminderCategory.medicine;
-      _selectedDay = 'Wednesday';
+      _selectedDate = DateTime.now();
+      _selectedDay = _formatDate(_selectedDate);
+      _dateController.text = _selectedDay;
+
       _notification = true;
       _sound = true;
+      _selectedTime = DateTime.now();
     });
   }
 
@@ -220,9 +394,19 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
       _editingReminder = item;
       _titleController.text = item.title;
       _timeController.text = item.time;
+
+      if (item.category == ReminderCategory.others) {
+        _otherReminderController.text = item.title;
+      } else {
+        _otherReminderController.clear();
+      }
+
+      _selectedEmoji = item.emoji;
       _emojiController.text = item.emoji;
+
       _selectedCategory = item.category;
       _selectedDay = item.day;
+      _dateController.text = item.day;
       _notification = item.notification;
       _sound = item.sound;
     });
@@ -233,13 +417,17 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
   void _saveReminder() {
     if (!_formKey.currentState!.validate()) return;
 
+    final String reminderTitle = _selectedCategory == ReminderCategory.others
+        ? _otherReminderController.text.trim()
+        : _titleController.text.trim();
+
     if (_editingReminder == null) {
       final item = ReminderItem(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
-        title: _titleController.text.trim(),
+        title: reminderTitle,
         time: _timeController.text.trim(),
-        day: _selectedDay,
-        emoji: _emojiController.text.trim(),
+        day: _dateController.text.trim(),
+        emoji: _selectedEmoji,
         category: _selectedCategory,
         notification: _notification,
         sound: _sound,
@@ -249,10 +437,10 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
     } else {
       final updatedItem = ReminderItem(
         id: _editingReminder!.id,
-        title: _titleController.text.trim(),
+        title: reminderTitle,
         time: _timeController.text.trim(),
-        day: _selectedDay,
-        emoji: _emojiController.text.trim(),
+        day: _dateController.text.trim(),
+        emoji: _selectedEmoji,
         category: _selectedCategory,
         notification: _notification,
         sound: _sound,
@@ -262,6 +450,10 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
       store.updateReminder(updatedItem);
     }
 
+    setState(() {
+      _selectedDay = _dateController.text.trim();
+    });
+
     Navigator.pop(context);
     _clearForm();
     setState(() {});
@@ -270,6 +462,83 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
   void _deleteReminder(ReminderItem item) {
     store.deleteReminder(item.id);
     setState(() {});
+  }
+
+  void _showEmojiPicker(StateSetter modalSetState) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (_) {
+        return Container(
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 28),
+          height: 310,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Choose Emoji',
+                style: TextStyle(
+                  color: Color(0xFF333333),
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: GridView.builder(
+                  itemCount: _emojiList.length,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 6,
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                  ),
+                  itemBuilder: (context, index) {
+                    final emoji = _emojiList[index];
+
+                    return GestureDetector(
+                      onTap: () {
+                        modalSetState(() {
+                          _selectedEmoji = emoji;
+                          _emojiController.text = emoji;
+                        });
+                        setState(() {
+                          _selectedEmoji = emoji;
+                          _emojiController.text = emoji;
+                        });
+                        Navigator.pop(context);
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: _selectedEmoji == emoji
+                              ? const Color(0xFFEAF7FD)
+                              : const Color(0xFFF4F4F4),
+                          border: Border.all(
+                            color: _selectedEmoji == emoji
+                                ? const Color(0xFF69B7E8)
+                                : Colors.transparent,
+                            width: 2,
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Center(
+                          child: Text(
+                            emoji,
+                            style: const TextStyle(fontSize: 28),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   void _showReminderForm() {
@@ -314,33 +583,11 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
                         icon: Icons.title,
                       ),
                       const SizedBox(height: 12),
-                      _buildInput(
-                        label: 'Time',
-                        controller: _timeController,
-                        icon: Icons.access_time,
-                      ),
+                      _buildTimeInput(),
                       const SizedBox(height: 12),
-                      _buildInput(
-                        label: 'Emoji',
-                        controller: _emojiController,
-                        icon: Icons.emoji_emotions_outlined,
-                      ),
+                      _buildEmojiInput(modalSetState),
                       const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        value: _selectedDay,
-                        decoration: _inputDecoration(
-                          label: 'Day',
-                          icon: Icons.calendar_today_outlined,
-                        ),
-                        items: _days.map((day) {
-                          return DropdownMenuItem(value: day, child: Text(day));
-                        }).toList(),
-                        onChanged: (value) {
-                          modalSetState(() {
-                            _selectedDay = value!;
-                          });
-                        },
-                      ),
+                      _buildDateInput(),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<ReminderCategory>(
                         value: _selectedCategory,
@@ -357,9 +604,27 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
                         onChanged: (value) {
                           modalSetState(() {
                             _selectedCategory = value!;
+                            if (_selectedCategory != ReminderCategory.others) {
+                              _otherReminderController.clear();
+                            }
+                          });
+
+                          setState(() {
+                            _selectedCategory = value!;
+                            if (_selectedCategory != ReminderCategory.others) {
+                              _otherReminderController.clear();
+                            }
                           });
                         },
                       ),
+                      if (_selectedCategory == ReminderCategory.others) ...[
+                        const SizedBox(height: 12),
+                        _buildInput(
+                          label: 'Write your reminder',
+                          controller: _otherReminderController,
+                          icon: Icons.edit_note_rounded,
+                        ),
+                      ],
                       const SizedBox(height: 14),
                       SwitchListTile(
                         value: _notification,
@@ -447,40 +712,194 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
     );
   }
 
-  Widget _buildDayTab(String day) {
-    final bool isSelected = _selectedDay == day;
+  Widget _buildEmojiInput(StateSetter modalSetState) {
+    return TextFormField(
+      controller: _emojiController,
+      readOnly: true,
+      onTap: () => _showEmojiPicker(modalSetState),
+      decoration:
+          _inputDecoration(
+            label: 'Emoji',
+            icon: Icons.emoji_emotions_outlined,
+          ).copyWith(
+            suffixIcon: const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: Color(0xFF69B7E8),
+            ),
+          ),
+      validator: (value) {
+        if ((value ?? '').trim().isEmpty) {
+          return 'Please select emoji';
+        }
+        return null;
+      },
+    );
+  }
+
+  Widget _buildTimeInput() {
+    return TextFormField(
+      controller: _timeController,
+      readOnly: true,
+      onTap: _pickTime,
+      decoration: _inputDecoration(label: 'Time', icon: Icons.access_time)
+          .copyWith(
+            suffixIcon: const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: Color(0xFF69B7E8),
+            ),
+          ),
+      validator: (value) {
+        if ((value ?? '').trim().isEmpty) {
+          return 'Please select time';
+        }
+        return null;
+      },
+    );
+  }
+
+  Widget _buildDateInput() {
+    return TextFormField(
+      controller: _dateController,
+      readOnly: true,
+      onTap: _pickDate,
+      decoration:
+          _inputDecoration(
+            label: 'Day / Date',
+            icon: Icons.calendar_month_outlined,
+          ).copyWith(
+            suffixIcon: const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: Color(0xFF69B7E8),
+            ),
+          ),
+      validator: (value) {
+        if ((value ?? '').trim().isEmpty) {
+          return 'Please select day';
+        }
+        return null;
+      },
+    );
+  }
+
+  Widget _buildWeekDayTab(DateTime date) {
+    final bool isSelected = _formatDate(date) == _selectedDay;
+
+    final int reminderCount = store.reminders.where((item) {
+      return item.day == _formatDate(date);
+    }).length;
 
     return Expanded(
       child: GestureDetector(
         onTap: () {
           setState(() {
-            _selectedDay = day;
+            _selectedDate = date;
+            _selectedDay = _formatDate(date);
+            _dateController.text = _selectedDay;
           });
         },
         child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 2),
-          height: 50,
+          padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
             color: isSelected
                 ? const Color(0xFF69B7E8)
                 : const Color(0xFFE9E9E9),
-            borderRadius: BorderRadius.circular(13),
+            borderRadius: BorderRadius.circular(14),
           ),
-          child: Center(
-            child: Text(
-              day,
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: isSelected ? Colors.white : const Color(0xFF333333),
-                fontSize: 8.5,
-                fontWeight: FontWeight.bold,
+          child: Column(
+            children: [
+              Text(
+                _shortWeekDays[date.weekday - 1],
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: isSelected ? Colors.white : const Color(0xFF333333),
+                ),
               ),
-            ),
+              const SizedBox(height: 4),
+              Text(
+                '${date.day}',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: isSelected ? Colors.white : const Color(0xFF333333),
+                ),
+              ),
+              const SizedBox(height: 4),
+              CircleAvatar(
+                radius: 9,
+                backgroundColor: isSelected ? Colors.white : Colors.transparent,
+                child: Text(
+                  '$reminderCount',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: isSelected
+                        ? const Color(0xFF69B7E8)
+                        : const Color(0xFF777777),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildWeekSelector() {
+    final weekDates = _currentWeekDates();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'This Week',
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF333333),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(children: weekDates.map(_buildWeekDayTab).toList()),
+        const SizedBox(height: 12),
+        GestureDetector(
+          onTap: _pickDate,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: _shadow(),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.calendar_month_outlined,
+                  color: Color(0xFF69B7E8),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    _selectedDay,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF333333),
+                    ),
+                  ),
+                ),
+                const Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: Color(0xFF69B7E8),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -547,11 +966,22 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
                       color: Colors.grey,
                     ),
                     const SizedBox(width: 5),
-                    Text(
-                      '${_categoryText(item.category)} • ${item.time}',
-                      style: const TextStyle(color: Colors.grey, fontSize: 13),
+                    Expanded(
+                      child: Text(
+                        '${_categoryText(item.category)} • ${item.time}',
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 13,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  item.day,
+                  style: const TextStyle(color: Colors.grey, fontSize: 12),
                 ),
               ],
             ),
@@ -575,7 +1005,7 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
       animation: store,
       builder: (context, _) {
         final selectedReminders = store.reminders.where((item) {
-          return item.day.toLowerCase() == _selectedDay.toLowerCase();
+          return item.day == _selectedDay;
         }).toList();
 
         return Scaffold(
@@ -623,7 +1053,7 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(children: _days.map(_buildDayTab).toList()),
+                        _buildWeekSelector(),
                         const SizedBox(height: 24),
                         Expanded(
                           child: selectedReminders.isEmpty

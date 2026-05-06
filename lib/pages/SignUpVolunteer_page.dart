@@ -53,9 +53,6 @@ class _SignUpVolunteerPageState extends State<SignUpVolunteerPage> {
   double? _selectedLatitude;
   double? _selectedLongitude;
 
-  // final FirebaseAuth _auth = FirebaseAuth.instance;
-  // final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
   @override
   void dispose() {
     _nameController.dispose();
@@ -228,26 +225,6 @@ class _SignUpVolunteerPageState extends State<SignUpVolunteerPage> {
     }
   }
 
-  /*
-  Future<void> _saveVolunteerToFirestore({required User user}) async {
-    await _firestore.collection('volunteers').doc(user.uid).set({
-      'uid': user.uid,
-      'name': _nameController.text.trim(),
-      'email': _emailController.text.trim(),
-      'phone': _phoneController.text.trim(),
-      'gender': _selectedGender,
-      'helpType': _assistanceController.text.trim(),
-      'location': _locationController.text.trim(),
-      'latitude': _selectedLatitude,
-      'longitude': _selectedLongitude,
-      'isAvailable': true,
-      'role': 'volunteer',
-      'rating': 0,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-  }
-  */
-
   Future<void> _handleSignUp() async {
     FocusScope.of(context).unfocus();
 
@@ -299,77 +276,6 @@ class _SignUpVolunteerPageState extends State<SignUpVolunteerPage> {
       context,
       MaterialPageRoute(builder: (context) => const VolunteerDashboardPage()),
     );
-
-    /*
-    try {
-      final UserCredential userCredential =
-          await _auth.createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-      );
-
-      final User? user = userCredential.user;
-
-      if (user == null) {
-        throw FirebaseAuthException(
-          code: 'user-null',
-          message: 'User creation failed. Please try again.',
-        );
-      }
-
-      await user.updateDisplayName(_nameController.text.trim());
-      await _saveVolunteerToFirestore(user: user);
-
-      profileStore.updateName(_nameController.text.trim());
-      profileStore.updateEmail(_emailController.text.trim());
-      profileStore.updatePhoneNumber(_phoneController.text.trim());
-      profileStore.updatePassword(_passwordController.text.trim());
-      profileStore.updateUserRole('volunteer');
-
-      await profileStore.saveProfile();
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Volunteer account created successfully')),
-      );
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const DashboardPage()),
-      );
-    } on FirebaseAuthException catch (e) {
-      String message = 'Sign up failed. Please try again.';
-
-      if (e.code == 'email-already-in-use') {
-        message = 'This email is already in use.';
-      } else if (e.code == 'invalid-email') {
-        message = 'Please enter a valid email.';
-      } else if (e.code == 'weak-password') {
-        message = 'Password is too weak.';
-      } else if (e.code == 'operation-not-allowed') {
-        message = 'Email/password sign up is not enabled in Firebase.';
-      } else if (e.message != null && e.message!.trim().isNotEmpty) {
-        message = e.message!;
-      }
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-    */
   }
 
   @override
@@ -498,7 +404,7 @@ class _SignUpVolunteerPageState extends State<SignUpVolunteerPage> {
                               if (text.isEmpty) {
                                 return 'Please enter your phone number';
                               }
-                              if (text.length < 8 || text.length > 8) {
+                              if (text.length != 8) {
                                 return 'Please enter a valid phone number';
                               }
                               return null;
@@ -512,6 +418,21 @@ class _SignUpVolunteerPageState extends State<SignUpVolunteerPage> {
                         ),
 
                         const SizedBox(height: 10),
+
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton.icon(
+                            style: _linkButtonStyle(),
+                            onPressed: _generateStrongPassword,
+                            icon: const Icon(Icons.auto_awesome, size: 18),
+                            label: const Text(
+                              'Generate strong password',
+                              style: TextStyle(fontSize: 13),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 6),
 
                         _buildFieldContainer(
                           child: TextFormField(
@@ -602,21 +523,6 @@ class _SignUpVolunteerPageState extends State<SignUpVolunteerPage> {
                             ],
                           ),
                         ],
-
-                        const SizedBox(height: 6),
-
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton.icon(
-                            style: _linkButtonStyle(),
-                            onPressed: _generateStrongPassword,
-                            icon: const Icon(Icons.auto_awesome, size: 18),
-                            label: const Text(
-                              'Generate strong password',
-                              style: TextStyle(fontSize: 13),
-                            ),
-                          ),
-                        ),
 
                         const SizedBox(height: 10),
 

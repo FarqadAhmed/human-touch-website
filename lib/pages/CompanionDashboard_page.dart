@@ -22,8 +22,12 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
   Timer? _timer;
   String _lastUpdated = '';
 
+  bool _isLoading = true;
+  bool _isLinkedToPatient = false;
+
   String companionName = 'Companion';
   String patientName = 'Patient';
+  String patientUid = '';
 
   String patientStatus = 'Stable';
   String mood = 'Calm 😊';
@@ -37,7 +41,7 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
   void initState() {
     super.initState();
     _updateTime();
-    _loadNamesFromFirebase();
+    _loadCompanionAndPatientData();
 
     _timer = Timer.periodic(const Duration(seconds: 10), (_) {
       if (!mounted) return;
@@ -45,26 +49,77 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
     });
   }
 
-  Future<void> _loadNamesFromFirebase() async {
+  Future<void> _loadCompanionAndPatientData() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
 
-      final doc = await FirebaseFirestore.instance
+      if (user == null) {
+        setState(() {
+          _isLoading = false;
+          _isLinkedToPatient = false;
+        });
+        return;
+      }
+
+      final companionDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .get();
 
-      if (!doc.exists) return;
+      if (!companionDoc.exists) {
+        setState(() {
+          _isLoading = false;
+          _isLinkedToPatient = false;
+        });
+        return;
+      }
 
-      final data = doc.data();
+      final companionData = companionDoc.data();
+
+      companionName = companionData?['name'] ?? 'Companion';
+      patientUid = companionData?['patientUid'] ?? '';
+
+      if (patientUid.trim().isEmpty) {
+        setState(() {
+          _isLoading = false;
+          _isLinkedToPatient = false;
+        });
+        return;
+      }
+
+      final patientDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(patientUid)
+          .get();
+
+      if (!patientDoc.exists) {
+        setState(() {
+          _isLoading = false;
+          _isLinkedToPatient = false;
+        });
+        return;
+      }
+
+      final patientData = patientDoc.data();
 
       setState(() {
-        companionName = data?['name'] ?? 'Companion';
-        patientName = data?['patientName'] ?? 'Patient';
+        patientName = patientData?['name'] ?? 'Patient';
+        patientStatus = patientData?['status'] ?? 'Stable';
+        mood = patientData?['mood'] ?? 'Calm 😊';
+        location = patientData?['location'] ?? 'Manama';
+        heartRate = patientData?['heartRate'] ?? 78;
+        sleepHours = patientData?['sleepHours'] ?? 7;
+
+        _isLoading = false;
+        _isLinkedToPatient = true;
       });
     } catch (e) {
-      debugPrint('Error loading companion/patient names: $e');
+      debugPrint('Error loading companion/patient data: $e');
+
+      setState(() {
+        _isLoading = false;
+        _isLinkedToPatient = false;
+      });
     }
   }
 
@@ -145,13 +200,6 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
           'message':
               '$patientName missed multiple reminders today. Please check in with the patient.',
         },
-        {
-          'icon': Icons.medication_liquid,
-          'color': Colors.red,
-          'title': 'Medication Follow-up',
-          'message':
-              'Medication compliance may be low today. Review missed medicines from reminders.',
-        },
       ];
     }
 
@@ -175,20 +223,6 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
           'title': 'Low Sleep',
           'message':
               '$patientName may feel tired today because sleep hours are low.',
-        },
-      ];
-    }
-
-    if (mood.toLowerCase().contains('sad') ||
-        mood.toLowerCase().contains('stressed') ||
-        mood.toLowerCase().contains('angry')) {
-      return [
-        {
-          'icon': Icons.psychology_alt,
-          'color': Colors.orange,
-          'title': 'Emotional Support',
-          'message':
-              '$patientName may need emotional support today. Consider sending a message.',
         },
       ];
     }
@@ -332,6 +366,81 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
     );
   }
 
+  Widget _buildNotLinkedView() {
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+        child: Center(
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: _shadow(),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.link_off_rounded,
+                  size: 70,
+                  color: Color(0xFF87CEEB),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'No Patient Linked',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'You need to link your account with a patient first to view health updates, reminders, alerts, location, reports, and quick actions.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: Colors.black54,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (_) => const ProfilePage()),
+                      );
+                    },
+                    icon: const Icon(Icons.person, color: Colors.white),
+                    label: const Text(
+                      'Go to Profile',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF87CEEB),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _healthItem(IconData icon, String title, String value) {
     return Column(
       children: [
@@ -458,17 +567,6 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
         Text('Pending Reminders: $pending'),
         Text('Missed Reminders: $missed'),
         Text('Daily Progress: ${(progress * 100).round()}%'),
-        const SizedBox(height: 16),
-        _buildSimpleBarChart(
-          [
-            reminders.isEmpty ? 0 : ((done / reminders.length) * 100).round(),
-            reminders.isEmpty
-                ? 0
-                : ((pending / reminders.length) * 100).round(),
-            reminders.isEmpty ? 0 : ((missed / reminders.length) * 100).round(),
-          ],
-          ['Done', 'Pend', 'Miss'],
-        ),
       ],
     );
   }
@@ -526,430 +624,403 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
     return _buildDailyReport(reminders);
   }
 
+  Widget _buildLinkedDashboard(List reminders) {
+    final missedReminders = reminders.where((item) {
+      return _reminderStatusText(item.status) == 'Missed';
+    }).toList();
+
+    final progress = _careProgress(reminders);
+    final progressPercent = (progress * 100).round();
+    final progressColor = _progressColor(progress);
+    final aiInsights = _generateAiInsights(reminders);
+
+    return Expanded(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${getGreeting()}, $companionName 👋',
+              style: const TextStyle(
+                fontSize: 25,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Here is $patientName\'s latest update',
+              style: const TextStyle(fontSize: 16, color: Colors.black54),
+            ),
+
+            _card(
+              child: Row(
+                children: [
+                  const CircleAvatar(
+                    radius: 32,
+                    backgroundColor: Color(0xFFEAF8FD),
+                    child: Icon(
+                      Icons.person,
+                      size: 38,
+                      color: Color(0xFF2D9CDB),
+                    ),
+                  ),
+                  const SizedBox(width: 15),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          patientName,
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.circle,
+                              size: 12,
+                              color: _statusColor(patientStatus),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(patientStatus),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Last update: $_lastUpdated',
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 18),
+            _sectionTitle('Alerts'),
+
+            if (missedReminders.isEmpty)
+              _card(
+                child: const Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.green),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'No urgent alerts. Patient is doing well today.',
+                        style: TextStyle(fontSize: 15),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              _card(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: missedReminders.map((item) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.warning_amber_rounded,
+                            color: Colors.red,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              '${item.title} was missed at ${item.time}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+
+            const SizedBox(height: 18),
+            _sectionTitle('Health Summary'),
+
+            _card(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _healthItem(Icons.favorite, 'Heart Rate', '$heartRate BPM'),
+                  _healthItem(Icons.mood, 'Mood', mood),
+                  _healthItem(Icons.bedtime, 'Sleep', '$sleepHours Hours'),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 18),
+            _sectionTitle('Daily Care Progress'),
+
+            _card(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$progressPercent% completed today',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: progressColor,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 11,
+                    borderRadius: BorderRadius.circular(20),
+                    backgroundColor: Colors.grey.shade300,
+                    color: progressColor,
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 18),
+            _sectionTitle('Today Reminders'),
+
+            if (reminders.isEmpty)
+              _card(
+                child: const Text(
+                  'No reminders added yet.',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              )
+            else
+              Column(
+                children: reminders.take(3).map((item) {
+                  return _card(
+                    child: Row(
+                      children: [
+                        Text(item.emoji, style: const TextStyle(fontSize: 30)),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                item.title,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                '${item.day} - ${item.time}',
+                                style: const TextStyle(color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _reminderStatusColor(
+                              item.status,
+                            ).withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            _reminderStatusText(item.status),
+                            style: TextStyle(
+                              color: _reminderStatusColor(item.status),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+
+            const SizedBox(height: 10),
+
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const CompanionRemindersPage(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.edit_calendar),
+                label: const Text('Manage Reminders'),
+              ),
+            ),
+
+            const SizedBox(height: 18),
+            _sectionTitle('Location'),
+
+            _card(
+              child: Row(
+                children: [
+                  const Icon(Icons.location_on, color: Colors.red, size: 32),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      '$patientName is currently near $location',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 18),
+            _sectionTitle('AI Insights'),
+
+            Column(
+              children: aiInsights.map((insight) {
+                return _card(
+                  child: Row(
+                    children: [
+                      Icon(insight['icon'], color: insight['color'], size: 34),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              insight['title'],
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: insight['color'],
+                              ),
+                            ),
+                            const SizedBox(height: 5),
+                            Text(
+                              insight['message'],
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+
+            const SizedBox(height: 18),
+            _sectionTitle('Quick Actions'),
+
+            const SizedBox(height: 12),
+
+            GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 1.7,
+              children: [
+                _quickAction(
+                  icon: Icons.phone,
+                  title: 'Call Patient',
+                  onTap: () {},
+                ),
+                _quickAction(
+                  icon: Icons.message,
+                  title: 'Message',
+                  onTap: () {},
+                ),
+                _quickAction(
+                  icon: Icons.warning_rounded,
+                  title: 'Emergency',
+                  onTap: () {},
+                ),
+                _quickAction(
+                  icon: Icons.add_alert,
+                  title: 'Add Reminder',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const CompanionRemindersPage(),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 18),
+            _sectionTitle('Daily Report'),
+
+            _card(
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      _buildReportTab('Daily'),
+                      const SizedBox(width: 8),
+                      _buildReportTab('Weekly'),
+                      const SizedBox(width: 8),
+                      _buildReportTab('Monthly'),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  _buildReportContent(reminders),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 25),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: store,
       builder: (context, _) {
-        final reminders = store.reminders;
-        final missedReminders = reminders.where((item) {
-          return _reminderStatusText(item.status) == 'Missed';
-        }).toList();
-
-        final progress = _careProgress(reminders);
-        final progressPercent = (progress * 100).round();
-        final progressColor = _progressColor(progress);
-        final aiInsights = _generateAiInsights(reminders);
-
         return Scaffold(
           backgroundColor: const Color(0xFFF4F4F4),
           body: SafeArea(
             child: Column(
               children: [
                 _buildTopHeader(),
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${getGreeting()}, $companionName 👋',
-                          style: const TextStyle(
-                            fontSize: 25,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Here is $patientName\'s latest update',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            color: Colors.black54,
-                          ),
-                        ),
 
-                        _card(
-                          child: Row(
-                            children: [
-                              const CircleAvatar(
-                                radius: 32,
-                                backgroundColor: Color(0xFFEAF8FD),
-                                child: Icon(
-                                  Icons.person,
-                                  size: 38,
-                                  color: Color(0xFF2D9CDB),
-                                ),
-                              ),
-                              const SizedBox(width: 15),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      patientName,
-                                      style: const TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Row(
-                                      children: [
-                                        Icon(
-                                          Icons.circle,
-                                          size: 12,
-                                          color: _statusColor(patientStatus),
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Text(patientStatus),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'Last update: $_lastUpdated',
-                                      style: const TextStyle(
-                                        color: Colors.grey,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 18),
-                        _sectionTitle('Alerts'),
-
-                        if (missedReminders.isEmpty)
-                          _card(
-                            child: const Row(
-                              children: [
-                                Icon(Icons.check_circle, color: Colors.green),
-                                SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    'No urgent alerts. Patient is doing well today.',
-                                    style: TextStyle(fontSize: 15),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )
-                        else
-                          _card(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: missedReminders.map((item) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 8),
-                                  child: Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.warning_amber_rounded,
-                                        color: Colors.red,
-                                      ),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: Text(
-                                          '${item.title} was missed at ${item.time}',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              }).toList(),
-                            ),
-                          ),
-
-                        const SizedBox(height: 18),
-                        _sectionTitle('Health Summary'),
-
-                        _card(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: [
-                              _healthItem(
-                                Icons.favorite,
-                                'Heart Rate',
-                                '$heartRate BPM',
-                              ),
-                              _healthItem(Icons.mood, 'Mood', mood),
-                              _healthItem(
-                                Icons.bedtime,
-                                'Sleep',
-                                '$sleepHours Hours',
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 18),
-                        _sectionTitle('Daily Care Progress'),
-
-                        _card(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '$progressPercent% completed today',
-                                style: TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.bold,
-                                  color: progressColor,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                progressPercent >= 80
-                                    ? 'Great progress. Patient is following the daily routine well.'
-                                    : progressPercent >= 50
-                                    ? 'Moderate progress. Patient may need some follow-up.'
-                                    : 'Low progress. Patient needs attention today.',
-                                style: const TextStyle(
-                                  color: Colors.black54,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              LinearProgressIndicator(
-                                value: progress,
-                                minHeight: 11,
-                                borderRadius: BorderRadius.circular(20),
-                                backgroundColor: Colors.grey.shade300,
-                                color: progressColor,
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 18),
-                        _sectionTitle('Today Reminders'),
-
-                        if (reminders.isEmpty)
-                          _card(
-                            child: const Text(
-                              'No reminders added yet.',
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                          )
-                        else
-                          Column(
-                            children: reminders.take(3).map((item) {
-                              return _card(
-                                child: Row(
-                                  children: [
-                                    Text(
-                                      item.emoji,
-                                      style: const TextStyle(fontSize: 30),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            item.title,
-                                            style: const TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          Text(
-                                            '${item.day} - ${item.time}',
-                                            style: const TextStyle(
-                                              color: Colors.grey,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                        vertical: 6,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: _reminderStatusColor(
-                                          item.status,
-                                        ).withOpacity(0.12),
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                      child: Text(
-                                        _reminderStatusText(item.status),
-                                        style: TextStyle(
-                                          color: _reminderStatusColor(
-                                            item.status,
-                                          ),
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }).toList(),
-                          ),
-
-                        const SizedBox(height: 10),
-
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton.icon(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      const CompanionRemindersPage(),
-                                ),
-                              );
-                            },
-                            icon: const Icon(Icons.edit_calendar),
-                            label: const Text('Manage Reminders'),
-                          ),
-                        ),
-
-                        const SizedBox(height: 18),
-                        _sectionTitle('Location'),
-
-                        _card(
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.location_on,
-                                color: Colors.red,
-                                size: 32,
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  '$patientName is currently near $location',
-                                  style: const TextStyle(fontSize: 16),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 18),
-                        _sectionTitle('AI Insights'),
-
-                        Column(
-                          children: aiInsights.map((insight) {
-                            return _card(
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    insight['icon'],
-                                    color: insight['color'],
-                                    size: 34,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          insight['title'],
-                                          style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold,
-                                            color: insight['color'],
-                                          ),
-                                        ),
-                                        const SizedBox(height: 5),
-                                        Text(
-                                          insight['message'],
-                                          style: const TextStyle(fontSize: 14),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          }).toList(),
-                        ),
-
-                        const SizedBox(height: 18),
-                        _sectionTitle('Quick Actions'),
-
-                        const SizedBox(height: 12),
-
-                        GridView.count(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                          childAspectRatio: 1.7,
-                          children: [
-                            _quickAction(
-                              icon: Icons.phone,
-                              title: 'Call Patient',
-                              onTap: () {},
-                            ),
-                            _quickAction(
-                              icon: Icons.message,
-                              title: 'Message',
-                              onTap: () {},
-                            ),
-                            _quickAction(
-                              icon: Icons.warning_rounded,
-                              title: 'Emergency',
-                              onTap: () {},
-                            ),
-                            _quickAction(
-                              icon: Icons.add_alert,
-                              title: 'Add Reminder',
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) =>
-                                        const CompanionRemindersPage(),
-                                  ),
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 18),
-                        _sectionTitle('Daily Report'),
-
-                        _card(
-                          child: Column(
-                            children: [
-                              Row(
-                                children: [
-                                  _buildReportTab('Daily'),
-                                  const SizedBox(width: 8),
-                                  _buildReportTab('Weekly'),
-                                  const SizedBox(width: 8),
-                                  _buildReportTab('Monthly'),
-                                ],
-                              ),
-                              const SizedBox(height: 18),
-                              _buildReportContent(reminders),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 25),
-                      ],
+                if (_isLoading)
+                  const Expanded(
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFF87CEEB),
+                      ),
                     ),
-                  ),
-                ),
+                  )
+                else if (!_isLinkedToPatient)
+                  _buildNotLinkedView()
+                else
+                  _buildLinkedDashboard(store.reminders),
               ],
             ),
           ),

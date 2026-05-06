@@ -158,12 +158,14 @@ class _VolunteerDashboardPageState extends State<VolunteerDashboardPage>
       return;
     }
 
-    await FirebaseFirestore.instance.collection('health_tips').add({
+    await FirebaseFirestore.instance.collection('healthTips').add({
       'volunteerId': user?.uid ?? '',
       'volunteerName': _volunteerName,
+      'personType': 'Volunteer',
       'title': _tipTitleController.text.trim(),
       'description': _tipDescController.text.trim(),
       'category': _selectedTipCategory,
+      'emoji': _getEmojiForCategory(_selectedTipCategory),
       'createdAt': FieldValue.serverTimestamp(),
     });
 
@@ -175,6 +177,25 @@ class _VolunteerDashboardPageState extends State<VolunteerDashboardPage>
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Tip sent to patient successfully')),
     );
+  }
+
+  String _getEmojiForCategory(String category) {
+    switch (category) {
+      case 'Health':
+        return '💙';
+      case 'Food':
+        return '🥗';
+      case 'Medicine':
+        return '💊';
+      case 'Exercise':
+        return '🏃';
+      case 'Mental Health':
+        return '🧠';
+      case 'Others':
+        return '✨';
+      default:
+        return '💡';
+    }
   }
 
   void _openChatSheet(Map<String, dynamic> data) {

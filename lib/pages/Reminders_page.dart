@@ -169,6 +169,8 @@ class _RemindersPageState extends State<RemindersPage> {
         return 'Meal';
       case ReminderCategory.appointment:
         return 'Appointment';
+      case ReminderCategory.others:
+        return 'Others';
     }
   }
 
@@ -180,6 +182,8 @@ class _RemindersPageState extends State<RemindersPage> {
         return Icons.restaurant_outlined;
       case ReminderCategory.appointment:
         return Icons.calendar_month_outlined;
+      case ReminderCategory.others:
+        return Icons.more_horiz_rounded;
     }
   }
 

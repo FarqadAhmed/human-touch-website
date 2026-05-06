@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-enum ReminderCategory { medicine, meal, appointment }
+enum ReminderCategory { medicine, meal, appointment, others }
 
 class ReminderItem {
   final String id;
@@ -31,38 +31,7 @@ class ReminderStore extends ChangeNotifier {
 
   static final ReminderStore instance = ReminderStore._internal();
 
-  final List<ReminderItem> _reminders = [
-    ReminderItem(
-      id: '1',
-      title: 'Panadol',
-      time: '8:00 AM',
-      day: 'Sunday',
-      emoji: '💊',
-      category: ReminderCategory.medicine,
-      notification: true,
-      sound: true,
-    ),
-    ReminderItem(
-      id: '2',
-      title: 'Breakfast',
-      time: '9:00 AM',
-      day: 'Sunday',
-      emoji: '🍳',
-      category: ReminderCategory.meal,
-      notification: true,
-      sound: false,
-    ),
-    ReminderItem(
-      id: '3',
-      title: 'Doctor Appointment',
-      time: '10:00 AM',
-      day: 'Sunday',
-      emoji: '📅',
-      category: ReminderCategory.appointment,
-      notification: true,
-      sound: true,
-    ),
-  ];
+  final List<ReminderItem> _reminders = [];
 
   List<ReminderItem> get reminders => List.unmodifiable(_reminders);
 
@@ -81,6 +50,7 @@ class ReminderStore extends ChangeNotifier {
 
   void updateReminder(ReminderItem updatedItem) {
     final index = _reminders.indexWhere((item) => item.id == updatedItem.id);
+
     if (index != -1) {
       _reminders[index] = updatedItem;
       notifyListeners();
@@ -94,6 +64,7 @@ class ReminderStore extends ChangeNotifier {
 
   void updateReminderStatus(String id, String status) {
     final index = _reminders.indexWhere((item) => item.id == id);
+
     if (index != -1) {
       _reminders[index].status = status;
       notifyListeners();

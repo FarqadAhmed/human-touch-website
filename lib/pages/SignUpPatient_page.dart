@@ -435,7 +435,7 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
                                 if (text.isEmpty) {
                                   return 'Please enter your phone number';
                                 }
-                                if (text.length < 8 || text.length > 8) {
+                                if (text.length != 8) {
                                   return 'Please enter a valid phone number';
                                 }
                                 return null;
@@ -449,6 +449,21 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
                           ),
 
                           const SizedBox(height: 8),
+
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton.icon(
+                              style: _linkButtonStyle(),
+                              onPressed: _generateStrongPassword,
+                              icon: const Icon(Icons.auto_awesome, size: 18),
+                              label: const Text(
+                                'Generate strong password',
+                                style: TextStyle(fontSize: 13),
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 6),
 
                           _buildFieldContainer(
                             child: TextFormField(
@@ -539,21 +554,6 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
                                 ),
                               ],
                             ),
-
-                          const SizedBox(height: 6),
-
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton.icon(
-                              style: _linkButtonStyle(),
-                              onPressed: _generateStrongPassword,
-                              icon: const Icon(Icons.auto_awesome, size: 18),
-                              label: const Text(
-                                'Generate strong password',
-                                style: TextStyle(fontSize: 13),
-                              ),
-                            ),
-                          ),
 
                           const SizedBox(height: 8),
 
