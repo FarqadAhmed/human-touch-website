@@ -12,10 +12,15 @@ class LocationPickerPage extends StatefulWidget {
 
 class _LocationPickerPageState extends State<LocationPickerPage> {
   final Completer<GoogleMapController> _mapController = Completer();
-  static const LatLng _defaultLocation = LatLng(26.2235, 50.5876); // Manama
+
+  static const LatLng _defaultLocation = LatLng(26.2235, 50.5876);
+  static const Color _mainBlue = Color(0xFF87CEEB);
+  static const Color _pageBg = Color(0xFFF4F4F4);
+
   LatLng _selectedLocation = _defaultLocation;
   bool _isLoading = true;
   String _locationText = 'Selected Location';
+
   @override
   void initState() {
     super.initState();
@@ -26,9 +31,7 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
     try {
       final bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
         return;
       }
 
@@ -40,9 +43,7 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
 
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
         return;
       }
 
@@ -71,9 +72,7 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
         ),
       );
     } catch (_) {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     }
   }
 
@@ -117,6 +116,59 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
     });
   }
 
+  void _goBack() {
+    Navigator.pop(context);
+  }
+
+  Widget _buildHeader() {
+    return Column(
+      children: [
+        Stack(
+          alignment: Alignment.bottomCenter,
+          children: [
+            Container(height: 130, width: double.infinity, color: _mainBlue),
+            Container(
+              height: 40,
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                color: _pageBg,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(40)),
+              ),
+            ),
+          ],
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+          child: Row(
+            children: [
+              IconButton(
+                onPressed: _goBack,
+                icon: const Icon(
+                  Icons.arrow_back,
+                  size: 28,
+                  color: Color(0xFF263238),
+                ),
+              ),
+              const Expanded(
+                child: Center(
+                  child: Text(
+                    'Pick Location',
+                    style: TextStyle(
+                      fontSize: 25,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1A1A),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 48),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final marker = Marker(
@@ -133,103 +185,112 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
     );
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Pick Location'),
-        backgroundColor: const Color(0xFF87CEEB),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Stack(
-              children: [
-                GoogleMap(
-                  initialCameraPosition: CameraPosition(
-                    target: _selectedLocation,
-                    zoom: 14,
-                  ),
-                  myLocationEnabled: true,
-                  myLocationButtonEnabled: false,
-                  zoomControlsEnabled: false,
-                  mapToolbarEnabled: false,
-                  markers: {marker},
-                  onMapCreated: (GoogleMapController controller) {
-                    if (!_mapController.isCompleted) {
-                      _mapController.complete(controller);
-                    }
-                  },
-                  onTap: (LatLng tappedLocation) {
-                    setState(() {
-                      _selectedLocation = tappedLocation;
-                      _locationText =
-                          'Lat: ${tappedLocation.latitude.toStringAsFixed(5)}, Lng: ${tappedLocation.longitude.toStringAsFixed(5)}';
-                    });
-                  },
-                ),
-
-                Positioned(
-                  top: 16,
-                  right: 16,
-                  child: FloatingActionButton(
-                    heroTag: 'current_location_btn',
-                    mini: true,
-                    backgroundColor: Colors.white,
-                    onPressed: _goToCurrentLocation,
-                    child: const Icon(Icons.my_location, color: Colors.black),
-                  ),
-                ),
-
-                Positioned(
-                  left: 16,
-                  right: 16,
-                  bottom: 20,
-                  child: Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                      boxShadow: const [
-                        BoxShadow(blurRadius: 8, color: Colors.black12),
-                      ],
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
+      backgroundColor: _pageBg,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildHeader(),
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : Stack(
                       children: [
-                        Text(
-                          _locationText,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
+                        GoogleMap(
+                          initialCameraPosition: CameraPosition(
+                            target: _selectedLocation,
+                            zoom: 14,
+                          ),
+                          myLocationEnabled: true,
+                          myLocationButtonEnabled: false,
+                          zoomControlsEnabled: false,
+                          mapToolbarEnabled: false,
+                          markers: {marker},
+                          onMapCreated: (GoogleMapController controller) {
+                            if (!_mapController.isCompleted) {
+                              _mapController.complete(controller);
+                            }
+                          },
+                          onTap: (LatLng tappedLocation) {
+                            setState(() {
+                              _selectedLocation = tappedLocation;
+                              _locationText =
+                                  'Lat: ${tappedLocation.latitude.toStringAsFixed(5)}, Lng: ${tappedLocation.longitude.toStringAsFixed(5)}';
+                            });
+                          },
+                        ),
+
+                        Positioned(
+                          top: 16,
+                          right: 16,
+                          child: FloatingActionButton(
+                            heroTag: 'current_location_btn',
+                            mini: true,
+                            backgroundColor: Colors.white,
+                            onPressed: _goToCurrentLocation,
+                            child: const Icon(
+                              Icons.my_location,
+                              color: Colors.black,
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 50,
-                          child: ElevatedButton(
-                            onPressed: _confirmLocation,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF87CEEB),
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
+
+                        Positioned(
+                          left: 16,
+                          right: 16,
+                          bottom: 20,
+                          child: Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: const [
+                                BoxShadow(blurRadius: 8, color: Colors.black12),
+                              ],
                             ),
-                            child: const Text(
-                              'Confirm Location',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  _locationText,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 50,
+                                  child: ElevatedButton(
+                                    onPressed: _confirmLocation,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: _mainBlue,
+                                      elevation: 0,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      'Confirm Location',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ),
-              ],
             ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -40,35 +40,83 @@ class _RemindersPageState extends State<RemindersPage> {
     );
   }
 
-  Widget _buildBottomNavItem({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-    bool isCurrent = false,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      child: SizedBox(
-        width: 90,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 30,
-              color: isCurrent ? const Color(0xFF87CEEB) : Colors.black,
+  void _goBack() {
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const DashboardPage()),
+      );
+    }
+  }
+
+  void _goToPage(int index) {
+    if (index == 0) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const DashboardPage()),
+      );
+    } else if (index == 1) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const ProfilePage()),
+      );
+    } else if (index == 2) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const SettingsPage()),
+      );
+    }
+  }
+
+  Widget _bottomItem(IconData icon, String label, int index) {
+    return GestureDetector(
+      onTap: () => _goToPage(index),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white, size: 27),
+          const SizedBox(height: 3),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
             ),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
-                color: isCurrent ? const Color(0xFF87CEEB) : Colors.black,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<BoxShadow> _shadow() {
+    return [
+      BoxShadow(
+        color: Colors.black.withOpacity(0.08),
+        blurRadius: 12,
+        offset: const Offset(0, 5),
+      ),
+    ];
+  }
+
+  Widget _buildBottomNavigation() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF87CEEB),
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: _shadow(),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _bottomItem(Icons.home_rounded, 'Home', 0),
+          _bottomItem(Icons.person_rounded, 'Profile', 1),
+          _bottomItem(Icons.settings_rounded, 'Settings', 2),
+        ],
       ),
     );
   }
@@ -195,45 +243,52 @@ class _RemindersPageState extends State<RemindersPage> {
   }
 
   Widget _buildHeader() {
-    return Stack(
-      alignment: Alignment.topCenter,
+    return Column(
       children: [
-        Container(
-          width: double.infinity,
-          height: 130,
-          color: const Color(0xFF87CEEB),
-        ),
-        Padding(
-          padding: const EdgeInsets.only(top: 100),
-          child: Container(
-            width: double.infinity,
-            height: 41,
-            decoration: const BoxDecoration(
-              color: Color(0xFFF4F4F4),
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(70),
-                topRight: Radius.circular(70),
+        Stack(
+          alignment: Alignment.bottomCenter,
+          children: [
+            Container(
+              height: 130,
+              width: double.infinity,
+              color: const Color(0xFF87CEEB),
+            ),
+            Container(
+              height: 40,
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                color: Color(0xFFF4F4F4),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(40)),
               ),
             ),
-          ),
+          ],
         ),
-        Positioned(
-          top: 10,
-          left: 12,
-          child: IconButton(
-            onPressed: () {
-              if (Navigator.canPop(context)) {
-                Navigator.pop(context);
-              } else {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const DashboardPage(),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+          child: Row(
+            children: [
+              IconButton(
+                onPressed: _goBack,
+                icon: const Icon(
+                  Icons.arrow_back,
+                  size: 28,
+                  color: Color(0xFF263238),
+                ),
+              ),
+              const Expanded(
+                child: Center(
+                  child: Text(
+                    'Reminders',
+                    style: TextStyle(
+                      fontSize: 25,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1A1A),
+                    ),
                   ),
-                );
-              }
-            },
-            icon: const Icon(Icons.arrow_back, size: 28, color: Colors.black),
+                ),
+              ),
+              const SizedBox(width: 48),
+            ],
           ),
         ),
       ],
@@ -253,68 +308,7 @@ class _RemindersPageState extends State<RemindersPage> {
 
         return Scaffold(
           backgroundColor: const Color(0xFFF4F4F4),
-          bottomNavigationBar: Container(
-            width: double.infinity,
-            height: 70,
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(16),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Color(0x22000000),
-                  blurRadius: 8,
-                  offset: Offset(0, -2),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildBottomNavItem(
-                  icon: Icons.home_outlined,
-                  label: 'Home',
-                  isCurrent: false,
-                  onTap: () {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const DashboardPage(),
-                      ),
-                    );
-                  },
-                ),
-                _buildBottomNavItem(
-                  icon: Icons.person_outlined,
-                  label: 'Profile',
-                  isCurrent: false,
-                  onTap: () {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const ProfilePage(),
-                      ),
-                    );
-                  },
-                ),
-                _buildBottomNavItem(
-                  icon: Icons.settings_outlined,
-                  label: 'Settings',
-                  isCurrent: false,
-                  onTap: () {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const SettingsPage(),
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
+
           body: SafeArea(
             child: Column(
               children: [
@@ -335,6 +329,8 @@ class _RemindersPageState extends State<RemindersPage> {
               ],
             ),
           ),
+
+          bottomNavigationBar: _buildBottomNavigation(),
         );
       },
     );

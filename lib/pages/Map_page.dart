@@ -62,6 +62,136 @@ class _MapPageState extends State<MapPage> {
     super.dispose();
   }
 
+  void _goBack() {
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const DashboardPage()),
+      );
+    }
+  }
+
+  void _goToPage(int index) {
+    if (index == 0) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const DashboardPage()),
+      );
+    } else if (index == 1) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const ProfilePage()),
+      );
+    } else if (index == 2) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const SettingsPage()),
+      );
+    }
+  }
+
+  Widget _bottomItem(IconData icon, String label, int index) {
+    return GestureDetector(
+      onTap: () => _goToPage(index),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white, size: 27),
+          const SizedBox(height: 3),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<BoxShadow> _shadow() {
+    return [
+      BoxShadow(
+        color: Colors.black.withOpacity(0.08),
+        blurRadius: 12,
+        offset: const Offset(0, 5),
+      ),
+    ];
+  }
+
+  Widget _buildBottomNavigation() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      decoration: BoxDecoration(
+        color: _mainBlue,
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: _shadow(),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _bottomItem(Icons.home_rounded, 'Home', 0),
+          _bottomItem(Icons.person_rounded, 'Profile', 1),
+          _bottomItem(Icons.settings_rounded, 'Settings', 2),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Column(
+      children: [
+        Stack(
+          alignment: Alignment.bottomCenter,
+          children: [
+            Container(height: 130, width: double.infinity, color: _mainBlue),
+            Container(
+              height: 40,
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                color: _pageBg,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(40)),
+              ),
+            ),
+          ],
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+          child: Row(
+            children: [
+              IconButton(
+                onPressed: _goBack,
+                icon: const Icon(
+                  Icons.arrow_back,
+                  size: 28,
+                  color: Color(0xFF263238),
+                ),
+              ),
+              const Expanded(
+                child: Center(
+                  child: Text(
+                    'Accessible Map',
+                    style: TextStyle(
+                      fontSize: 25,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1A1A),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 48),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Future<void> _getCurrentLocation() async {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
@@ -72,6 +202,7 @@ class _MapPageState extends State<MapPage> {
       }
 
       LocationPermission permission = await Geolocator.checkPermission();
+
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
       }
@@ -351,30 +482,6 @@ class _MapPageState extends State<MapPage> {
     );
   }
 
-  Widget _buildBottomNavItem({
-    required BuildContext context,
-    required IconData icon,
-    required Widget page,
-    required bool isCurrent,
-  }) {
-    return IconButton(
-      onPressed: () {
-        if (isCurrent) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => page),
-        );
-      },
-      icon: Icon(
-        icon,
-        size: icon == Icons.settings_outlined ? 45 : 50,
-        color: Colors.black,
-      ),
-      splashColor: Colors.grey.withOpacity(0.25),
-      highlightColor: Colors.grey.withOpacity(0.18),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final initialTarget = _currentPosition == null
@@ -388,64 +495,7 @@ class _MapPageState extends State<MapPage> {
         body: SafeArea(
           child: Column(
             children: [
-              Stack(
-                alignment: AlignmentDirectional.center,
-                children: [
-                  Container(
-                    width: double.infinity,
-                    height: 130,
-                    color: _mainBlue,
-                  ),
-                  Positioned(
-                    top: 100,
-                    child: Container(
-                      width: MediaQuery.of(context).size.width,
-                      height: 41,
-                      decoration: const BoxDecoration(
-                        color: _pageBg,
-                        borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(70),
-                          topRight: Radius.circular(70),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    top: 28,
-                    left: 8,
-                    child: IconButton(
-                      onPressed: () {
-                        if (Navigator.canPop(context)) {
-                          Navigator.pop(context);
-                        } else {
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const DashboardPage(),
-                            ),
-                          );
-                        }
-                      },
-                      icon: const Icon(
-                        Icons.arrow_back,
-                        size: 28,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                  const Positioned(
-                    top: 36,
-                    child: Text(
-                      'Accessible Map',
-                      style: TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              _buildHeader(),
 
               Expanded(
                 child: Stack(
@@ -593,44 +643,10 @@ class _MapPageState extends State<MapPage> {
                   ],
                 ),
               ),
-
-              Container(
-                width: double.infinity,
-                height: 60,
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(16),
-                    topRight: Radius.circular(16),
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _buildBottomNavItem(
-                      context: context,
-                      icon: Icons.home_outlined,
-                      page: const DashboardPage(),
-                      isCurrent: false,
-                    ),
-                    _buildBottomNavItem(
-                      context: context,
-                      icon: Icons.person_outlined,
-                      page: const ProfilePage(),
-                      isCurrent: false,
-                    ),
-                    _buildBottomNavItem(
-                      context: context,
-                      icon: Icons.settings_outlined,
-                      page: const SettingsPage(),
-                      isCurrent: false,
-                    ),
-                  ],
-                ),
-              ),
             ],
           ),
         ),
+        bottomNavigationBar: _buildBottomNavigation(),
       ),
     );
   }

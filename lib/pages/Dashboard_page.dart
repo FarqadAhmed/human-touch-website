@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'Reminders_page.dart';
 import 'Health_page.dart';
 import 'Communication_page.dart';
@@ -9,38 +12,47 @@ import 'VolunteerHelp_page.dart';
 import 'Profile_page.dart';
 import 'Settings_page.dart';
 import 'reminder_store.dart';
-//import 'zego_call_service.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
+
   @override
   State<DashboardPage> createState() => _DashboardPageState();
 }
 
 class _DashboardPageState extends State<DashboardPage> {
-  final bool _zegoInitialized = false;
+  String _userName = 'User';
+
   @override
   void initState() {
     super.initState();
-    //_initZegoCallService();
+    _loadUserName();
   }
 
-  // Future<void> _initZegoCallService() async {
-  //   final user = FirebaseAuth.instance.currentUser;
-  //   if (user == null || _zegoInitialized || !mounted) return;
-  //   await ZegoCallService.instance.init(
-  //     context: context,
-  //     userID: user.uid,
-  //     userName:
-  //         (user.displayName != null && user.displayName!.trim().isNotEmpty)
-  //         ? user.displayName!
-  //         : (user.email ?? 'User'),
-  //   );
-  //   if (!mounted) return;
-  //   setState(() {
-  //     _zegoInitialized = true;
-  //   });
-  // }
+  Future<void> _loadUserName() async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user != null) {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      setState(() {
+        _userName = doc['name'] ?? 'User';
+      });
+    }
+  }
+
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+
+    if (hour < 12) {
+      return 'Good Morning';
+    } else {
+      return 'Good Evening';
+    }
+  }
 
   String _getTodayName() {
     return DateFormat('EEEE', 'en').format(DateTime.now());
@@ -58,6 +70,22 @@ class _DashboardPageState extends State<DashboardPage> {
       minimumSize: WidgetStateProperty.all(Size.zero),
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );
+  }
+
+  void _goToPage(int index) {
+    if (index == 0) return;
+
+    if (index == 1) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const ProfilePage()),
+      );
+    } else if (index == 2) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const SettingsPage()),
+      );
+    }
   }
 
   Widget _buildTopReminderCard(ReminderStore store) {
@@ -109,6 +137,7 @@ class _DashboardPageState extends State<DashboardPage> {
                     separatorBuilder: (_, _) => const SizedBox(height: 10),
                     itemBuilder: (context, index) {
                       final reminder = reminders[index];
+
                       return Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,
@@ -213,29 +242,35 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  Widget _buildBottomNavItem({
-    required BuildContext context,
-    required IconData icon,
-    required Widget page,
-    required bool isCurrent,
-  }) {
-    return IconButton(
-      onPressed: () {
-        if (isCurrent) return;
-
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => page),
-        );
-      },
-      icon: Icon(
-        icon,
-        size: icon == Icons.settings_outlined ? 45 : 50,
-        color: Colors.black,
+  Widget _bottomItem(IconData icon, String label, int index) {
+    return GestureDetector(
+      onTap: () => _goToPage(index),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white, size: 27),
+          const SizedBox(height: 3),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
-      splashColor: Colors.grey.withOpacity(0.25),
-      highlightColor: Colors.grey.withOpacity(0.18),
     );
+  }
+
+  List<BoxShadow> _shadow() {
+    return [
+      BoxShadow(
+        color: Colors.black.withOpacity(0.08),
+        blurRadius: 12,
+        offset: const Offset(0, 5),
+      ),
+    ];
   }
 
   @override
@@ -278,10 +313,27 @@ class _DashboardPageState extends State<DashboardPage> {
                       ),
                     ],
                   ),
+
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(30, 10, 30, 15),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        '${_getGreeting()}, $_userName',
+                        style: const TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                  ),
+
                   Padding(
                     padding: const EdgeInsets.fromLTRB(30, 0, 30, 0),
                     child: _buildTopReminderCard(store),
                   ),
+
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 35, 20, 0),
                     child: Row(
@@ -311,6 +363,7 @@ class _DashboardPageState extends State<DashboardPage> {
                       ],
                     ),
                   ),
+
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                     child: Row(
@@ -337,41 +390,26 @@ class _DashboardPageState extends State<DashboardPage> {
                       ],
                     ),
                   ),
+
                   const Spacer(),
-                  Container(
-                    width: double.infinity,
-                    height: 60,
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(16),
-                        topRight: Radius.circular(16),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _buildBottomNavItem(
-                          context: context,
-                          icon: Icons.home_outlined,
-                          page: const DashboardPage(),
-                          isCurrent: true,
-                        ),
-                        _buildBottomNavItem(
-                          context: context,
-                          icon: Icons.person_outlined,
-                          page: const ProfilePage(),
-                          isCurrent: false,
-                        ),
-                        _buildBottomNavItem(
-                          context: context,
-                          icon: Icons.settings_outlined,
-                          page: const SettingsPage(),
-                          isCurrent: false,
-                        ),
-                      ],
-                    ),
-                  ),
+                ],
+              ),
+            ),
+
+            bottomNavigationBar: Container(
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF87CEEB),
+                borderRadius: BorderRadius.circular(30),
+                boxShadow: _shadow(),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _bottomItem(Icons.home_rounded, 'Home', 0),
+                  _bottomItem(Icons.person_rounded, 'Profile', 1),
+                  _bottomItem(Icons.settings_rounded, 'Settings', 2),
                 ],
               ),
             ),

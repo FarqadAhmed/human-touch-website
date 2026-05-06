@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 
+import 'Dashboard_page.dart';
+import 'Profile_page.dart';
+import 'Settings_page.dart';
+
 class VolunteerProfilePage extends StatefulWidget {
   const VolunteerProfilePage({super.key});
 
@@ -47,6 +51,76 @@ class _VolunteerProfileState extends State<VolunteerProfilePage> {
     _skillController.dispose();
     _aboutController.dispose();
     super.dispose();
+  }
+
+  void _goToPage(int index) {
+    if (index == 0) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const DashboardPage()),
+      );
+    } else if (index == 1) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const ProfilePage()),
+      );
+    } else if (index == 2) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const SettingsPage()),
+      );
+    }
+  }
+
+  Widget _bottomItem(IconData icon, String label, int index) {
+    return GestureDetector(
+      onTap: () => _goToPage(index),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white, size: 27),
+          const SizedBox(height: 3),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<BoxShadow> _shadow() {
+    return [
+      BoxShadow(
+        color: Colors.black.withOpacity(0.08),
+        blurRadius: 12,
+        offset: const Offset(0, 5),
+      ),
+    ];
+  }
+
+  Widget _buildBottomNavigation() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF87CEEB),
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: _shadow(),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _bottomItem(Icons.home_rounded, 'Home', 0),
+          _bottomItem(Icons.person_rounded, 'Profile', 1),
+          _bottomItem(Icons.settings_rounded, 'Settings', 2),
+        ],
+      ),
+    );
   }
 
   InputDecoration _inputDecoration({
@@ -127,6 +201,7 @@ class _VolunteerProfileState extends State<VolunteerProfilePage> {
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
         backgroundColor: const Color(0xFFF4F4F4),
+
         body: SafeArea(
           child: Column(
             children: [
@@ -397,6 +472,8 @@ class _VolunteerProfileState extends State<VolunteerProfilePage> {
                           child: const Text('Log Out'),
                         ),
                       ),
+
+                      const SizedBox(height: 20),
                     ],
                   ),
                 ),
@@ -404,6 +481,8 @@ class _VolunteerProfileState extends State<VolunteerProfilePage> {
             ],
           ),
         ),
+
+        bottomNavigationBar: _buildBottomNavigation(),
       ),
     );
   }

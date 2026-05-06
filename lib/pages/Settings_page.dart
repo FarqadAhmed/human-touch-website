@@ -8,7 +8,6 @@ import 'Login_page.dart';
 import 'EmergencySettings_store.dart';
 import 'AppSettings_store.dart';
 import 'profile_store.dart';
-// import 'l10n/app_localizations.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -42,6 +41,308 @@ class _SettingsPageState extends State<SettingsPage> {
   void dispose() {
     _companionPhoneController.dispose();
     super.dispose();
+  }
+
+  void _goToPage(int index) {
+    if (index == 0) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const DashboardPage()),
+      );
+    } else if (index == 1) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const ProfilePage()),
+      );
+    } else if (index == 2) {
+      return;
+    }
+  }
+
+  void _showInfoCard({
+    required String title,
+    required IconData icon,
+    required String content,
+  }) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(20),
+          child: Container(
+            constraints: const BoxConstraints(maxHeight: 650, minHeight: 120),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.12),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(20, 18, 12, 18),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF87CEEB),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(24),
+                      topRight: Radius.circular(24),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(icon, color: Colors.white, size: 28),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close, color: Colors.white),
+                      ),
+                    ],
+                  ),
+                ),
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    child: Text(
+                      content,
+                      style: const TextStyle(
+                        color: Color(0xFF14181B),
+                        fontSize: 14,
+                        height: 1.55,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showAboutHumanTouch() {
+    _showInfoCard(
+      title: 'About Human Touch',
+      icon: Icons.supervisor_account,
+      content: '''About Human Touch
+
+Human Touch is a smart companion designed to improve daily life and independence for people with disabilities. From managing medications, meals, appointments, and health routines to providing quick emergency support, the app helps users stay safe, organized, and connected. It also offers useful tools such as voice and sign communication assistance, accessible location guidance, health monitoring, and volunteer support services to ensure users receive the help they need anytime. With an intuitive interface and a seamless experience, Human Touch is your trusted support partner, making everyday life easier, safer, and more empowering!''',
+    );
+  }
+
+  void _showContactUs() {
+    _showInfoCard(
+      title: 'Contact Us',
+      icon: Icons.phone_paused_rounded,
+      content: '''Contact Us
+
+We are here to support you. If you have any questions, feedback, technical issues, or suggestions about the Human Touch app, please feel free to contact our team.
+
+📧 Email: humantouchapp@gmail.com
+
+🏢 Service Provider: Human Touch Team''',
+    );
+  }
+
+  void _showPrivacyPolicy() {
+    _showInfoCard(
+      title: 'Privacy Policy',
+      icon: Icons.privacy_tip_outlined,
+      content: '''Privacy Policy
+Effective Date: April 27, 2026
+
+This Privacy Policy applies to the Human Touch app (hereafter referred to as the “Application”), developed and provided as a free service by the Human Touch Team (hereafter referred to as the “Service Provider”). The Application is provided “AS IS”, and this Privacy Policy explains how user data is collected, used, and protected.
+
+1. Information Collection and Use
+
+1.1 User-Provided Information
+
+The Application may collect certain personally identifiable information (e.g., name, email address, phone number) when:
+
+Users create an account or sign in.
+Users contact the Service Provider for support or inquiries.
+Users use specific features such as volunteer assistance, emergency contacts, or reminders.
+
+This information is securely stored and used only as outlined in this Privacy Policy.
+
+1.2 Automatically Collected Information
+
+The Application may automatically collect certain data to improve user experience and service quality. This may include:
+
+Operation Logs: Basic records of feature usage for analytics and performance improvements.
+Last Login Time: The date and time of the user’s most recent login.
+Device Information: Device type, operating system version, and app version.
+Push Notification Identifiers: Device identifiers used to send reminders, alerts, and updates.
+
+🚫 What the Application Does NOT Collect Automatically:
+
+No tracking of browsing activity outside the app.
+No access to photos, files, or contacts without user permission.
+No collection of sensitive personal data unless required for specific features and approved by the user.
+
+2. Use of Information
+
+The Service Provider uses collected information solely for the following purposes:
+
+To provide and improve Application functionality.
+To manage reminders for medications, meals, appointments, and tasks.
+To enable emergency support features and volunteer assistance.
+To improve communication tools such as voice and sign support.
+To analyze engagement and enhance user experience.
+To send important notifications, reminders, or updates.
+To prevent fraudulent activity and ensure security.
+
+3. Third-Party Services
+
+The Application may integrate third-party services which may collect limited data as part of their functionality. These may include:
+
+Google Play Services
+Firebase Authentication / Database
+OneSignal or similar Push Notification Services
+
+These providers have their own Privacy Policies, which users are encouraged to review.
+
+🚨 Important: The Service Provider does not sell, rent, or share user data with advertisers or third-party marketing platforms.
+
+4. Data Sharing and Disclosure
+
+The Service Provider may disclose collected information only in the following circumstances:
+
+Legal Compliance: If required by law or government request.
+User Protection: If necessary to protect user safety or investigate fraud/security issues.
+Trusted Service Providers: For secure backend support under strict confidentiality agreements.
+Emergency Situations: If the user activates emergency assistance features requiring contact with selected companions or responders.
+
+🚫 No user data is shared for advertising purposes.
+
+5. Opt-Out Rights
+
+Users may opt-out of certain data collection by:
+
+Disabling notifications in device settings.
+Disabling optional permissions such as location or microphone access.
+Uninstalling the Application.
+Requesting account or data deletion by contacting the Service Provider.
+
+6. Data Retention Policy
+
+The Service Provider retains user data only as long as necessary to provide services.
+
+Reminder and account data are retained while the account remains active.
+Emergency contacts remain stored until edited or deleted by the user.
+Notification identifiers remain while notifications are enabled.
+
+📌 Users may request deletion of their personal data at any time.
+
+7. Children’s Privacy
+
+The Application is not intended for children under the age of 13 without parental supervision.
+
+The Service Provider does not knowingly collect personal data from children under 13. If discovered, such data will be deleted promptly.
+
+8. Security Measures
+
+The Service Provider takes reasonable precautions to protect user data, including:
+
+Encryption and secure storage of sensitive information.
+Restricted access controls.
+Regular security monitoring and updates.
+
+📌 However, no online method is 100% secure, and users should take care when sharing personal information.
+
+9. Privacy Policy Updates
+
+This Privacy Policy may be updated periodically to reflect:
+
+Changes in Application features.
+Security improvements.
+Compliance with new laws or regulations.
+
+📌 Users will be notified of significant updates through the app or email.
+
+Continued use of the Application after updates means acceptance of the revised policy.
+
+10. Your Consent
+
+By using the Application, you consent to the collection and processing of your information as described in this Privacy Policy.
+
+11. Contact Us
+
+For privacy-related questions or concerns, you may contact:
+
+📧 Email: humantouchapp@gmail.com
+
+🏢 Service Provider: Human Touch Team''',
+    );
+  }
+
+  Widget _bottomItem(IconData icon, String label, int index) {
+    return GestureDetector(
+      onTap: () => _goToPage(index),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white, size: 27),
+          const SizedBox(height: 3),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<BoxShadow> _shadow() {
+    return [
+      BoxShadow(
+        color: Colors.black.withOpacity(0.08),
+        blurRadius: 12,
+        offset: const Offset(0, 5),
+      ),
+    ];
+  }
+
+  Widget _buildBottomNavigation() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF87CEEB),
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: _shadow(),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _bottomItem(Icons.home_rounded, 'Home', 0),
+          _bottomItem(Icons.person_rounded, 'Profile', 1),
+          _bottomItem(Icons.settings_rounded, 'Settings', 2),
+        ],
+      ),
+    );
   }
 
   Widget _buildHeader() {
@@ -79,11 +380,7 @@ class _SettingsPageState extends State<SettingsPage> {
       );
     }
 
-    return const Icon(
-      Icons.person,
-      size: 40,
-      color: Colors.white,
-    );
+    return const Icon(Icons.person, size: 40, color: Colors.white);
   }
 
   Widget _buildProfileCard() {
@@ -133,7 +430,9 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    profileStore.email.isEmpty ? 'No Email' : profileStore.email,
+                    profileStore.email.isEmpty
+                        ? 'No Email'
+                        : profileStore.email,
                     style: const TextStyle(
                       color: Color(0xFF87CEEB),
                       fontSize: 14,
@@ -256,6 +555,14 @@ class _SettingsPageState extends State<SettingsPage> {
                 trailingText,
                 style: const TextStyle(color: Color(0xFF57636C), fontSize: 14),
               ),
+            if (onTap != null) ...[
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 16,
+                color: Color(0xFF57636C),
+              ),
+            ],
           ],
         ),
       ),
@@ -294,30 +601,6 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildBottomNavItem({
-    required BuildContext context,
-    required IconData icon,
-    required Widget page,
-    required bool isCurrent,
-  }) {
-    return IconButton(
-      onPressed: () {
-        if (isCurrent) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => page),
-        );
-      },
-      icon: Icon(
-        icon,
-        size: icon == Icons.settings_outlined ? 45 : 50,
-        color: Colors.black,
-      ),
-      splashColor: Colors.grey.withOpacity(0.25),
-      highlightColor: Colors.grey.withOpacity(0.18),
     );
   }
 
@@ -369,12 +652,10 @@ class _SettingsPageState extends State<SettingsPage> {
                       child: Column(
                         children: [
                           _buildProfileCard(),
-
                           _buildCard(
                             children: [
                               _buildSectionTitle('Account Settings'),
                               _buildDivider(),
-
                               _buildSwitchRow(
                                 title: 'Switch to Dark Mode',
                                 value: appSettingsStore.isDarkMode,
@@ -383,7 +664,6 @@ class _SettingsPageState extends State<SettingsPage> {
                                 },
                               ),
                               _buildDivider(),
-
                               _buildSwitchRow(
                                 title: 'Notifications',
                                 value: _notifications,
@@ -394,7 +674,6 @@ class _SettingsPageState extends State<SettingsPage> {
                                 },
                               ),
                               _buildDivider(),
-
                               _buildSwitchRow(
                                 title: 'Location Sharing',
                                 value: _locationSharing,
@@ -405,7 +684,6 @@ class _SettingsPageState extends State<SettingsPage> {
                                 },
                               ),
                               _buildDivider(),
-
                               _buildSimpleRow(
                                 icon: Icons.g_translate_sharp,
                                 title: 'Language',
@@ -421,7 +699,6 @@ class _SettingsPageState extends State<SettingsPage> {
                                 },
                               ),
                               _buildDivider(),
-
                               _buildSwitchRow(
                                 title: 'Increase font size',
                                 value: appSettingsStore.textScale > 1.0,
@@ -433,10 +710,8 @@ class _SettingsPageState extends State<SettingsPage> {
                                 icon: Icons.format_size_rounded,
                               ),
                               _buildDivider(),
-
                               _buildCompanionPhoneRow(),
                               _buildDivider(),
-
                               _buildSwitchRow(
                                 title: 'Call Companion in Emergency',
                                 value: settingsStore.callCompanion,
@@ -446,7 +721,6 @@ class _SettingsPageState extends State<SettingsPage> {
                                 icon: Icons.phone_rounded,
                               ),
                               _buildDivider(),
-
                               _buildSwitchRow(
                                 title: 'Send SMS to Companion',
                                 value: settingsStore.sendSmsToCompanion,
@@ -456,7 +730,6 @@ class _SettingsPageState extends State<SettingsPage> {
                                 icon: Icons.sms_outlined,
                               ),
                               _buildDivider(),
-
                               _buildSwitchRow(
                                 title: 'Alert Nearby Volunteers',
                                 value: settingsStore.alertNearbyVolunteers,
@@ -469,7 +742,6 @@ class _SettingsPageState extends State<SettingsPage> {
                               ),
                             ],
                           ),
-
                           _buildCard(
                             children: [
                               _buildSectionTitle('Human Touch'),
@@ -477,63 +749,32 @@ class _SettingsPageState extends State<SettingsPage> {
                               _buildSimpleRow(
                                 icon: Icons.supervisor_account,
                                 title: 'About Human Touch',
+                                onTap: _showAboutHumanTouch,
                               ),
                               _buildDivider(),
                               _buildSimpleRow(
                                 icon: Icons.phone_paused_rounded,
                                 title: 'Contact Us',
+                                onTap: _showContactUs,
                               ),
                               _buildDivider(),
                               _buildSimpleRow(
                                 icon: Icons.privacy_tip_outlined,
                                 title: 'Privacy Policy',
+                                onTap: _showPrivacyPolicy,
                               ),
                             ],
                           ),
-
                           _buildLogoutButton(),
+                          const SizedBox(height: 20),
                         ],
                       ),
-                    ),
-                  ),
-
-                  Container(
-                    width: double.infinity,
-                    height: 60,
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(16),
-                        topRight: Radius.circular(16),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        _buildBottomNavItem(
-                          context: context,
-                          icon: Icons.home_outlined,
-                          page: const DashboardPage(),
-                          isCurrent: false,
-                        ),
-                        _buildBottomNavItem(
-                          context: context,
-                          icon: Icons.person_outlined,
-                          page: const ProfilePage(),
-                          isCurrent: false,
-                        ),
-                        _buildBottomNavItem(
-                          context: context,
-                          icon: Icons.settings_outlined,
-                          page: const SettingsPage(),
-                          isCurrent: true,
-                        ),
-                      ],
                     ),
                   ),
                 ],
               ),
             ),
+            bottomNavigationBar: _buildBottomNavigation(),
           ),
         );
       },

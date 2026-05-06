@@ -516,41 +516,55 @@ class _CommunicationPageState extends State<CommunicationPage> {
       body: SafeArea(
         child: Column(
           children: [
-            Container(
-              height: 150,
-              width: double.infinity,
-              decoration: const BoxDecoration(
-                color: Color(0xFF87CEEB),
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(55),
-                  bottomRight: Radius.circular(55),
+            Stack(
+              alignment: Alignment.bottomCenter,
+              children: [
+                Container(
+                  height: 130,
+                  width: double.infinity,
+                  color: const Color(0xFF87CEEB),
                 ),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 18),
-                child: Row(
-                  children: [
-                    IconButton(
-                      onPressed: _goBack,
-                      icon: const Icon(
-                        Icons.arrow_back_ios_new_rounded,
-                        color: Colors.white,
-                      ),
+                Container(
+                  height: 40,
+                  width: double.infinity,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFF7FBFD),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(40),
                     ),
-                    const Expanded(
+                  ),
+                ),
+              ],
+            ),
+
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: _goBack,
+                    icon: const Icon(
+                      Icons.arrow_back,
+                      size: 28,
+                      color: Color(0xFF263238),
+                    ),
+                  ),
+
+                  const Expanded(
+                    child: Center(
                       child: Text(
                         'Communication',
-                        textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontSize: 27,
+                          fontSize: 25,
                           fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                          color: Color(0xFF1A1A1A),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 48),
-                  ],
-                ),
+                  ),
+
+                  const SizedBox(width: 48),
+                ],
               ),
             ),
 
@@ -1000,8 +1014,8 @@ class _CommunicationPageState extends State<CommunicationPage> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 115,
-        padding: const EdgeInsets.all(14),
+        height: 140,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
         decoration: BoxDecoration(
           color: color,
           borderRadius: BorderRadius.circular(26),
@@ -1009,9 +1023,10 @@ class _CommunicationPageState extends State<CommunicationPage> {
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(emoji, style: const TextStyle(fontSize: 32)),
-            const SizedBox(height: 8),
+            Text(emoji, style: const TextStyle(fontSize: 30)),
+            const SizedBox(height: 10),
             Text(
               title,
               textAlign: TextAlign.center,
@@ -1021,10 +1036,12 @@ class _CommunicationPageState extends State<CommunicationPage> {
                 color: Color(0xFF333333),
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 5),
             Text(
               subtitle,
               textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontSize: 12, color: Color(0xFF777777)),
             ),
           ],

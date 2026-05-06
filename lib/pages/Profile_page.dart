@@ -23,20 +23,70 @@ class _ProfilePageState extends State<ProfilePage> {
     profileStore.loadProfile();
   }
 
-  Widget _buildBottomNavItem({
-    required IconData icon,
-    required VoidCallback onTap,
-    bool isCurrent = false,
-  }) {
-    return IconButton(
-      onPressed: onTap,
-      icon: Icon(
-        icon,
-        size: icon == Icons.settings_outlined ? 45 : 50,
-        color: isCurrent ? const Color(0xFF87CEEB) : Colors.black,
+  void _goToPage(int index) {
+    if (index == 0) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const DashboardPage()),
+      );
+    } else if (index == 1) {
+      return;
+    } else if (index == 2) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const SettingsPage()),
+      );
+    }
+  }
+
+  Widget _bottomItem(IconData icon, String label, int index) {
+    return GestureDetector(
+      onTap: () => _goToPage(index),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white, size: 27),
+          const SizedBox(height: 3),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
-      splashColor: Colors.grey.withOpacity(0.20),
-      highlightColor: Colors.grey.withOpacity(0.12),
+    );
+  }
+
+  List<BoxShadow> _shadow() {
+    return [
+      BoxShadow(
+        color: Colors.black.withOpacity(0.08),
+        blurRadius: 12,
+        offset: const Offset(0, 5),
+      ),
+    ];
+  }
+
+  Widget _buildBottomNavigation() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF87CEEB),
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: _shadow(),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _bottomItem(Icons.home_rounded, 'Home', 0),
+          _bottomItem(Icons.person_rounded, 'Profile', 1),
+          _bottomItem(Icons.settings_rounded, 'Settings', 2),
+        ],
+      ),
     );
   }
 
@@ -279,50 +329,6 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildBottomNavigation() {
-    return Container(
-      width: double.infinity,
-      height: 60,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(16),
-          topRight: Radius.circular(16),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _buildBottomNavItem(
-            icon: Icons.home_outlined,
-            isCurrent: false,
-            onTap: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const DashboardPage()),
-              );
-            },
-          ),
-          _buildBottomNavItem(
-            icon: Icons.person_outlined,
-            isCurrent: true,
-            onTap: () {},
-          ),
-          _buildBottomNavItem(
-            icon: Icons.settings_outlined,
-            isCurrent: false,
-            onTap: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const SettingsPage()),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -332,6 +338,7 @@ class _ProfilePageState extends State<ProfilePage> {
           onTap: () => FocusScope.of(context).unfocus(),
           child: Scaffold(
             backgroundColor: const Color(0xFFF4F4F4),
+
             body: SafeArea(
               child: Column(
                 children: [
@@ -375,10 +382,11 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                     ),
                   ),
-                  _buildBottomNavigation(),
                 ],
               ),
             ),
+
+            bottomNavigationBar: _buildBottomNavigation(),
           ),
         );
       },

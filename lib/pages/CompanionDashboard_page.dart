@@ -45,8 +45,6 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
     },
   ];
 
-  int _selectedIndex = 0;
-
   void _goBack() {
     if (Navigator.canPop(context)) {
       Navigator.pop(context);
@@ -58,9 +56,7 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
     }
   }
 
-  void _onBottomTap(int index) {
-    if (index == _selectedIndex) return;
-
+  void _goToPage(int index) {
     if (index == 0) {
       Navigator.pushReplacement(
         context,
@@ -95,6 +91,7 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF6FBFF),
+
       body: SafeArea(
         child: Column(
           children: [
@@ -173,36 +170,63 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
                   const SizedBox(height: 12),
 
                   _dailyReportCard(),
+                  const SizedBox(height: 20),
                 ],
               ),
             ),
           ],
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: _onBottomTap,
-        backgroundColor: Colors.white,
-        selectedItemColor: const Color(0xFF87CEEB),
-        unselectedItemColor: Colors.grey,
-        type: BottomNavigationBarType.fixed,
-        elevation: 12,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_rounded),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_rounded),
-            label: 'Profile',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings_rounded),
-            label: 'Settings',
+
+      bottomNavigationBar: Container(
+        margin: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF87CEEB),
+          borderRadius: BorderRadius.circular(30),
+          boxShadow: _shadow(),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _bottomItem(Icons.home_rounded, 'Home', 0),
+            _bottomItem(Icons.person_rounded, 'Profile', 1),
+            _bottomItem(Icons.settings_rounded, 'Settings', 2),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _bottomItem(IconData icon, String label, int index) {
+    return GestureDetector(
+      onTap: () => _goToPage(index),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white, size: 27),
+          const SizedBox(height: 3),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),
     );
+  }
+
+  List<BoxShadow> _shadow() {
+    return [
+      BoxShadow(
+        color: Colors.black.withOpacity(0.08),
+        blurRadius: 12,
+        offset: const Offset(0, 5),
+      ),
+    ];
   }
 
   Widget _header() {
@@ -504,13 +528,7 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
     return BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(25),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withOpacity(0.08),
-          blurRadius: 10,
-          offset: const Offset(0, 5),
-        ),
-      ],
+      boxShadow: _shadow(),
     );
   }
 }

@@ -25,35 +25,7 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
 
   List<String> _favoriteIds = [];
 
-  final List<Map<String, dynamic>> _localVolunteers = [
-    {
-      'id': '1',
-      'name': 'Ahmed Ali',
-      'helpType': 'Medical Assistance',
-      'gender': 'Male',
-      'isAvailable': true,
-      'rating': 4.5,
-      'photoUrl': '',
-    },
-    {
-      'id': '2',
-      'name': 'Sara Mohamed',
-      'helpType': 'Delivery',
-      'gender': 'Female',
-      'isAvailable': false,
-      'rating': 4.0,
-      'photoUrl': '',
-    },
-    {
-      'id': '3',
-      'name': 'Fatima Hassan',
-      'helpType': 'Daily Support',
-      'gender': 'Female',
-      'isAvailable': true,
-      'rating': 5.0,
-      'photoUrl': '',
-    },
-  ];
+  final List<Map<String, dynamic>> _localVolunteers = [];
 
   final List<String> _helpTypes = [
     'All',
@@ -76,6 +48,7 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
   void initState() {
     super.initState();
     _loadFavorites();
+
     _searchController.addListener(() {
       setState(() {
         _searchText = _searchController.text.trim().toLowerCase();
@@ -89,21 +62,137 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
     super.dispose();
   }
 
-  Widget _buildBottomNavItem({
-    required IconData icon,
-    required VoidCallback onTap,
-    bool isCurrent = false,
-  }) {
-    return IconButton(
-      onPressed: onTap,
-      icon: Icon(
-        icon,
-        size: icon == Icons.settings_outlined ? 45 : 50,
-        color: isCurrent ? const Color(0xFF87CEEB) : Colors.black,
+  bool get _hasActiveFilters {
+    return _selectedGender != 'All' ||
+        _selectedStatus != 'All' ||
+        _selectedHelpType != 'All' ||
+        _selectedSort != 'A-Z';
+  }
+
+  void _clearOneFilter(String filterName) {
+    setState(() {
+      if (filterName == 'gender') {
+        _selectedGender = 'All';
+      } else if (filterName == 'status') {
+        _selectedStatus = 'All';
+      } else if (filterName == 'helpType') {
+        _selectedHelpType = 'All';
+      } else if (filterName == 'sort') {
+        _selectedSort = 'A-Z';
+      }
+    });
+  }
+
+  Widget _filterChipBox({required String label, required String filterName}) {
+    return Container(
+      margin: const EdgeInsets.only(right: 8, bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE8F7FC),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFF87CEEB)),
       ),
-      splashColor: Colors.grey.withOpacity(0.20),
-      highlightColor: Colors.grey.withOpacity(0.12),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFF025590),
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(width: 6),
+          GestureDetector(
+            onTap: () => _clearOneFilter(filterName),
+            child: const Icon(Icons.close, size: 16, color: Color(0xFF025590)),
+          ),
+        ],
+      ),
     );
+  }
+
+  Widget _buildActiveFilters() {
+    if (!_hasActiveFilters) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Wrap(
+          children: [
+            if (_selectedGender != 'All')
+              _filterChipBox(
+                label: 'Gender: $_selectedGender',
+                filterName: 'gender',
+              ),
+            if (_selectedStatus != 'All')
+              _filterChipBox(
+                label: 'Status: $_selectedStatus',
+                filterName: 'status',
+              ),
+            if (_selectedHelpType != 'All')
+              _filterChipBox(
+                label: 'Help: $_selectedHelpType',
+                filterName: 'helpType',
+              ),
+            if (_selectedSort != 'A-Z')
+              _filterChipBox(label: 'Sort: $_selectedSort', filterName: 'sort'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _goToPage(int index) {
+    if (index == 0) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const DashboardPage()),
+      );
+    } else if (index == 1) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const ProfilePage()),
+      );
+    } else if (index == 2) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const SettingsPage()),
+      );
+    }
+  }
+
+  Widget _bottomItem(IconData icon, String label, int index) {
+    return GestureDetector(
+      onTap: () => _goToPage(index),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white, size: 27),
+          const SizedBox(height: 3),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<BoxShadow> _shadow() {
+    return [
+      BoxShadow(
+        color: Colors.black.withOpacity(0.08),
+        blurRadius: 12,
+        offset: const Offset(0, 5),
+      ),
+    ];
   }
 
   Future<void> _loadFavorites() async {
@@ -175,6 +264,7 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
                       ),
                     ),
                     const SizedBox(height: 20),
+
                     const Text(
                       'Sort',
                       style: TextStyle(
@@ -200,7 +290,9 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
                       },
                       decoration: _dropdownDecoration(),
                     ),
+
                     const SizedBox(height: 16),
+
                     const Text(
                       'Gender',
                       style: TextStyle(
@@ -226,7 +318,9 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
                       },
                       decoration: _dropdownDecoration(),
                     ),
+
                     const SizedBox(height: 16),
+
                     const Text(
                       'Status',
                       style: TextStyle(
@@ -252,7 +346,9 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
                       },
                       decoration: _dropdownDecoration(),
                     ),
+
                     const SizedBox(height: 16),
+
                     const Text(
                       'Type of Assistance',
                       style: TextStyle(
@@ -278,7 +374,9 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
                       },
                       decoration: _dropdownDecoration(),
                     ),
+
                     const SizedBox(height: 24),
+
                     Row(
                       children: [
                         Expanded(
@@ -382,6 +480,7 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
     return Row(
       children: List.generate(5, (index) {
         final starNumber = index + 1;
+
         return InkWell(
           onTap: () => _rateVolunteer(
             volunteerId: volunteerId,
@@ -432,6 +531,7 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
                     : null,
               ),
               const SizedBox(width: 12),
+
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -451,6 +551,7 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
                   ],
                 ),
               ),
+
               IconButton(
                 onPressed: () => _toggleFavorite(volunteerId),
                 icon: Icon(
@@ -460,7 +561,9 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
               ),
             ],
           ),
+
           const SizedBox(height: 12),
+
           Row(
             children: [
               Container(
@@ -491,65 +594,21 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
     );
   }
 
-  Widget _buildSmallChip(String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEAF6FB),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontSize: 12,
-          color: Color(0xFF025590),
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-
   Widget _buildBottomNavigation() {
     return Container(
-      width: double.infinity,
-      height: 60,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(16),
-          topRight: Radius.circular(16),
-        ),
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF87CEEB),
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: _shadow(),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildBottomNavItem(
-            icon: Icons.home_outlined,
-            onTap: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const DashboardPage()),
-              );
-            },
-          ),
-          _buildBottomNavItem(
-            icon: Icons.person_outlined,
-            onTap: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const ProfilePage()),
-              );
-            },
-          ),
-          _buildBottomNavItem(
-            icon: Icons.settings_outlined,
-            onTap: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const SettingsPage()),
-              );
-            },
-          ),
+          _bottomItem(Icons.home_rounded, 'Home', 0),
+          _bottomItem(Icons.person_rounded, 'Profile', 1),
+          _bottomItem(Icons.settings_rounded, 'Settings', 2),
         ],
       ),
     );
@@ -563,6 +622,7 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
         backgroundColor: Colors.white,
+
         floatingActionButton: FloatingActionButton(
           backgroundColor: const Color(0xFF87CEEB),
           onPressed: () {
@@ -575,6 +635,7 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
           },
           child: const Icon(Icons.person_add, color: Colors.white),
         ),
+
         body: SafeArea(
           child: Column(
             children: [
@@ -598,6 +659,7 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
                   ),
                 ],
               ),
+
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
                 child: Row(
@@ -617,6 +679,7 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
                       },
                       icon: const Icon(Icons.arrow_back, size: 28),
                     ),
+
                     const Expanded(
                       child: Center(
                         child: Text(
@@ -628,6 +691,7 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
                         ),
                       ),
                     ),
+
                     IconButton(
                       onPressed: _openFilterSheet,
                       icon: const Icon(Icons.filter_list_rounded, size: 28),
@@ -635,6 +699,7 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
                   ],
                 ),
               ),
+
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Container(
@@ -645,47 +710,20 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
                   ),
                   child: TextField(
                     controller: _searchController,
-                    decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.search_rounded),
-                      suffixIcon: IconButton(
-                        onPressed: _openFilterSheet,
-                        icon: const Icon(Icons.keyboard_arrow_down_rounded),
-                      ),
+                    decoration: const InputDecoration(
+                      prefixIcon: Icon(Icons.search_rounded),
                       hintText: 'Search volunteer',
                       border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                      contentPadding: EdgeInsets.symmetric(vertical: 16),
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  children: [
-                    _buildSmallChip('Sort: $_selectedSort'),
-                    const SizedBox(width: 8),
-                    _buildSmallChip('Gender: $_selectedGender'),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 6),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  children: [
-                    _buildSmallChip('Status: $_selectedStatus'),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: _buildSmallChip('Help: $_selectedHelpType'),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
+
+              _buildActiveFilters(),
+
+              const SizedBox(height: 16),
+
               Expanded(
                 child: filteredDocs.isEmpty
                     ? const Center(
@@ -702,10 +740,11 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
                         },
                       ),
               ),
-              _buildBottomNavigation(),
             ],
           ),
         ),
+
+        bottomNavigationBar: _buildBottomNavigation(),
       ),
     );
   }

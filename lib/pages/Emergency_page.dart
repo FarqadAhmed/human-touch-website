@@ -61,21 +61,54 @@ class _EmergencyPageState extends State<EmergencyPage> {
     ),
   ];
 
-  Widget _buildBottomNavItem({
-    required IconData icon,
-    required VoidCallback onTap,
-    bool isCurrent = false,
-  }) {
-    return IconButton(
-      onPressed: onTap,
-      icon: Icon(
-        icon,
-        size: icon == Icons.settings_outlined ? 45 : 50,
-        color: isCurrent ? const Color(0xFF87CEEB) : Colors.black,
+  void _goToPage(int index) {
+    if (index == 0) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const DashboardPage()),
+      );
+    } else if (index == 1) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const ProfilePage()),
+      );
+    } else if (index == 2) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const SettingsPage()),
+      );
+    }
+  }
+
+  Widget _bottomItem(IconData icon, String label, int index) {
+    return GestureDetector(
+      onTap: () => _goToPage(index),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: const Color(0xFF87CEEB), size: 27),
+          const SizedBox(height: 3),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFF87CEEB),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
-      splashColor: Colors.grey.withOpacity(0.20),
-      highlightColor: Colors.grey.withOpacity(0.12),
     );
+  }
+
+  List<BoxShadow> _shadow() {
+    return [
+      BoxShadow(
+        color: Colors.black.withOpacity(0.08),
+        blurRadius: 12,
+        offset: const Offset(0, 5),
+      ),
+    ];
   }
 
   Future<Position> _getCurrentLocation() async {
@@ -111,6 +144,7 @@ class _EmergencyPageState extends State<EmergencyPage> {
     if (availableVolunteers.isEmpty) return null;
 
     VolunteerContact nearest = availableVolunteers.first;
+
     double nearestDistance = Geolocator.distanceBetween(
       patientPosition.latitude,
       patientPosition.longitude,
@@ -338,58 +372,25 @@ $locationText
           onTap: () => FocusScope.of(context).unfocus(),
           child: Scaffold(
             backgroundColor: const Color(0xFF87CEEB),
+
             bottomNavigationBar: Container(
-              width: double.infinity,
-              height: 60,
-              decoration: const BoxDecoration(
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+              decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(16),
-                  topRight: Radius.circular(16),
-                ),
+                borderRadius: BorderRadius.circular(30),
+                boxShadow: _shadow(),
               ),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _buildBottomNavItem(
-                    icon: Icons.home_outlined,
-                    isCurrent: false,
-                    onTap: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const DashboardPage(),
-                        ),
-                      );
-                    },
-                  ),
-                  _buildBottomNavItem(
-                    icon: Icons.person_outlined,
-                    isCurrent: false,
-                    onTap: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const ProfilePage(),
-                        ),
-                      );
-                    },
-                  ),
-                  _buildBottomNavItem(
-                    icon: Icons.settings_outlined,
-                    isCurrent: false,
-                    onTap: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const SettingsPage(),
-                        ),
-                      );
-                    },
-                  ),
+                  _bottomItem(Icons.home_rounded, 'Home', 0),
+                  _bottomItem(Icons.person_rounded, 'Profile', 1),
+                  _bottomItem(Icons.settings_rounded, 'Settings', 2),
                 ],
               ),
             ),
+
             body: SafeArea(
               child: SingleChildScrollView(
                 child: Column(
@@ -452,9 +453,9 @@ $locationText
                           duration: const Duration(milliseconds: 200),
                           width: 250,
                           height: 250,
-                          decoration: BoxDecoration(
+                          decoration: const BoxDecoration(
                             color: Colors.white,
-                            boxShadow: const [
+                            boxShadow: [
                               BoxShadow(
                                 blurRadius: 20,
                                 color: Color(0x40000000),
