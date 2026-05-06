@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 // import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'location_picker_page.dart';
-import 'VolunteerRequests_page.dart';
+import 'VolunteerDashboard_page.dart';
 import 'Login_page.dart';
 import 'SignUp_page.dart';
 import 'profile_store.dart';
@@ -297,7 +297,7 @@ class _SignUpVolunteerPageState extends State<SignUpVolunteerPage> {
 
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => const VolunteerRequestsPage()),
+      MaterialPageRoute(builder: (context) => const VolunteerDashboardPage()),
     );
 
     /*

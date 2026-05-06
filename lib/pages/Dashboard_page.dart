@@ -149,14 +149,9 @@ class _DashboardPageState extends State<DashboardPage> {
                         ),
                         child: Row(
                           children: [
-                            Text(
-                              reminder.emoji,
-                              style: const TextStyle(fontSize: 22),
-                            ),
-                            const SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                '${reminder.day} - ${reminder.title} (${reminder.time})',
+                                '${reminder.emoji} ${reminder.title} • ${reminder.time}',
                                 style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
@@ -395,7 +390,6 @@ class _DashboardPageState extends State<DashboardPage> {
                 ],
               ),
             ),
-
             bottomNavigationBar: Container(
               margin: const EdgeInsets.all(16),
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),

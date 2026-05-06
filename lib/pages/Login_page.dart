@@ -9,7 +9,7 @@ import 'ForgetPassword_page.dart';
 import 'SignUp_page.dart';
 import 'profile_store.dart';
 import 'CompanionDashboard_page.dart';
-import 'VolunteerRequests_page.dart';
+import 'VolunteerDashboard_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -138,7 +138,7 @@ class _LoginPageState extends State<LoginPage> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => const VolunteerRequestsPage(),
+            builder: (context) => const VolunteerDashboardPage(),
           ),
         );
       } else {

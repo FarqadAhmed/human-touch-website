@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'Dashboard_page.dart';
 import 'Profile_page.dart';
 import 'Settings_page.dart';
@@ -14,31 +15,17 @@ class RemindersPage extends StatefulWidget {
 class _RemindersPageState extends State<RemindersPage> {
   final ReminderStore store = ReminderStore.instance;
 
-  Color _statusColor(String status) {
-    if (status == 'done') return const Color(0xFFDFF5E1);
-    if (status == 'missed') return const Color(0xFFFDE2E2);
-    return const Color(0xFFF4F4F4);
-  }
+  String _selectedDay = 'Wednesday';
 
-  String _statusText(String status) {
-    if (status == 'done') return 'Done';
-    if (status == 'missed') return 'Not Done';
-    return 'Pending';
-  }
-
-  void _updateStatus(ReminderItem item, String status) {
-    store.updateReminderStatus(item.id, status);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          status == 'done'
-              ? '${item.title} marked as done'
-              : '${item.title} marked as not done',
-        ),
-      ),
-    );
-  }
+  final List<String> _days = const [
+    'Sunday',
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+  ];
 
   void _goBack() {
     if (Navigator.canPop(context)) {
@@ -46,7 +33,7 @@ class _RemindersPageState extends State<RemindersPage> {
     } else {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const DashboardPage()),
+        MaterialPageRoute(builder: (_) => const DashboardPage()),
       );
     }
   }
@@ -70,6 +57,16 @@ class _RemindersPageState extends State<RemindersPage> {
     }
   }
 
+  List<BoxShadow> _shadow() {
+    return [
+      BoxShadow(
+        color: Colors.black.withOpacity(0.08),
+        blurRadius: 12,
+        offset: const Offset(0, 5),
+      ),
+    ];
+  }
+
   Widget _bottomItem(IconData icon, String label, int index) {
     return GestureDetector(
       onTap: () => _goToPage(index),
@@ -91,16 +88,6 @@ class _RemindersPageState extends State<RemindersPage> {
     );
   }
 
-  List<BoxShadow> _shadow() {
-    return [
-      BoxShadow(
-        color: Colors.black.withOpacity(0.08),
-        blurRadius: 12,
-        offset: const Offset(0, 5),
-      ),
-    ];
-  }
-
   Widget _buildBottomNavigation() {
     return Container(
       margin: const EdgeInsets.all(16),
@@ -116,127 +103,6 @@ class _RemindersPageState extends State<RemindersPage> {
           _bottomItem(Icons.home_rounded, 'Home', 0),
           _bottomItem(Icons.person_rounded, 'Profile', 1),
           _bottomItem(Icons.settings_rounded, 'Settings', 2),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTopCard() {
-    return Container(
-      width: double.infinity,
-      height: 135,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: const [
-          BoxShadow(
-            blurRadius: 10,
-            color: Color(0x9257636C),
-            offset: Offset(0, 0),
-            spreadRadius: 1,
-          ),
-        ],
-        borderRadius: BorderRadius.circular(25),
-      ),
-      padding: const EdgeInsets.all(18),
-      child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Patient Reminders',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              color: Colors.black,
-            ),
-          ),
-          SizedBox(height: 10),
-          Text(
-            'You can only view reminders and mark them as done or not done.',
-            style: TextStyle(fontSize: 14, color: Colors.black87, height: 1.4),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildReminderCard(ReminderItem item) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: _statusColor(item.status),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Text(item.emoji, style: const TextStyle(fontSize: 24)),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    Text(
-                      '${item.day} - ${item.time}',
-                      style: const TextStyle(fontSize: 13),
-                    ),
-                  ],
-                ),
-              ),
-              Text(_statusText(item.status)),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              ElevatedButton(
-                onPressed: () => _updateStatus(item, 'done'),
-                child: const Text('✅'),
-              ),
-              const SizedBox(width: 10),
-              ElevatedButton(
-                onPressed: () => _updateStatus(item, 'missed'),
-                child: const Text('❌'),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSection(String title, List<ReminderItem> items) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(top: 20),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 14),
-          if (items.isEmpty)
-            const Text(
-              'No reminders here',
-              style: TextStyle(fontSize: 14, color: Colors.black54),
-            )
-          else
-            ...items.map(_buildReminderCard),
         ],
       ),
     );
@@ -295,33 +161,271 @@ class _RemindersPageState extends State<RemindersPage> {
     );
   }
 
+  String _categoryText(ReminderCategory category) {
+    switch (category) {
+      case ReminderCategory.medicine:
+        return 'Medicine';
+      case ReminderCategory.meal:
+        return 'Meal';
+      case ReminderCategory.appointment:
+        return 'Appointment';
+    }
+  }
+
+  IconData _categoryIcon(ReminderCategory category) {
+    switch (category) {
+      case ReminderCategory.medicine:
+        return Icons.medication_outlined;
+      case ReminderCategory.meal:
+        return Icons.restaurant_outlined;
+      case ReminderCategory.appointment:
+        return Icons.calendar_month_outlined;
+    }
+  }
+
+  Widget _buildDayTab(String day) {
+    final bool isSelected = _selectedDay == day;
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            _selectedDay = day;
+          });
+        },
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 2),
+          height: 50,
+          decoration: BoxDecoration(
+            color: isSelected
+                ? const Color(0xFF69B7E8)
+                : const Color(0xFFE9E9E9),
+            borderRadius: BorderRadius.circular(13),
+          ),
+          child: Center(
+            child: Text(
+              day,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: isSelected ? Colors.white : const Color(0xFF333333),
+                fontSize: 8.5,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _changeReminderStatus(ReminderItem item, String status) {
+    final updatedItem = ReminderItem(
+      id: item.id,
+      title: item.title,
+      time: item.time,
+      day: item.day,
+      emoji: item.emoji,
+      category: item.category,
+      notification: item.notification,
+      sound: item.sound,
+      status: status,
+    );
+
+    store.updateReminder(updatedItem);
+    setState(() {});
+  }
+
+  Widget _statusChip(String status) {
+    Color color;
+    String text;
+
+    if (status == 'accepted') {
+      color = Colors.green;
+      text = 'Accepted';
+    } else if (status == 'none') {
+      color = Colors.orange;
+      text = 'None';
+    } else {
+      color = Colors.grey;
+      text = 'Pending';
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  Widget _smallButton({
+    required String text,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: SizedBox(
+        height: 38,
+        child: ElevatedButton(
+          onPressed: onTap,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: color,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+          ),
+          child: Text(
+            text,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReminderCard(ReminderItem item) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 27,
+                backgroundColor: const Color(0xFFEAF7FD),
+                child: Text(item.emoji, style: const TextStyle(fontSize: 25)),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.title,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF333333),
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Row(
+                      children: [
+                        Icon(
+                          _categoryIcon(item.category),
+                          size: 16,
+                          color: Colors.grey,
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          '${_categoryText(item.category)} • ${item.time}',
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              _statusChip(item.status),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              _smallButton(
+                text: 'Accept',
+                color: const Color(0xFF69B7E8),
+                onTap: () => _changeReminderStatus(item, 'accepted'),
+              ),
+              const SizedBox(width: 10),
+              _smallButton(
+                text: 'None',
+                color: Colors.orange,
+                onTap: () => _changeReminderStatus(item, 'none'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: store,
       builder: (context, _) {
-        final medicines = store.remindersByCategory(ReminderCategory.medicine);
-        final meals = store.remindersByCategory(ReminderCategory.meal);
-        final appointments = store.remindersByCategory(
-          ReminderCategory.appointment,
-        );
+        final selectedReminders = store.reminders.where((item) {
+          return item.day.toLowerCase() == _selectedDay.toLowerCase();
+        }).toList();
 
         return Scaffold(
           backgroundColor: const Color(0xFFF4F4F4),
-
           body: SafeArea(
             child: Column(
               children: [
                 _buildHeader(),
                 Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
+                    color: const Color(0xFFF4F4F4),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildTopCard(),
-                        _buildSection('Medicines', medicines),
-                        _buildSection('Meals', meals),
-                        _buildSection('Appointments', appointments),
+                        Row(children: _days.map(_buildDayTab).toList()),
+                        const SizedBox(height: 24),
+                        Expanded(
+                          child: selectedReminders.isEmpty
+                              ? const Center(
+                                  child: Text(
+                                    'No reminders for this day',
+                                    style: TextStyle(
+                                      fontSize: 17,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                )
+                              : ListView.builder(
+                                  itemCount: selectedReminders.length,
+                                  itemBuilder: (context, index) {
+                                    return _buildReminderCard(
+                                      selectedReminders[index],
+                                    );
+                                  },
+                                ),
+                        ),
                       ],
                     ),
                   ),
@@ -329,7 +433,6 @@ class _RemindersPageState extends State<RemindersPage> {
               ],
             ),
           ),
-
           bottomNavigationBar: _buildBottomNavigation(),
         );
       },

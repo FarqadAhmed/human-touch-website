@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'Dashboard_page.dart';
 import 'Login_page.dart';
@@ -27,7 +28,21 @@ class _Profile2PageState extends State<Profile2Page> {
   late TextEditingController _emailController;
   late TextEditingController _passwordController;
 
+  late TextEditingController _volunteerSpecialtyController;
+  late TextEditingController _volunteerSkillController;
+  late TextEditingController _volunteerBioController;
+  late TextEditingController _volunteerWorkController;
+
   bool _isScanning = false;
+
+  String _selectedVolunteerType = 'Medical';
+
+  final List<String> _volunteerTypes = [
+    'Medical',
+    'Shopping',
+    'Transportation',
+    'Other',
+  ];
 
   @override
   void initState() {
@@ -39,6 +54,13 @@ class _Profile2PageState extends State<Profile2Page> {
     _phoneController = TextEditingController(text: profileStore.phoneNumber);
     _emailController = TextEditingController(text: profileStore.email);
     _passwordController = TextEditingController(text: profileStore.password);
+
+    _volunteerSpecialtyController = TextEditingController();
+    _volunteerSkillController = TextEditingController();
+    _volunteerBioController = TextEditingController();
+    _volunteerWorkController = TextEditingController();
+
+    _loadVolunteerInfo();
   }
 
   @override
@@ -47,7 +69,51 @@ class _Profile2PageState extends State<Profile2Page> {
     _phoneController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+
+    _volunteerSpecialtyController.dispose();
+    _volunteerSkillController.dispose();
+    _volunteerBioController.dispose();
+    _volunteerWorkController.dispose();
+
     super.dispose();
+  }
+
+  Future<void> _loadVolunteerInfo() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    if (!mounted) return;
+
+    setState(() {
+      _volunteerSpecialtyController.text =
+          prefs.getString('volunteerSpecialty') ?? '';
+      _volunteerSkillController.text = prefs.getString('volunteerSkill') ?? '';
+      _volunteerBioController.text = prefs.getString('volunteerBio') ?? '';
+      _volunteerWorkController.text = prefs.getString('volunteerWork') ?? '';
+      _selectedVolunteerType = prefs.getString('volunteerType') ?? 'Medical';
+    });
+  }
+
+  Future<void> _saveVolunteerInfo() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    await prefs.setString(
+      'volunteerSpecialty',
+      _volunteerSpecialtyController.text.trim(),
+    );
+
+    await prefs.setString(
+      'volunteerSkill',
+      _volunteerSkillController.text.trim(),
+    );
+
+    await prefs.setString('volunteerBio', _volunteerBioController.text.trim());
+
+    await prefs.setString(
+      'volunteerWork',
+      _volunteerWorkController.text.trim(),
+    );
+
+    await prefs.setString('volunteerType', _selectedVolunteerType);
   }
 
   void _goToPage(int index) {
@@ -146,6 +212,10 @@ class _Profile2PageState extends State<Profile2Page> {
     profileStore.updatePassword(_passwordController.text.trim());
 
     await profileStore.saveProfile();
+
+    if (profileStore.userRole == 'volunteer') {
+      await _saveVolunteerInfo();
+    }
 
     if (!mounted) return;
 
@@ -332,6 +402,7 @@ class _Profile2PageState extends State<Profile2Page> {
     required TextEditingController controller,
     bool obscureText = false,
     TextInputType? keyboardType,
+    int maxLines = 1,
   }) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
@@ -353,6 +424,7 @@ class _Profile2PageState extends State<Profile2Page> {
           controller: controller,
           obscureText: obscureText,
           keyboardType: keyboardType,
+          maxLines: obscureText ? 1 : maxLines,
           onChanged: (_) {
             setState(() {});
           },
@@ -422,6 +494,111 @@ class _Profile2PageState extends State<Profile2Page> {
             foregroundColor: foregroundColor,
             elevation: 1,
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVolunteerInfoSection() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: const [
+            BoxShadow(
+              blurRadius: 5,
+              color: Color(0x3416202A),
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Volunteer Information',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 14),
+
+            TextField(
+              controller: _volunteerSpecialtyController,
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(
+                labelText: 'Specialty',
+                hintText: 'Example: Nursing, First Aid, Physical Therapy',
+                prefixIcon: Icon(Icons.work_outline),
+                border: OutlineInputBorder(),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            TextField(
+              controller: _volunteerSkillController,
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(
+                labelText: 'Skill',
+                hintText: 'Example: Communication, Driving, Patient Care',
+                prefixIcon: Icon(Icons.star_outline),
+                border: OutlineInputBorder(),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            DropdownButtonFormField<String>(
+              value: _selectedVolunteerType,
+              decoration: const InputDecoration(
+                labelText: 'Volunteer Type',
+                prefixIcon: Icon(Icons.volunteer_activism_outlined),
+                border: OutlineInputBorder(),
+              ),
+              items: _volunteerTypes.map((type) {
+                return DropdownMenuItem(value: type, child: Text(type));
+              }).toList(),
+              onChanged: (value) {
+                if (value == null) return;
+
+                setState(() {
+                  _selectedVolunteerType = value;
+                });
+              },
+            ),
+
+            const SizedBox(height: 12),
+
+            TextField(
+              controller: _volunteerBioController,
+              maxLines: 3,
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(
+                labelText: 'About Me',
+                hintText: 'Write a short bio about yourself',
+                prefixIcon: Icon(Icons.info_outline),
+                border: OutlineInputBorder(),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            TextField(
+              controller: _volunteerWorkController,
+              maxLines: 3,
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(
+                labelText: 'What do you volunteer in?',
+                hintText:
+                    'Example: Helping patients with shopping or transport',
+                prefixIcon: Icon(Icons.favorite_outline),
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -540,7 +717,6 @@ class _Profile2PageState extends State<Profile2Page> {
           onTap: () => FocusScope.of(context).unfocus(),
           child: Scaffold(
             backgroundColor: const Color(0xFFF4F4F4),
-
             body: SafeArea(
               child: Column(
                 children: [
@@ -552,33 +728,43 @@ class _Profile2PageState extends State<Profile2Page> {
                           _buildTopProfileInfo(),
                           _buildSectionTitleCard(),
                           _buildUploadImageButton(),
+
                           _buildField(
                             icon: Icons.person_outlined,
                             label: 'Name',
                             controller: _nameController,
                           ),
+
                           _buildField(
                             icon: Icons.phone_in_talk,
                             label: 'Phone Number',
                             controller: _phoneController,
                             keyboardType: TextInputType.phone,
                           ),
+
                           _buildField(
                             icon: Icons.mail_outline_rounded,
                             label: 'Email',
                             controller: _emailController,
                             keyboardType: TextInputType.emailAddress,
                           ),
+
                           _buildField(
                             icon: Icons.lock_open,
                             label: 'Password',
                             controller: _passwordController,
                             obscureText: true,
                           ),
+
+                          if (profileStore.userRole == 'volunteer')
+                            _buildVolunteerInfoSection(),
+
                           if (profileStore.userRole == 'patient')
                             _buildPatientQrSection(),
+
                           if (profileStore.userRole == 'companion')
                             _buildCompanionScanSection(),
+
                           _buildActionButton(
                             text: 'Save Changes',
                             icon: Icons.save_outlined,
@@ -586,6 +772,7 @@ class _Profile2PageState extends State<Profile2Page> {
                             backgroundColor: const Color(0xFF87CEEB),
                             foregroundColor: Colors.white,
                           ),
+
                           _buildActionButton(
                             text: 'Delete Account',
                             icon: Icons.delete_outlined,
@@ -601,6 +788,7 @@ class _Profile2PageState extends State<Profile2Page> {
                               );
                             },
                           ),
+
                           _buildActionButton(
                             text: 'Log Out',
                             onPressed: () {
@@ -613,6 +801,7 @@ class _Profile2PageState extends State<Profile2Page> {
                               );
                             },
                           ),
+
                           const SizedBox(height: 20),
                         ],
                       ),
@@ -621,7 +810,6 @@ class _Profile2PageState extends State<Profile2Page> {
                 ],
               ),
             ),
-
             bottomNavigationBar: _buildBottomNavigation(),
           ),
         );

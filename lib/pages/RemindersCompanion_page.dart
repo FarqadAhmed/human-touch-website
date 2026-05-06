@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-
-import 'Dashboard_page.dart';
 import 'Profile_page.dart';
 import 'Settings_page.dart';
 import 'CompanionDashboard_page.dart';
