@@ -85,4 +85,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'human-touch-35bd0.firebasestorage.app',
     measurementId: 'G-WJ6L3WZ3RJ',
   );
+
 }

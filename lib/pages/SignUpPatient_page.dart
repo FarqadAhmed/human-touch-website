@@ -85,6 +85,17 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
     super.dispose();
   }
 
+  void _showMessage(String message) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 5),
+      ),
+    );
+  }
+
   void _generateStrongPassword() {
     const chars =
         'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#\$!';
@@ -185,12 +196,10 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
       labelStyle: const TextStyle(
         fontSize: 16,
         color: Colors.black87,
-        fontWeight: FontWeight.normal,
       ),
       floatingLabelStyle: const TextStyle(
         fontSize: 14,
         color: Color(0xFF025590),
-        fontWeight: FontWeight.normal,
       ),
       filled: true,
       fillColor: Colors.white,
@@ -230,10 +239,13 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
     );
 
     if (result != null && result is Map<String, dynamic>) {
+      final latValue = result['latitude'];
+      final lngValue = result['longitude'];
+
       setState(() {
         _locationController.text = result['address'] ?? '';
-        _selectedLatitude = result['latitude'];
-        _selectedLongitude = result['longitude'];
+        _selectedLatitude = latValue is num ? latValue.toDouble() : null;
+        _selectedLongitude = lngValue is num ? lngValue.toDouble() : null;
       });
     }
   }
@@ -241,38 +253,28 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
   Future<void> _handleSignUp() async {
     FocusScope.of(context).unfocus();
 
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
 
     if (_selectedDisability == null || _selectedDisability!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select type of disability')),
-      );
+      _showMessage('Please select type of disability');
       return;
     }
 
     if (_selectedDisability == 'Multiple Disabilities' &&
         _multipleDisabilitiesController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter the disabilities')),
-      );
+      _showMessage('Please enter the disabilities');
       return;
     }
 
     if (_selectedGender == null || _selectedGender!.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Please select gender')));
+      _showMessage('Please select gender');
       return;
     }
 
     if (_locationController.text.trim().isEmpty ||
         _selectedLatitude == null ||
         _selectedLongitude == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Please select location')));
+      _showMessage('Please select location');
       return;
     }
 
@@ -280,21 +282,31 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
       _isLoading = true;
     });
 
+    User? createdUser;
+
     try {
-      final UserCredential userCredential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
-            email: _emailController.text.trim(),
-            password: _passwordController.text.trim(),
-          );
+      debugPrint('Creating Firebase Auth account...');
 
-      final User? user = userCredential.user;
+      final UserCredential userCredential =
+          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
 
-      if (user == null) {
-        throw Exception('Failed to create account');
+      createdUser = userCredential.user;
+
+      if (createdUser == null) {
+        throw Exception('Firebase Auth user is null.');
       }
 
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-        'uid': user.uid,
+      debugPrint('Auth account created: ${createdUser.uid}');
+      debugPrint('Saving user data to Firestore...');
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(createdUser.uid)
+          .set({
+        'uid': createdUser.uid,
         'name': _nameController.text.trim(),
         'email': _emailController.text.trim(),
         'phone': _phoneController.text.trim(),
@@ -307,10 +319,12 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
         'latitude': _selectedLatitude,
         'longitude': _selectedLongitude,
         'role': 'patient',
-        'patientLinkCode': 'PATIENT-${user.uid}',
+        'patientLinkCode': 'PATIENT-${createdUser.uid}',
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
+
+      debugPrint('Firestore data saved successfully.');
 
       if (!mounted) return;
 
@@ -323,6 +337,9 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
         MaterialPageRoute(builder: (context) => const DashboardPage()),
       );
     } on FirebaseAuthException catch (e) {
+      debugPrint('FirebaseAuthException code: ${e.code}');
+      debugPrint('FirebaseAuthException message: ${e.message}');
+
       String message = 'Failed to create account.';
 
       if (e.code == 'email-already-in-use') {
@@ -331,6 +348,8 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
         message = 'Please enter a valid email.';
       } else if (e.code == 'weak-password') {
         message = 'Password is too weak.';
+      } else if (e.code == 'operation-not-allowed') {
+        message = 'Email/Password sign-in is not enabled in Firebase.';
       } else if (e.message != null && e.message!.trim().isNotEmpty) {
         message = e.message!;
       }
@@ -341,19 +360,54 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
         _isLoading = false;
       });
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
-    } catch (e) {
+      _showMessage(message);
+    } on FirebaseException catch (e) {
+      debugPrint('FirebaseException plugin: ${e.plugin}');
+      debugPrint('FirebaseException code: ${e.code}');
+      debugPrint('FirebaseException message: ${e.message}');
+
+      if (createdUser != null) {
+        try {
+          await createdUser.delete();
+          debugPrint('Auth user deleted because Firestore failed.');
+        } catch (deleteError) {
+          debugPrint('Could not delete Auth user: $deleteError');
+        }
+      }
+
+      String message = 'Firebase error: ${e.code}';
+
+      if (e.code == 'permission-denied') {
+        message = 'Firestore permission denied. Check Firestore Rules.';
+      } else if (e.code == 'unavailable') {
+        message = 'Firebase service unavailable. Check internet connection.';
+      } else if (e.message != null && e.message!.trim().isNotEmpty) {
+        message = 'Firebase error: ${e.message}';
+      }
+
       if (!mounted) return;
 
       setState(() {
         _isLoading = false;
       });
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      _showMessage(message);
+    } catch (e) {
+      debugPrint('General error: $e');
+
+      if (createdUser != null) {
+        try {
+          await createdUser.delete();
+        } catch (_) {}
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      _showMessage('Error: $e');
     }
   }
 
@@ -386,16 +440,6 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
                           ),
                         );
                       },
-                      style: ButtonStyle(
-                        overlayColor: WidgetStateProperty.resolveWith<Color?>((
-                          states,
-                        ) {
-                          if (states.contains(WidgetState.pressed)) {
-                            return Colors.grey.withOpacity(0.30);
-                          }
-                          return null;
-                        }),
-                      ),
                       icon: const Icon(
                         Icons.arrow_back,
                         size: 30,
@@ -423,14 +467,12 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
                             ),
                           ),
                           const SizedBox(height: 10),
-
                           _buildFieldContainer(
                             child: TextFormField(
                               controller: _nameController,
                               focusNode: _nameFocusNode,
                               textInputAction: TextInputAction.next,
                               decoration: _inputDecoration(label: 'Name'),
-                              style: const TextStyle(fontSize: 16),
                               validator: (value) {
                                 if ((value ?? '').trim().isEmpty) {
                                   return 'Please enter your name';
@@ -438,15 +480,12 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
                                 return null;
                               },
                               onFieldSubmitted: (_) {
-                                FocusScope.of(
-                                  context,
-                                ).requestFocus(_emailFocusNode);
+                                FocusScope.of(context)
+                                    .requestFocus(_emailFocusNode);
                               },
                             ),
                           ),
-
                           const SizedBox(height: 8),
-
                           _buildFieldContainer(
                             child: TextFormField(
                               controller: _emailController,
@@ -454,7 +493,6 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
                               keyboardType: TextInputType.emailAddress,
                               textInputAction: TextInputAction.next,
                               decoration: _inputDecoration(label: 'Email'),
-                              style: const TextStyle(fontSize: 16),
                               validator: (value) {
                                 final text = (value ?? '').trim();
                                 if (text.isEmpty) {
@@ -467,25 +505,20 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
                                 return null;
                               },
                               onFieldSubmitted: (_) {
-                                FocusScope.of(
-                                  context,
-                                ).requestFocus(_phoneFocusNode);
+                                FocusScope.of(context)
+                                    .requestFocus(_phoneFocusNode);
                               },
                             ),
                           ),
-
                           const SizedBox(height: 8),
-
                           _buildFieldContainer(
                             child: TextFormField(
                               controller: _phoneController,
                               focusNode: _phoneFocusNode,
                               keyboardType: TextInputType.phone,
                               textInputAction: TextInputAction.next,
-                              decoration: _inputDecoration(
-                                label: 'Phone Number',
-                              ),
-                              style: const TextStyle(fontSize: 16),
+                              decoration:
+                                  _inputDecoration(label: 'Phone Number'),
                               validator: (value) {
                                 final text = (value ?? '').trim();
                                 if (text.isEmpty) {
@@ -497,15 +530,12 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
                                 return null;
                               },
                               onFieldSubmitted: (_) {
-                                FocusScope.of(
-                                  context,
-                                ).requestFocus(_passwordFocusNode);
+                                FocusScope.of(context)
+                                    .requestFocus(_passwordFocusNode);
                               },
                             ),
                           ),
-
                           const SizedBox(height: 8),
-
                           Align(
                             alignment: Alignment.centerRight,
                             child: TextButton.icon(
@@ -518,9 +548,7 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
                               ),
                             ),
                           ),
-
                           const SizedBox(height: 6),
-
                           _buildFieldContainer(
                             child: TextFormField(
                               controller: _passwordController,
@@ -544,7 +572,6 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
                                   ),
                                 ),
                               ),
-                              style: const TextStyle(fontSize: 16),
                               onChanged: (value) {
                                 setState(() {
                                   _passwordText = value;
@@ -575,15 +602,12 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
                                 return null;
                               },
                               onFieldSubmitted: (_) {
-                                FocusScope.of(
-                                  context,
-                                ).requestFocus(_confirmPasswordFocusNode);
+                                FocusScope.of(context)
+                                    .requestFocus(_confirmPasswordFocusNode);
                               },
                             ),
                           ),
-
                           const SizedBox(height: 6),
-
                           if (_passwordText.isNotEmpty)
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -610,9 +634,7 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
                                 ),
                               ],
                             ),
-
                           const SizedBox(height: 8),
-
                           _buildFieldContainer(
                             child: TextFormField(
                               controller: _confirmPasswordController,
@@ -637,7 +659,6 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
                                   ),
                                 ),
                               ),
-                              style: const TextStyle(fontSize: 16),
                               validator: (value) {
                                 final text = value ?? '';
                                 if (text.isEmpty) {
@@ -649,15 +670,12 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
                                 return null;
                               },
                               onFieldSubmitted: (_) {
-                                FocusScope.of(
-                                  context,
-                                ).requestFocus(_ageFocusNode);
+                                FocusScope.of(context)
+                                    .requestFocus(_ageFocusNode);
                               },
                             ),
                           ),
-
                           const SizedBox(height: 8),
-
                           _buildFieldContainer(
                             child: TextFormField(
                               controller: _ageController,
@@ -665,7 +683,6 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
                               keyboardType: TextInputType.number,
                               textInputAction: TextInputAction.done,
                               decoration: _inputDecoration(label: 'Age'),
-                              style: const TextStyle(fontSize: 16),
                               validator: (value) {
                                 final text = (value ?? '').trim();
                                 if (text.isEmpty) {
@@ -683,15 +700,12 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
                               },
                             ),
                           ),
-
                           const SizedBox(height: 8),
-
                           _buildFieldContainer(
                             child: DropdownButtonFormField<String>(
-                              initialValue: _selectedDisability,
-                              decoration: _inputDecoration(
-                                label: 'Type of Disability',
-                              ),
+                              value: _selectedDisability,
+                              decoration:
+                                  _inputDecoration(label: 'Type of Disability'),
                               items: _disabilityOptions
                                   .map(
                                     (option) => DropdownMenuItem<String>(
@@ -714,7 +728,6 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
                               ),
                             ),
                           ),
-
                           if (showMultipleDisabilitiesField) ...[
                             const SizedBox(height: 8),
                             _buildFieldContainer(
@@ -726,7 +739,6 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
                                 decoration: _inputDecoration(
                                   label: 'Write the disabilities',
                                 ),
-                                style: const TextStyle(fontSize: 16),
                                 validator: (value) {
                                   if (showMultipleDisabilitiesField &&
                                       (value ?? '').trim().isEmpty) {
@@ -737,12 +749,10 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
                               ),
                             ),
                           ],
-
                           const SizedBox(height: 8),
-
                           _buildFieldContainer(
                             child: DropdownButtonFormField<String>(
-                              initialValue: _selectedGender,
+                              value: _selectedGender,
                               decoration: _inputDecoration(label: 'Gender'),
                               items: const [
                                 DropdownMenuItem(
@@ -764,9 +774,7 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
                               ),
                             ),
                           ),
-
                           const SizedBox(height: 8),
-
                           SizedBox(
                             width: double.infinity,
                             height: 56,
@@ -791,19 +799,14 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
                                           ? 'Select Location'
                                           : _locationController.text,
                                       overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w400,
-                                      ),
+                                      style: const TextStyle(fontSize: 16),
                                     ),
                                   ),
                                 ],
                               ),
                             ),
                           ),
-
                           const SizedBox(height: 8),
-
                           SizedBox(
                             width: double.infinity,
                             height: 56,
@@ -829,9 +832,7 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
                                     ),
                             ),
                           ),
-
                           const SizedBox(height: 10),
-
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [

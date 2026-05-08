@@ -53,49 +53,82 @@ class _SettingsPageState extends State<SettingsPage> {
     final user = _auth.currentUser;
 
     if (user == null) {
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
       });
       return;
     }
 
-    final doc = await _firestore.collection('users').doc(user.uid).get();
-    final data = doc.data() ?? {};
+    try {
+      final doc = await _firestore.collection('users').doc(user.uid).get();
+      final data = doc.data() ?? {};
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    setState(() {
-      _name = (data['name'] ?? data['fullName'] ?? data['username'] ?? '')
-          .toString();
-      _email = (data['email'] ?? user.email ?? '').toString();
-      _profileImageBase64 = (data['profileImageBase64'] ?? data['image'] ?? '')
-          .toString();
+      setState(() {
+        _name = (data['name'] ?? data['fullName'] ?? data['username'] ?? '')
+            .toString();
+        _email = (data['email'] ?? user.email ?? '').toString();
+        _profileImageBase64 =
+            (data['profileImageBase64'] ?? data['image'] ?? '').toString();
 
-      _darkMode = data['darkMode'] ?? false;
-      _notifications = data['notifications'] ?? true;
-      _locationSharing = data['locationSharing'] ?? true;
-      _callCompanion = data['callCompanion'] ?? true;
-      _sendSmsToCompanion = data['sendSmsToCompanion'] ?? true;
-      _alertNearbyVolunteers = data['alertNearbyVolunteers'] ?? true;
+        _darkMode = data['darkMode'] ?? false;
+        _notifications = data['notifications'] ?? true;
+        _locationSharing = data['locationSharing'] ?? true;
+        _callCompanion = data['callCompanion'] ?? true;
+        _sendSmsToCompanion = data['sendSmsToCompanion'] ?? true;
+        _alertNearbyVolunteers = data['alertNearbyVolunteers'] ?? true;
 
-      _language = (data['language'] ?? 'en').toString();
-      _textScale = (data['textScale'] ?? 1.0).toDouble();
+        _language = (data['language'] ?? 'en').toString();
 
-      _companionPhoneController.text = (data['companionPhone'] ?? '')
-          .toString();
+        final textScaleValue = data['textScale'];
+        if (textScaleValue is num) {
+          _textScale = textScaleValue.toDouble();
+        } else {
+          _textScale = 1.0;
+        }
 
-      _isLoading = false;
-    });
+        _companionPhoneController.text =
+            (data['companionPhone'] ?? '').toString();
+
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading settings: $e');
+
+      if (!mounted) return;
+
+      setState(() {
+        _name = user.displayName ?? '';
+        _email = user.email ?? '';
+        _isLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading settings: $e')),
+      );
+    }
   }
 
   Future<void> _updateSetting(String field, dynamic value) async {
     final user = _auth.currentUser;
     if (user == null) return;
 
-    await _firestore.collection('users').doc(user.uid).set({
-      field: value,
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    try {
+      await _firestore.collection('users').doc(user.uid).set({
+        field: value,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Error updating setting $field: $e');
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error saving setting: $e')),
+      );
+    }
   }
 
   Future<void> _logout() async {
@@ -121,8 +154,6 @@ class _SettingsPageState extends State<SettingsPage> {
         context,
         MaterialPageRoute(builder: (_) => const ProfilePage()),
       );
-    } else if (index == 2) {
-      return;
     }
   }
 
@@ -142,13 +173,6 @@ class _SettingsPageState extends State<SettingsPage> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.12),
-                  blurRadius: 18,
-                  offset: const Offset(0, 8),
-                ),
-              ],
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -209,9 +233,8 @@ class _SettingsPageState extends State<SettingsPage> {
     _showInfoCard(
       title: 'About Human Touch',
       icon: Icons.supervisor_account,
-      content: '''About Human Touch
-
-Human Touch is a smart companion designed to improve daily life and independence for people with disabilities. From managing medications, meals, appointments, and health routines to providing quick emergency support, the app helps users stay safe, organized, and connected. It also offers useful tools such as voice and sign communication assistance, accessible location guidance, health monitoring, and volunteer support services to ensure users receive the help they need anytime. With an intuitive interface and a seamless experience, Human Touch is your trusted support partner, making everyday life easier, safer, and more empowering!''',
+      content:
+          '''Human Touch is a smart companion designed to improve daily life and independence for people with disabilities.''',
     );
   }
 
@@ -219,13 +242,11 @@ Human Touch is a smart companion designed to improve daily life and independence
     _showInfoCard(
       title: 'Contact Us',
       icon: Icons.phone_paused_rounded,
-      content: '''Contact Us
+      content: '''We are here to support you.
 
-We are here to support you. If you have any questions, feedback, technical issues, or suggestions about the Human Touch app, please feel free to contact our team.
+Email: humantouchapp@gmail.com
 
-📧 Email: humantouchapp@gmail.com
-
-🏢 Service Provider: Human Touch Team''',
+Service Provider: Human Touch Team''',
     );
   }
 
@@ -236,37 +257,7 @@ We are here to support you. If you have any questions, feedback, technical issue
       content: '''Privacy Policy
 Effective Date: April 27, 2026
 
-This Privacy Policy applies to the Human Touch app, developed and provided as a free service by the Human Touch Team. The Application is provided “AS IS”, and this Privacy Policy explains how user data is collected, used, and protected.
-
-1. Information Collection and Use
-
-The Application may collect information such as name, email address, phone number, emergency contacts, reminders, health-related information, location permissions, and volunteer assistance data.
-
-2. Use of Information
-
-The Service Provider uses collected information to provide app features, manage reminders, enable emergency support, support communication tools, improve accessibility, and enhance user experience.
-
-3. Third-Party Services
-
-The Application may use Firebase Authentication, Firestore Database, Google Maps, and notification services.
-
-4. Data Sharing and Disclosure
-
-The Service Provider does not sell user data. Data may only be shared when required by law, for emergency support, or with trusted service providers needed to operate the app.
-
-5. User Rights
-
-Users may disable optional permissions, update their profile, request deletion, or stop using the app at any time.
-
-6. Security
-
-The Service Provider uses reasonable security measures to protect user data, but no online system is 100% secure.
-
-7. Contact Us
-
-📧 Email: humantouchapp@gmail.com
-
-🏢 Service Provider: Human Touch Team''',
+This Privacy Policy applies to the Human Touch app.''',
     );
   }
 
@@ -366,16 +357,7 @@ The Service Provider uses reasonable security measures to protect user data, but
   Widget _buildProfileCard() {
     return Container(
       width: double.infinity,
-      decoration: const BoxDecoration(
-        color: Color(0xFFF4F4F4),
-        boxShadow: [
-          BoxShadow(
-            blurRadius: 1,
-            color: Color(0xFFF1F4F8),
-            offset: Offset(0, 0),
-          ),
-        ],
-      ),
+      decoration: const BoxDecoration(color: Color(0xFFF4F4F4)),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 12, 24, 12),
         child: Row(
@@ -387,12 +369,9 @@ The Service Provider uses reasonable security measures to protect user data, but
                 color: const Color(0xFF87CEEB),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(2),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: _profileImageWidget(),
-                ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: _profileImageWidget(),
               ),
             ),
             const SizedBox(width: 16),
@@ -432,11 +411,7 @@ The Service Provider uses reasonable security measures to protect user data, but
         alignment: Alignment.centerLeft,
         child: Text(
           title,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: Colors.black,
-          ),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
       ),
     );
@@ -510,8 +485,6 @@ The Service Provider uses reasonable security measures to protect user data, but
   }) {
     return InkWell(
       onTap: onTap,
-      splashColor: Colors.grey.withOpacity(0.15),
-      highlightColor: Colors.grey.withOpacity(0.08),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 12, 24, 12),
         child: Row(
@@ -568,7 +541,7 @@ The Service Provider uses reasonable security measures to protect user data, but
                 border: InputBorder.none,
                 hintText: 'Enter companion phone number',
               ),
-              onChanged: (value) async {
+              onSubmitted: (value) async {
                 await _updateSetting('companionPhone', value.trim());
               },
             ),
@@ -630,9 +603,7 @@ The Service Provider uses reasonable security measures to protect user data, but
                             title: 'Switch to Dark Mode',
                             value: _darkMode,
                             onChanged: (value) async {
-                              setState(() {
-                                _darkMode = value;
-                              });
+                              setState(() => _darkMode = value);
                               await _updateSetting('darkMode', value);
                             },
                           ),
@@ -641,9 +612,7 @@ The Service Provider uses reasonable security measures to protect user data, but
                             title: 'Notifications',
                             value: _notifications,
                             onChanged: (value) async {
-                              setState(() {
-                                _notifications = value;
-                              });
+                              setState(() => _notifications = value);
                               await _updateSetting('notifications', value);
                             },
                           ),
@@ -652,9 +621,7 @@ The Service Provider uses reasonable security measures to protect user data, but
                             title: 'Location Sharing',
                             value: _locationSharing,
                             onChanged: (value) async {
-                              setState(() {
-                                _locationSharing = value;
-                              });
+                              setState(() => _locationSharing = value);
                               await _updateSetting('locationSharing', value);
                             },
                           ),
@@ -662,16 +629,11 @@ The Service Provider uses reasonable security measures to protect user data, but
                           _buildSimpleRow(
                             icon: Icons.g_translate_sharp,
                             title: 'Language',
-                            trailingText: _language == 'ar'
-                                ? 'Arabic'
-                                : 'English',
+                            trailingText:
+                                _language == 'ar' ? 'Arabic' : 'English',
                             onTap: () async {
                               final newLang = _language == 'ar' ? 'en' : 'ar';
-
-                              setState(() {
-                                _language = newLang;
-                              });
-
+                              setState(() => _language = newLang);
                               await _updateSetting('language', newLang);
                             },
                           ),
@@ -681,11 +643,7 @@ The Service Provider uses reasonable security measures to protect user data, but
                             value: _textScale > 1.0,
                             onChanged: (value) async {
                               final newScale = value ? 1.15 : 1.0;
-
-                              setState(() {
-                                _textScale = newScale;
-                              });
-
+                              setState(() => _textScale = newScale);
                               await _updateSetting('textScale', newScale);
                             },
                             icon: Icons.format_size_rounded,
@@ -697,9 +655,7 @@ The Service Provider uses reasonable security measures to protect user data, but
                             title: 'Call Companion in Emergency',
                             value: _callCompanion,
                             onChanged: (value) async {
-                              setState(() {
-                                _callCompanion = value;
-                              });
+                              setState(() => _callCompanion = value);
                               await _updateSetting('callCompanion', value);
                             },
                             icon: Icons.phone_rounded,
@@ -709,9 +665,7 @@ The Service Provider uses reasonable security measures to protect user data, but
                             title: 'Send SMS to Companion',
                             value: _sendSmsToCompanion,
                             onChanged: (value) async {
-                              setState(() {
-                                _sendSmsToCompanion = value;
-                              });
+                              setState(() => _sendSmsToCompanion = value);
                               await _updateSetting('sendSmsToCompanion', value);
                             },
                             icon: Icons.sms_outlined,
@@ -721,9 +675,7 @@ The Service Provider uses reasonable security measures to protect user data, but
                             title: 'Alert Nearby Volunteers',
                             value: _alertNearbyVolunteers,
                             onChanged: (value) async {
-                              setState(() {
-                                _alertNearbyVolunteers = value;
-                              });
+                              setState(() => _alertNearbyVolunteers = value);
                               await _updateSetting(
                                 'alertNearbyVolunteers',
                                 value,
