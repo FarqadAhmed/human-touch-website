@@ -1,4 +1,5 @@
 class ZegoConfig {
-  static const int appID = 123456789; // حطي AppID مالج
-  static const String appSign = 'your_app_sign_here'; // حطي AppSign
+  static const int appID = 630943756;
+
+  static const String appSign = '6357006e6e7b30203661babad472dc7859a6d';
 }

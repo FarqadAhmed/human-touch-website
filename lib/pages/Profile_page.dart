@@ -1,11 +1,13 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'Dashboard_page.dart';
 import 'Login_page.dart';
 import 'Profile2_page.dart';
 import 'Settings_page.dart';
-import 'profile_store.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -15,12 +17,96 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  final ProfileStore profileStore = ProfileStore.instance;
+  String _name = 'No Name';
+  String _email = 'No Email';
+  String _role = 'patient';
+  String _profileImageBase64 = '';
+  bool _isActive = true;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    profileStore.loadProfile();
+    _loadProfileFromFirebase();
+  }
+
+  Future<void> _loadProfileFromFirebase() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+
+      if (user == null) {
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      final data = doc.data();
+
+      if (!mounted) return;
+
+      setState(() {
+        _name =
+            (data?['name'] ??
+                    data?['fullName'] ??
+                    data?['username'] ??
+                    'No Name')
+                .toString();
+
+        _email = (data?['email'] ?? user.email ?? 'No Email').toString();
+
+        _role = (data?['role'] ?? 'patient').toString();
+
+        _profileImageBase64 =
+            (data?['profileImageBase64'] ?? data?['image'] ?? '').toString();
+
+        _isActive = data?['isActive'] ?? true;
+
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error loading profile: $e')));
+    }
+  }
+
+  Future<void> _updateActiveStatus(bool value) async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    setState(() {
+      _isActive = value;
+    });
+
+    if (user == null) return;
+
+    await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+      'isActive': value,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> _logout() async {
+    await FirebaseAuth.instance.signOut();
+
+    if (!mounted) return;
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => const LoginPage()),
+      (route) => false,
+    );
   }
 
   void _goToPage(int index) {
@@ -118,15 +204,23 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _profileImageWidget() {
-    if (profileStore.profileImageBase64.isNotEmpty) {
-      return Image.memory(
-        base64Decode(profileStore.profileImageBase64),
-        width: 100,
-        height: 100,
-        fit: BoxFit.cover,
-      );
+    if (_profileImageBase64.isNotEmpty) {
+      try {
+        return Image.memory(
+          base64Decode(_profileImageBase64),
+          width: 100,
+          height: 100,
+          fit: BoxFit.cover,
+        );
+      } catch (_) {
+        return _defaultProfileIcon();
+      }
     }
 
+    return _defaultProfileIcon();
+  }
+
+  Widget _defaultProfileIcon() {
     return Container(
       width: 100,
       height: 100,
@@ -154,7 +248,7 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
         const SizedBox(height: 12),
         Text(
-          profileStore.name.isEmpty ? 'No Name' : profileStore.name,
+          _name.isEmpty ? 'No Name' : _name,
           style: const TextStyle(
             color: Color(0xFF14181B),
             fontSize: 24,
@@ -163,7 +257,7 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
         const SizedBox(height: 4),
         Text(
-          profileStore.email.isEmpty ? 'No Email' : profileStore.email,
+          _email.isEmpty ? 'No Email' : _email,
           style: const TextStyle(
             color: Color(0xFF87CEEB),
             fontSize: 16,
@@ -203,10 +297,8 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
             Expanded(
               child: SwitchListTile.adaptive(
-                value: profileStore.isActive,
-                onChanged: (value) {
-                  profileStore.updateIsActive(value);
-                },
+                value: _isActive,
+                onChanged: _updateActiveStatus,
                 title: const Text(
                   'Active',
                   style: TextStyle(color: Color(0xFF14181B), fontSize: 14),
@@ -267,12 +359,14 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget _buildRoleInfoCard() {
     String roleText = '';
 
-    if (profileStore.userRole == 'patient') {
+    if (_role == 'patient') {
       roleText = 'Patient Account';
-    } else if (profileStore.userRole == 'companion') {
+    } else if (_role == 'companion') {
       roleText = 'Companion Account';
-    } else {
+    } else if (_role == 'volunteer') {
       roleText = 'Volunteer Account';
+    } else {
+      roleText = 'User Account';
     }
 
     return Padding(
@@ -307,13 +401,7 @@ class _ProfilePageState extends State<ProfilePage> {
     return Padding(
       padding: const EdgeInsets.only(top: 16),
       child: ElevatedButton(
-        onPressed: () {
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (context) => const LoginPage()),
-            (route) => false,
-          );
-        },
+        onPressed: _logout,
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFFF1F4F8),
           foregroundColor: const Color(0xFF14181B),
@@ -331,65 +419,64 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: profileStore,
-      builder: (context, _) {
-        return GestureDetector(
-          onTap: () => FocusScope.of(context).unfocus(),
-          child: Scaffold(
-            backgroundColor: const Color(0xFFF4F4F4),
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF4F4F4),
+        body: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(),
+              Expanded(
+                child: _isLoading
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          color: Color(0xFF87CEEB),
+                        ),
+                      )
+                    : SingleChildScrollView(
+                        child: Column(
+                          children: [
+                            _buildProfileTop(),
+                            _buildActiveCard(),
+                            _buildActionCard(
+                              icon: Icons.account_circle_outlined,
+                              title: 'Edit Profile',
+                              onTap: () async {
+                                await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const Profile2Page(),
+                                  ),
+                                );
 
-            body: SafeArea(
-              child: Column(
-                children: [
-                  _buildHeader(),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        children: [
-                          _buildProfileTop(),
-                          _buildActiveCard(),
-                          _buildActionCard(
-                            icon: Icons.account_circle_outlined,
-                            title: 'Edit Profile',
-                            onTap: () async {
-                              await Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const Profile2Page(),
-                                ),
-                              );
-
-                              await profileStore.loadProfile();
-                            },
-                          ),
-                          _buildActionCard(
-                            icon: Icons.settings_outlined,
-                            title: 'Account Settings',
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const SettingsPage(),
-                                ),
-                              );
-                            },
-                          ),
-                          _buildRoleInfoCard(),
-                          _buildLogoutButton(),
-                          const SizedBox(height: 20),
-                        ],
+                                await _loadProfileFromFirebase();
+                              },
+                            ),
+                            _buildActionCard(
+                              icon: Icons.settings_outlined,
+                              title: 'Account Settings',
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const SettingsPage(),
+                                  ),
+                                );
+                              },
+                            ),
+                            _buildRoleInfoCard(),
+                            _buildLogoutButton(),
+                            const SizedBox(height: 20),
+                          ],
+                        ),
                       ),
-                    ),
-                  ),
-                ],
               ),
-            ),
-
-            bottomNavigationBar: _buildBottomNavigation(),
+            ],
           ),
-        );
-      },
+        ),
+        bottomNavigationBar: _buildBottomNavigation(),
+      ),
     );
   }
 }

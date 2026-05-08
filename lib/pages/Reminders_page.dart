@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'Dashboard_page.dart';
 import 'Profile_page.dart';
 import 'Settings_page.dart';
-import 'reminder_store.dart';
 
 class RemindersPage extends StatefulWidget {
   const RemindersPage({super.key});
@@ -13,8 +14,6 @@ class RemindersPage extends StatefulWidget {
 }
 
 class _RemindersPageState extends State<RemindersPage> {
-  final ReminderStore store = ReminderStore.instance;
-
   String _selectedDay = 'Wednesday';
 
   final List<String> _days = const [
@@ -161,28 +160,32 @@ class _RemindersPageState extends State<RemindersPage> {
     );
   }
 
-  String _categoryText(ReminderCategory category) {
-    switch (category) {
-      case ReminderCategory.medicine:
+  String _categoryText(String category) {
+    switch (category.toLowerCase()) {
+      case 'medicine':
         return 'Medicine';
-      case ReminderCategory.meal:
+      case 'meal':
         return 'Meal';
-      case ReminderCategory.appointment:
+      case 'appointment':
         return 'Appointment';
-      case ReminderCategory.others:
+      case 'others':
+        return 'Others';
+      default:
         return 'Others';
     }
   }
 
-  IconData _categoryIcon(ReminderCategory category) {
-    switch (category) {
-      case ReminderCategory.medicine:
+  IconData _categoryIcon(String category) {
+    switch (category.toLowerCase()) {
+      case 'medicine':
         return Icons.medication_outlined;
-      case ReminderCategory.meal:
+      case 'meal':
         return Icons.restaurant_outlined;
-      case ReminderCategory.appointment:
+      case 'appointment':
         return Icons.calendar_month_outlined;
-      case ReminderCategory.others:
+      case 'others':
+        return Icons.more_horiz_rounded;
+      default:
         return Icons.more_horiz_rounded;
     }
   }
@@ -224,21 +227,11 @@ class _RemindersPageState extends State<RemindersPage> {
     );
   }
 
-  void _changeReminderStatus(ReminderItem item, String status) {
-    final updatedItem = ReminderItem(
-      id: item.id,
-      title: item.title,
-      time: item.time,
-      day: item.day,
-      emoji: item.emoji,
-      category: item.category,
-      notification: item.notification,
-      sound: item.sound,
-      status: status,
-    );
-
-    store.updateReminder(updatedItem);
-    setState(() {});
+  Future<void> _changeReminderStatus(String docId, String status) async {
+    await FirebaseFirestore.instance.collection('reminders').doc(docId).update({
+      'status': status,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
 
   Widget _statusChip(String status) {
@@ -303,7 +296,16 @@ class _RemindersPageState extends State<RemindersPage> {
     );
   }
 
-  Widget _buildReminderCard(ReminderItem item) {
+  Widget _buildReminderCard({
+    required String docId,
+    required Map<String, dynamic> data,
+  }) {
+    final String title = data['title'] ?? 'Reminder';
+    final String time = data['time'] ?? '';
+    final String emoji = data['emoji'] ?? '🔔';
+    final String category = data['category'] ?? 'others';
+    final String status = data['status'] ?? 'pending';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
@@ -325,7 +327,7 @@ class _RemindersPageState extends State<RemindersPage> {
               CircleAvatar(
                 radius: 27,
                 backgroundColor: const Color(0xFFEAF7FD),
-                child: Text(item.emoji, style: const TextStyle(fontSize: 25)),
+                child: Text(emoji, style: const TextStyle(fontSize: 25)),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -333,7 +335,7 @@ class _RemindersPageState extends State<RemindersPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      item.title,
+                      title,
                       style: const TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.bold,
@@ -344,13 +346,13 @@ class _RemindersPageState extends State<RemindersPage> {
                     Row(
                       children: [
                         Icon(
-                          _categoryIcon(item.category),
+                          _categoryIcon(category),
                           size: 16,
                           color: Colors.grey,
                         ),
                         const SizedBox(width: 5),
                         Text(
-                          '${_categoryText(item.category)} • ${item.time}',
+                          '${_categoryText(category)} • $time',
                           style: const TextStyle(
                             color: Colors.grey,
                             fontSize: 13,
@@ -361,7 +363,7 @@ class _RemindersPageState extends State<RemindersPage> {
                   ],
                 ),
               ),
-              _statusChip(item.status),
+              _statusChip(status),
             ],
           ),
           const SizedBox(height: 14),
@@ -370,13 +372,13 @@ class _RemindersPageState extends State<RemindersPage> {
               _smallButton(
                 text: 'Accept',
                 color: const Color(0xFF69B7E8),
-                onTap: () => _changeReminderStatus(item, 'accepted'),
+                onTap: () => _changeReminderStatus(docId, 'accepted'),
               ),
               const SizedBox(width: 10),
               _smallButton(
                 text: 'None',
                 color: Colors.orange,
-                onTap: () => _changeReminderStatus(item, 'none'),
+                onTap: () => _changeReminderStatus(docId, 'none'),
               ),
             ],
           ),
@@ -385,61 +387,108 @@ class _RemindersPageState extends State<RemindersPage> {
     );
   }
 
+  Stream<QuerySnapshot<Map<String, dynamic>>> _remindersStream() {
+    final user = FirebaseAuth.instance.currentUser;
+
+    return FirebaseFirestore.instance
+        .collection('reminders')
+        .where('userId', isEqualTo: user?.uid ?? '')
+        .where('day', isEqualTo: _selectedDay)
+        .snapshots();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: store,
-      builder: (context, _) {
-        final selectedReminders = store.reminders.where((item) {
-          return item.day.toLowerCase() == _selectedDay.toLowerCase();
-        }).toList();
+    final user = FirebaseAuth.instance.currentUser;
 
-        return Scaffold(
-          backgroundColor: const Color(0xFFF4F4F4),
-          body: SafeArea(
-            child: Column(
-              children: [
-                _buildHeader(),
-                Expanded(
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
-                    color: const Color(0xFFF4F4F4),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(children: _days.map(_buildDayTab).toList()),
-                        const SizedBox(height: 24),
-                        Expanded(
-                          child: selectedReminders.isEmpty
-                              ? const Center(
-                                  child: Text(
-                                    'No reminders for this day',
-                                    style: TextStyle(
-                                      fontSize: 17,
-                                      color: Colors.grey,
+    return Scaffold(
+      backgroundColor: const Color(0xFFF4F4F4),
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildHeader(),
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
+                color: const Color(0xFFF4F4F4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: _days.map(_buildDayTab).toList()),
+                    const SizedBox(height: 24),
+                    Expanded(
+                      child: user == null
+                          ? const Center(
+                              child: Text(
+                                'Please login to see reminders',
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            )
+                          : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                              stream: _remindersStream(),
+                              builder: (context, snapshot) {
+                                if (snapshot.hasError) {
+                                  return const Center(
+                                    child: Text(
+                                      'Error loading reminders',
+                                      style: TextStyle(
+                                        fontSize: 17,
+                                        color: Colors.grey,
+                                      ),
                                     ),
-                                  ),
-                                )
-                              : ListView.builder(
-                                  itemCount: selectedReminders.length,
+                                  );
+                                }
+
+                                if (snapshot.connectionState ==
+                                    ConnectionState.waiting) {
+                                  return const Center(
+                                    child: CircularProgressIndicator(
+                                      color: Color(0xFF87CEEB),
+                                    ),
+                                  );
+                                }
+
+                                if (!snapshot.hasData ||
+                                    snapshot.data!.docs.isEmpty) {
+                                  return const Center(
+                                    child: Text(
+                                      'No reminders for this day',
+                                      style: TextStyle(
+                                        fontSize: 17,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  );
+                                }
+
+                                final reminders = snapshot.data!.docs;
+
+                                return ListView.builder(
+                                  itemCount: reminders.length,
                                   itemBuilder: (context, index) {
+                                    final doc = reminders[index];
+
                                     return _buildReminderCard(
-                                      selectedReminders[index],
+                                      docId: doc.id,
+                                      data: doc.data(),
                                     );
                                   },
-                                ),
-                        ),
-                      ],
+                                );
+                              },
+                            ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ),
-          bottomNavigationBar: _buildBottomNavigation(),
-        );
-      },
+          ],
+        ),
+      ),
+      bottomNavigationBar: _buildBottomNavigation(),
     );
   }
 }

@@ -7,7 +7,37 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'Profile_page.dart';
 import 'Settings_page.dart';
 import 'RemindersCompanion_page.dart';
-import 'reminder_store.dart';
+
+class CompanionReminder {
+  final String id;
+  final String title;
+  final String time;
+  final String day;
+  final String emoji;
+  final String status;
+
+  CompanionReminder({
+    required this.id,
+    required this.title,
+    required this.time,
+    required this.day,
+    required this.emoji,
+    required this.status,
+  });
+
+  factory CompanionReminder.fromDoc(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+
+    return CompanionReminder(
+      id: doc.id,
+      title: (data['title'] ?? '').toString(),
+      time: (data['time'] ?? '').toString(),
+      day: (data['day'] ?? '').toString(),
+      emoji: (data['emoji'] ?? '⏰').toString(),
+      status: (data['status'] ?? 'pending').toString(),
+    );
+  }
+}
 
 class CompanionDashboardPage extends StatefulWidget {
   const CompanionDashboardPage({super.key});
@@ -17,8 +47,6 @@ class CompanionDashboardPage extends StatefulWidget {
 }
 
 class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
-  final ReminderStore store = ReminderStore.instance;
-
   Timer? _timer;
   String _lastUpdated = '';
 
@@ -74,10 +102,32 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
         return;
       }
 
-      final companionData = companionDoc.data();
+      final companionData = companionDoc.data() ?? {};
 
-      companionName = companionData?['name'] ?? 'Companion';
-      patientUid = companionData?['patientUid'] ?? '';
+      companionName = (companionData['name'] ?? 'Companion').toString();
+      patientUid = (companionData['patientUid'] ?? '').toString();
+
+      if (patientUid.trim().isEmpty) {
+        final linkedPatientCode = (companionData['linkedPatientCode'] ?? '')
+            .toString();
+
+        if (linkedPatientCode.isNotEmpty) {
+          final patientQuery = await FirebaseFirestore.instance
+              .collection('users')
+              .where('patientLinkCode', isEqualTo: linkedPatientCode)
+              .limit(1)
+              .get();
+
+          if (patientQuery.docs.isNotEmpty) {
+            patientUid = patientQuery.docs.first.id;
+
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(user.uid)
+                .set({'patientUid': patientUid}, SetOptions(merge: true));
+          }
+        }
+      }
 
       if (patientUid.trim().isEmpty) {
         setState(() {
@@ -100,15 +150,15 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
         return;
       }
 
-      final patientData = patientDoc.data();
+      final patientData = patientDoc.data() ?? {};
 
       setState(() {
-        patientName = patientData?['name'] ?? 'Patient';
-        patientStatus = patientData?['status'] ?? 'Stable';
-        mood = patientData?['mood'] ?? 'Calm 😊';
-        location = patientData?['location'] ?? 'Manama';
-        heartRate = patientData?['heartRate'] ?? 78;
-        sleepHours = patientData?['sleepHours'] ?? 7;
+        patientName = (patientData['name'] ?? 'Patient').toString();
+        patientStatus = (patientData['status'] ?? 'Stable').toString();
+        mood = (patientData['mood'] ?? 'Calm 😊').toString();
+        location = (patientData['location'] ?? 'Manama').toString();
+        heartRate = patientData['heartRate'] ?? 78;
+        sleepHours = patientData['sleepHours'] ?? 7;
 
         _isLoading = false;
         _isLinkedToPatient = true;
@@ -121,6 +171,26 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
         _isLinkedToPatient = false;
       });
     }
+  }
+
+  Stream<List<CompanionReminder>> _patientRemindersStream() {
+    if (patientUid.isEmpty) {
+      return const Stream.empty();
+    }
+
+    return FirebaseFirestore.instance
+        .collection('reminders')
+        .where('userId', isEqualTo: patientUid)
+        .snapshots()
+        .map((snapshot) {
+          final reminders = snapshot.docs
+              .map((doc) => CompanionReminder.fromDoc(doc))
+              .toList();
+
+          reminders.sort((a, b) => a.time.compareTo(b.time));
+
+          return reminders;
+        });
   }
 
   void _updateTime() {
@@ -144,24 +214,31 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
 
   String _reminderStatusText(dynamic status) {
     final text = status.toString().toLowerCase();
-    if (text.contains('done')) return 'Done';
-    if (text.contains('missed')) return 'Missed';
+
+    if (text.contains('done') || text.contains('accepted')) {
+      return 'Done';
+    }
+
+    if (text.contains('missed') || text.contains('none')) {
+      return 'Missed';
+    }
+
     return 'Pending';
   }
 
-  int _doneCount(List reminders) {
+  int _doneCount(List<CompanionReminder> reminders) {
     return reminders
         .where((item) => _reminderStatusText(item.status) == 'Done')
         .length;
   }
 
-  int _missedCount(List reminders) {
+  int _missedCount(List<CompanionReminder> reminders) {
     return reminders
         .where((item) => _reminderStatusText(item.status) == 'Missed')
         .length;
   }
 
-  double _careProgress(List reminders) {
+  double _careProgress(List<CompanionReminder> reminders) {
     if (reminders.isEmpty) return 0;
     return _doneCount(reminders) / reminders.length;
   }
@@ -182,12 +259,15 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
 
   Color _reminderStatusColor(dynamic status) {
     final text = _reminderStatusText(status);
+
     if (text == 'Done') return Colors.green;
     if (text == 'Missed') return Colors.red;
     return Colors.orange;
   }
 
-  List<Map<String, dynamic>> _generateAiInsights(List reminders) {
+  List<Map<String, dynamic>> _generateAiInsights(
+    List<CompanionReminder> reminders,
+  ) {
     final missed = _missedCount(reminders);
     final progress = _careProgress(reminders);
 
@@ -548,7 +628,7 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
     );
   }
 
-  Widget _buildDailyReport(List reminders) {
+  Widget _buildDailyReport(List<CompanionReminder> reminders) {
     final progress = _careProgress(reminders);
     final done = _doneCount(reminders);
     final missed = _missedCount(reminders);
@@ -610,7 +690,7 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
     );
   }
 
-  Widget _buildReportContent(List reminders) {
+  Widget _buildReportContent(List<CompanionReminder> reminders) {
     final progress = _careProgress(reminders);
 
     if (_selectedReport == 'Weekly') {
@@ -624,7 +704,7 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
     return _buildDailyReport(reminders);
   }
 
-  Widget _buildLinkedDashboard(List reminders) {
+  Widget _buildLinkedDashboard(List<CompanionReminder> reminders) {
     final missedReminders = reminders.where((item) {
       return _reminderStatusText(item.status) == 'Missed';
     }).toList();
@@ -786,7 +866,7 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
                     value: progress,
                     minHeight: 11,
                     borderRadius: BorderRadius.circular(20),
-                    backgroundColor: Colors.grey.shade300,
+                    backgroundColor: Colors.grey,
                     color: progressColor,
                   ),
                 ],
@@ -997,36 +1077,47 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
     );
   }
 
+  Widget _buildLinkedDashboardWithStream() {
+    return StreamBuilder<List<CompanionReminder>>(
+      stream: _patientRemindersStream(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Expanded(
+            child: Center(
+              child: CircularProgressIndicator(color: Color(0xFF87CEEB)),
+            ),
+          );
+        }
+
+        final reminders = snapshot.data ?? [];
+
+        return _buildLinkedDashboard(reminders);
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: store,
-      builder: (context, _) {
-        return Scaffold(
-          backgroundColor: const Color(0xFFF4F4F4),
-          body: SafeArea(
-            child: Column(
-              children: [
-                _buildTopHeader(),
-
-                if (_isLoading)
-                  const Expanded(
-                    child: Center(
-                      child: CircularProgressIndicator(
-                        color: Color(0xFF87CEEB),
-                      ),
-                    ),
-                  )
-                else if (!_isLinkedToPatient)
-                  _buildNotLinkedView()
-                else
-                  _buildLinkedDashboard(store.reminders),
-              ],
-            ),
-          ),
-          bottomNavigationBar: _buildBottomNavigation(),
-        );
-      },
+    return Scaffold(
+      backgroundColor: const Color(0xFFF4F4F4),
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildTopHeader(),
+            if (_isLoading)
+              const Expanded(
+                child: Center(
+                  child: CircularProgressIndicator(color: Color(0xFF87CEEB)),
+                ),
+              )
+            else if (!_isLinkedToPatient)
+              _buildNotLinkedView()
+            else
+              _buildLinkedDashboardWithStream(),
+          ],
+        ),
+      ),
+      bottomNavigationBar: _buildBottomNavigation(),
     );
   }
 }

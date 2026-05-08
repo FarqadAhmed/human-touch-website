@@ -11,7 +11,6 @@ import 'Map_page.dart';
 import 'VolunteerHelp_page.dart';
 import 'Profile_page.dart';
 import 'Settings_page.dart';
-import 'reminder_store.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -38,8 +37,10 @@ class _DashboardPageState extends State<DashboardPage> {
           .doc(user.uid)
           .get();
 
+      if (!mounted) return;
+
       setState(() {
-        _userName = doc['name'] ?? 'User';
+        _userName = doc.data()?['name'] ?? 'User';
       });
     }
   }
@@ -88,8 +89,39 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
-  Widget _buildTopReminderCard(ReminderStore store) {
-    final reminders = store.todayReminders(_getTodayName());
+  Widget _buildTopReminderCard() {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      return Container(
+        width: double.infinity,
+        height: 180,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: const [
+            BoxShadow(
+              blurRadius: 10,
+              color: Color(0x9257636C),
+              offset: Offset(0, 0),
+              spreadRadius: 1,
+            ),
+          ],
+          borderRadius: BorderRadius.circular(25),
+        ),
+        child: const Center(
+          child: Text(
+            'Please login to see reminders',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: Colors.black54,
+            ),
+          ),
+        ),
+      );
+    }
+
+    final today = _getTodayName();
 
     return Container(
       width: double.infinity,
@@ -107,8 +139,34 @@ class _DashboardPageState extends State<DashboardPage> {
         borderRadius: BorderRadius.circular(25),
       ),
       padding: const EdgeInsets.all(18),
-      child: reminders.isEmpty
-          ? const Center(
+      child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance
+            .collection('reminders')
+            .where('userId', isEqualTo: user.uid)
+            .where('day', isEqualTo: today)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return const Center(
+              child: Text(
+                'Error loading reminders',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black54,
+                ),
+              ),
+            );
+          }
+
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(color: Color(0xFF87CEEB)),
+            );
+          }
+
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(
               child: Text(
                 'No reminders for today',
                 style: TextStyle(
@@ -117,56 +175,67 @@ class _DashboardPageState extends State<DashboardPage> {
                   color: Colors.black54,
                 ),
               ),
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Today’s Reminders',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.black,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Expanded(
-                  child: ListView.separated(
-                    padding: EdgeInsets.zero,
-                    itemCount: reminders.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) {
-                      final reminder = reminders[index];
+            );
+          }
 
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF4F4F4),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                '${reminder.emoji} ${reminder.title} • ${reminder.time}',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black87,
-                                ),
+          final reminders = snapshot.data!.docs;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Today’s Reminders',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: ListView.separated(
+                  padding: EdgeInsets.zero,
+                  itemCount: reminders.length,
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 10),
+                  itemBuilder: (context, index) {
+                    final data = reminders[index].data();
+
+                    final String emoji = data['emoji'] ?? '🔔';
+                    final String title = data['title'] ?? 'Reminder';
+                    final String time = data['time'] ?? '';
+
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF4F4F4),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '$emoji $title • $time',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
                               ),
                             ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
                 ),
-              ],
-            ),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -270,146 +339,134 @@ class _DashboardPageState extends State<DashboardPage> {
 
   @override
   Widget build(BuildContext context) {
-    final ReminderStore store = ReminderStore.instance;
-
-    return AnimatedBuilder(
-      animation: store,
-      builder: (context, _) {
-        return GestureDetector(
-          onTap: () {
-            FocusScope.of(context).unfocus();
-          },
-          child: Scaffold(
-            backgroundColor: const Color(0xFFF4F4F4),
-            body: SafeArea(
-              child: Column(
-                children: [
-                  Stack(
-                    alignment: Alignment.topCenter,
-                    children: [
-                      Container(
-                        width: double.infinity,
-                        height: 130,
-                        color: const Color(0xFF87CEEB),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.only(top: 100),
-                        child: Container(
-                          width: double.infinity,
-                          height: 41,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFF4F4F4),
-                            borderRadius: BorderRadius.only(
-                              topLeft: Radius.circular(70),
-                              topRight: Radius.circular(70),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(30, 10, 30, 15),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        '${_getGreeting()}, $_userName',
-                        style: const TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(30, 0, 30, 0),
-                    child: _buildTopReminderCard(store),
-                  ),
-
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 35, 20, 0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _buildFeatureItem(
-                          context: context,
-                          label: 'Reminders',
-                          imagePath: 'assets/Reminder.png',
-                          page: const RemindersPage(),
-                        ),
-                        _buildFeatureItem(
-                          context: context,
-                          label: 'Health',
-                          imagePath: 'assets/Health.png',
-                          page: const HealthPage(),
-                          imageHeight: 60,
-                        ),
-                        _buildFeatureItem(
-                          context: context,
-                          label: 'Communication',
-                          imagePath: 'assets/communication.png',
-                          page: const CommunicationPage(),
-                          imageWidth: 100,
-                          imageHeight: 100,
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _buildFeatureItem(
-                          context: context,
-                          label: 'Emergency',
-                          imagePath: 'assets/Emergency.png',
-                          page: const EmergencyPage(),
-                        ),
-                        _buildFeatureItem(
-                          context: context,
-                          label: 'Map',
-                          imagePath: 'assets/map.png',
-                          page: const MapPage(),
-                        ),
-                        _buildFeatureItem(
-                          context: context,
-                          label: 'Volunteer\nHelp',
-                          imagePath: 'assets/volunteer.png',
-                          page: const VolunteerHelpPage(),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const Spacer(),
-                ],
-              ),
-            ),
-            bottomNavigationBar: Container(
-              margin: const EdgeInsets.all(16),
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-              decoration: BoxDecoration(
-                color: const Color(0xFF87CEEB),
-                borderRadius: BorderRadius.circular(30),
-                boxShadow: _shadow(),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _bottomItem(Icons.home_rounded, 'Home', 0),
-                  _bottomItem(Icons.person_rounded, 'Profile', 1),
-                  _bottomItem(Icons.settings_rounded, 'Settings', 2),
-                ],
-              ),
-            ),
-          ),
-        );
+    return GestureDetector(
+      onTap: () {
+        FocusScope.of(context).unfocus();
       },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF4F4F4),
+        body: SafeArea(
+          child: Column(
+            children: [
+              Stack(
+                alignment: Alignment.topCenter,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    height: 130,
+                    color: const Color(0xFF87CEEB),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 100),
+                    child: Container(
+                      width: double.infinity,
+                      height: 41,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF4F4F4),
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(70),
+                          topRight: Radius.circular(70),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(30, 10, 30, 15),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '${_getGreeting()}, $_userName',
+                    style: const TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(30, 0, 30, 0),
+                child: _buildTopReminderCard(),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 35, 20, 0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildFeatureItem(
+                      context: context,
+                      label: 'Reminders',
+                      imagePath: 'assets/Reminder.png',
+                      page: const RemindersPage(),
+                    ),
+                    _buildFeatureItem(
+                      context: context,
+                      label: 'Health',
+                      imagePath: 'assets/Health.png',
+                      page: const HealthPage(),
+                      imageHeight: 60,
+                    ),
+                    _buildFeatureItem(
+                      context: context,
+                      label: 'Communication',
+                      imagePath: 'assets/communication.png',
+                      page: const CommunicationPage(),
+                      imageWidth: 100,
+                      imageHeight: 100,
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildFeatureItem(
+                      context: context,
+                      label: 'Emergency',
+                      imagePath: 'assets/Emergency.png',
+                      page: const EmergencyPage(),
+                    ),
+                    _buildFeatureItem(
+                      context: context,
+                      label: 'Map',
+                      imagePath: 'assets/map.png',
+                      page: const MapPage(),
+                    ),
+                    _buildFeatureItem(
+                      context: context,
+                      label: 'Volunteer\nHelp',
+                      imagePath: 'assets/volunteer.png',
+                      page: const VolunteerHelpPage(),
+                    ),
+                  ],
+                ),
+              ),
+              const Spacer(),
+            ],
+          ),
+        ),
+        bottomNavigationBar: Container(
+          margin: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFF87CEEB),
+            borderRadius: BorderRadius.circular(30),
+            boxShadow: _shadow(),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _bottomItem(Icons.home_rounded, 'Home', 0),
+              _bottomItem(Icons.person_rounded, 'Profile', 1),
+              _bottomItem(Icons.settings_rounded, 'Settings', 2),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

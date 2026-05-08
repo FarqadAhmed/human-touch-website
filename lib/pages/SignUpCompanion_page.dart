@@ -1,10 +1,12 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'location_picker_page.dart';
 import 'CompanionDashboard_page.dart';
 import 'Login_page.dart';
 import 'SignUp_page.dart';
-import 'profile_store.dart';
 
 class SignUpCompanionPage extends StatefulWidget {
   const SignUpCompanionPage({super.key});
@@ -24,8 +26,6 @@ class _SignUpCompanionPageState extends State<SignUpCompanionPage> {
       TextEditingController();
   final TextEditingController _relationshipController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
-
-  final ProfileStore profileStore = ProfileStore.instance;
 
   final FocusNode _nameFocusNode = FocusNode();
   final FocusNode _emailFocusNode = FocusNode();
@@ -65,6 +65,7 @@ class _SignUpCompanionPageState extends State<SignUpCompanionPage> {
     _passwordFocusNode.dispose();
     _confirmPasswordFocusNode.dispose();
     _relationshipFocusNode.dispose();
+
     super.dispose();
   }
 
@@ -241,26 +242,76 @@ class _SignUpCompanionPageState extends State<SignUpCompanionPage> {
       _isLoading = true;
     });
 
-    await Future.delayed(const Duration(milliseconds: 700));
+    try {
+      final UserCredential userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+            email: _emailController.text.trim(),
+            password: _passwordController.text.trim(),
+          );
 
-    profileStore.updateName(_nameController.text.trim());
-    profileStore.updateEmail(_emailController.text.trim());
-    profileStore.updatePhoneNumber(_phoneController.text.trim());
-    profileStore.updatePassword(_passwordController.text.trim());
-    profileStore.updateUserRole('companion');
+      final User? user = userCredential.user;
 
-    await profileStore.saveProfile();
+      if (user == null) {
+        throw Exception('Failed to create account');
+      }
 
-    if (!mounted) return;
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'uid': user.uid,
+        'name': _nameController.text.trim(),
+        'email': _emailController.text.trim(),
+        'phone': _phoneController.text.trim(),
+        'relationship': _relationshipController.text.trim(),
+        'location': _locationController.text.trim(),
+        'latitude': _selectedLatitude,
+        'longitude': _selectedLongitude,
+        'role': 'companion',
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
 
-    setState(() {
-      _isLoading = false;
-    });
+      if (!mounted) return;
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const CompanionDashboardPage()),
-    );
+      setState(() {
+        _isLoading = false;
+      });
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const CompanionDashboardPage()),
+      );
+    } on FirebaseAuthException catch (e) {
+      String message = 'Failed to create account.';
+
+      if (e.code == 'email-already-in-use') {
+        message = 'This email is already used.';
+      } else if (e.code == 'invalid-email') {
+        message = 'Please enter a valid email.';
+      } else if (e.code == 'weak-password') {
+        message = 'Password is too weak.';
+      } else if (e.message != null && e.message!.trim().isNotEmpty) {
+        message = e.message!;
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
   }
 
   @override
@@ -303,7 +354,6 @@ class _SignUpCompanionPageState extends State<SignUpCompanionPage> {
                     child: Column(
                       children: [
                         const SizedBox(height: 40),
-
                         const Center(
                           child: Text(
                             'Sign Up Companion',
@@ -314,9 +364,7 @@ class _SignUpCompanionPageState extends State<SignUpCompanionPage> {
                             ),
                           ),
                         ),
-
                         const SizedBox(height: 20),
-
                         _buildFieldContainer(
                           child: TextFormField(
                             controller: _nameController,
@@ -336,9 +384,7 @@ class _SignUpCompanionPageState extends State<SignUpCompanionPage> {
                             },
                           ),
                         ),
-
                         const SizedBox(height: 10),
-
                         _buildFieldContainer(
                           child: TextFormField(
                             controller: _emailController,
@@ -366,9 +412,7 @@ class _SignUpCompanionPageState extends State<SignUpCompanionPage> {
                             },
                           ),
                         ),
-
                         const SizedBox(height: 10),
-
                         _buildFieldContainer(
                           child: TextFormField(
                             controller: _phoneController,
@@ -396,9 +440,7 @@ class _SignUpCompanionPageState extends State<SignUpCompanionPage> {
                             },
                           ),
                         ),
-
                         const SizedBox(height: 10),
-
                         Align(
                           alignment: Alignment.centerRight,
                           child: TextButton.icon(
@@ -411,9 +453,7 @@ class _SignUpCompanionPageState extends State<SignUpCompanionPage> {
                             ),
                           ),
                         ),
-
                         const SizedBox(height: 6),
-
                         _buildFieldContainer(
                           child: TextFormField(
                             controller: _passwordController,
@@ -476,7 +516,6 @@ class _SignUpCompanionPageState extends State<SignUpCompanionPage> {
                             },
                           ),
                         ),
-
                         if (_passwordText.isNotEmpty) ...[
                           const SizedBox(height: 6),
                           Column(
@@ -505,9 +544,7 @@ class _SignUpCompanionPageState extends State<SignUpCompanionPage> {
                             ],
                           ),
                         ],
-
                         const SizedBox(height: 10),
-
                         _buildFieldContainer(
                           child: TextFormField(
                             controller: _confirmPasswordController,
@@ -545,9 +582,7 @@ class _SignUpCompanionPageState extends State<SignUpCompanionPage> {
                             },
                           ),
                         ),
-
                         const SizedBox(height: 10),
-
                         _buildFieldContainer(
                           child: TextFormField(
                             controller: _relationshipController,
@@ -563,9 +598,7 @@ class _SignUpCompanionPageState extends State<SignUpCompanionPage> {
                             },
                           ),
                         ),
-
                         const SizedBox(height: 10),
-
                         SizedBox(
                           width: double.infinity,
                           height: 56,
@@ -596,9 +629,7 @@ class _SignUpCompanionPageState extends State<SignUpCompanionPage> {
                             ),
                           ),
                         ),
-
                         const SizedBox(height: 20),
-
                         SizedBox(
                           width: double.infinity,
                           height: 56,
@@ -624,9 +655,7 @@ class _SignUpCompanionPageState extends State<SignUpCompanionPage> {
                                   ),
                           ),
                         ),
-
                         const SizedBox(height: 10),
-
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [

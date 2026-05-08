@@ -5,8 +5,13 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class VolunteerHelpChatPage extends StatefulWidget {
   final String volunteerId;
+  final String volunteerName;
 
-  const VolunteerHelpChatPage({super.key, required this.volunteerId});
+  const VolunteerHelpChatPage({
+    super.key,
+    required this.volunteerId,
+    required this.volunteerName,
+  });
 
   @override
   State<VolunteerHelpChatPage> createState() => _VolunteerHelpChatPageState();
@@ -51,7 +56,7 @@ class _VolunteerHelpChatPageState extends State<VolunteerHelpChatPage> {
         'volunteerId': widget.volunteerId,
         'patientName': currentUser.displayName ?? 'Patient',
         'patientPhoto': currentUser.photoURL ?? '',
-        'volunteerName': volunteerData['name'] ?? 'Volunteer',
+        'volunteerName': widget.volunteerName,
         'volunteerPhoto': volunteerData['photoUrl'] ?? '',
       });
     }
@@ -59,6 +64,7 @@ class _VolunteerHelpChatPageState extends State<VolunteerHelpChatPage> {
 
   Future<void> _sendMessage(Map<String, dynamic> volunteerData) async {
     final text = _messageController.text.trim();
+
     if (text.isEmpty) return;
 
     final currentUser = _auth.currentUser;
@@ -116,21 +122,25 @@ class _VolunteerHelpChatPageState extends State<VolunteerHelpChatPage> {
 
   String _formatTime(Timestamp? timestamp) {
     if (timestamp == null) return '';
+
     final date = timestamp.toDate();
     final hour = date.hour % 12 == 0 ? 12 : date.hour % 12;
     final minute = date.minute.toString().padLeft(2, '0');
     final period = date.hour >= 12 ? 'pm' : 'am';
+
     return '$hour:$minute $period';
   }
 
   String _formatHeaderDate(Timestamp? timestamp) {
     if (timestamp == null) return '';
+
     final date = timestamp.toDate();
     final weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     final dayName = weekDays[date.weekday - 1];
     final hour = date.hour % 12 == 0 ? 12 : date.hour % 12;
     final minute = date.minute.toString().padLeft(2, '0');
     final period = date.hour >= 12 ? 'PM' : 'AM';
+
     return '$dayName $hour:$minute $period';
   }
 
@@ -142,9 +152,8 @@ class _VolunteerHelpChatPageState extends State<VolunteerHelpChatPage> {
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Column(
-        crossAxisAlignment: isMe
-            ? CrossAxisAlignment.end
-            : CrossAxisAlignment.start,
+        crossAxisAlignment:
+            isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
           Container(
             constraints: const BoxConstraints(maxWidth: 240),
@@ -253,8 +262,8 @@ class _VolunteerHelpChatPageState extends State<VolunteerHelpChatPage> {
   }
 
   Widget _buildHeader(Map<String, dynamic> volunteerData) {
-    final String name = volunteerData['name'] ?? 'Volunteer';
-    final String photoUrl = volunteerData['photoUrl'] ?? '';
+    final String name = widget.volunteerName;
+    final String photoUrl = (volunteerData['photoUrl'] ?? '').toString();
     final bool isAvailable = volunteerData['isAvailable'] ?? false;
 
     return Padding(
@@ -262,9 +271,7 @@ class _VolunteerHelpChatPageState extends State<VolunteerHelpChatPage> {
       child: Row(
         children: [
           IconButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
+            onPressed: () => Navigator.pop(context),
             icon: const Icon(Icons.arrow_back, color: Colors.black, size: 24),
           ),
           const SizedBox(width: 4),
@@ -273,9 +280,8 @@ class _VolunteerHelpChatPageState extends State<VolunteerHelpChatPage> {
               CircleAvatar(
                 radius: 24,
                 backgroundColor: const Color(0xFF87CEEB),
-                backgroundImage: photoUrl.isNotEmpty
-                    ? NetworkImage(photoUrl)
-                    : null,
+                backgroundImage:
+                    photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
                 child: photoUrl.isEmpty
                     ? const Icon(Icons.person_outline, color: Colors.black)
                     : null,
@@ -328,9 +334,7 @@ class _VolunteerHelpChatPageState extends State<VolunteerHelpChatPage> {
       return const Scaffold(body: Center(child: Text('Please login first')));
     }
 
-    final volunteerRef = _firestore
-        .collection('volunteers')
-        .doc(widget.volunteerId);
+    final volunteerRef = _firestore.collection('users').doc(widget.volunteerId);
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: volunteerRef.snapshots(),
@@ -382,6 +386,7 @@ class _VolunteerHelpChatPageState extends State<VolunteerHelpChatPage> {
                         if (messages.isNotEmpty) {
                           WidgetsBinding.instance.addPostFrameCallback((_) {
                             _markMessagesAsSeen(chatId);
+
                             if (_scrollController.hasClients) {
                               _scrollController.jumpTo(
                                 _scrollController.position.maxScrollExtent,
@@ -395,13 +400,13 @@ class _VolunteerHelpChatPageState extends State<VolunteerHelpChatPage> {
                           child: ListView.separated(
                             controller: _scrollController,
                             itemCount: messages.length + 1,
-                            separatorBuilder: (_, _) =>
+                            separatorBuilder: (context, index) =>
                                 const SizedBox(height: 12),
                             itemBuilder: (context, index) {
                               if (index == 0) {
                                 final firstTimestamp = messages.isNotEmpty
                                     ? messages.first.data()['createdAt']
-                                          as Timestamp?
+                                        as Timestamp?
                                     : null;
 
                                 return Center(

@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'accessible_place.dart';
 import 'accessible_places_service.dart';
-import 'dashboard_page.dart';
-import 'profile_page.dart';
-import 'settings_page.dart';
+import 'Dashboard_page.dart';
+import 'Profile_page.dart';
+import 'Settings_page.dart';
 
 class AiMessage {
   final String text;
@@ -60,6 +62,51 @@ class _MapPageState extends State<MapPage> {
     _searchController.dispose();
     _mapController?.dispose();
     super.dispose();
+  }
+
+  Future<void> _saveSearchLog({
+    required String query,
+    required int resultCount,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    await FirebaseFirestore.instance.collection('map_search_logs').add({
+      'userId': user.uid,
+      'query': query,
+      'resultCount': resultCount,
+      'userLat': _currentPosition?.latitude,
+      'userLng': _currentPosition?.longitude,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> _saveSelectedPlace({
+    required AccessiblePlace place,
+    required String action,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    await FirebaseFirestore.instance
+        .collection('selected_accessible_places')
+        .add({
+          'userId': user.uid,
+          'action': action,
+          'placeId': place.id,
+          'name': place.name,
+          'category': place.category,
+          'lat': place.lat,
+          'lng': place.lng,
+          'distanceKm': place.distanceKm,
+          'mapsUri': place.mapsUri,
+          'wheelchairEntrance': place.wheelchairEntrance,
+          'accessibleParking': place.accessibleParking,
+          'accessibleRestroom': place.accessibleRestroom,
+          'accessibleSeating': place.accessibleSeating,
+          'note': place.note,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
   }
 
   void _goBack() {
@@ -277,6 +324,8 @@ class _MapPageState extends State<MapPage> {
         userLng: _currentPosition!.longitude,
       );
 
+      await _saveSearchLog(query: trimmed, resultCount: places.length);
+
       final markers = <Marker>{
         Marker(
           markerId: const MarkerId('my_location'),
@@ -302,6 +351,7 @@ class _MapPageState extends State<MapPage> {
               setState(() {
                 _selectedPlace = place;
               });
+              _saveSelectedPlace(place: place, action: 'marker_tap');
             },
           ),
         ),
@@ -333,6 +383,8 @@ class _MapPageState extends State<MapPage> {
   }
 
   Future<void> _openPlaceInMaps(AccessiblePlace place) async {
+    await _saveSelectedPlace(place: place, action: 'open_map');
+
     final uri = Uri.parse(place.mapsUri);
 
     if (await canLaunchUrl(uri)) {
@@ -445,10 +497,16 @@ class _MapPageState extends State<MapPage> {
             children: [
               Expanded(
                 child: ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
                     setState(() {
                       _selectedPlace = place;
                     });
+
+                    await _saveSelectedPlace(
+                      place: place,
+                      action: 'select_place',
+                    );
+
                     _moveCamera(LatLng(place.lat, place.lng), zoom: 15.5);
                   },
                   style: ElevatedButton.styleFrom(
@@ -496,7 +554,6 @@ class _MapPageState extends State<MapPage> {
           child: Column(
             children: [
               _buildHeader(),
-
               Expanded(
                 child: Stack(
                   children: [
@@ -521,7 +578,6 @@ class _MapPageState extends State<MapPage> {
                               },
                             ),
                     ),
-
                     Positioned(
                       left: 14,
                       right: 14,

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'Dashboard_page.dart';
 import 'Profile_page.dart';
@@ -24,6 +26,7 @@ class _CommunicationPageState extends State<CommunicationPage> {
   String _detectedSituation = 'General';
   String _generatedMessage = '';
   bool _isEmergency = false;
+  bool _isSaving = false;
 
   final List<Map<String, String>> _aiMessages = [
     {
@@ -132,6 +135,42 @@ class _CommunicationPageState extends State<CommunicationPage> {
     return _places.firstWhere((place) => place['name'] == _selectedPlace);
   }
 
+  Future<void> _saveCommunicationLog({
+    required String inputText,
+    required String generatedMessage,
+    required String situation,
+    required bool isEmergency,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    await FirebaseFirestore.instance.collection('communication_logs').add({
+      'userId': user.uid,
+      'place': _selectedPlace,
+      'mood': _selectedMood,
+      'inputText': inputText,
+      'generatedMessage': generatedMessage,
+      'detectedSituation': situation,
+      'isEmergency': isEmergency,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> _saveAiChatMessage({
+    required String sender,
+    required String text,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    await FirebaseFirestore.instance.collection('communication_ai_chats').add({
+      'userId': user.uid,
+      'sender': sender,
+      'text': text,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   Future<void> _speakMessage() async {
     if (_generatedMessage.isEmpty) return;
 
@@ -142,7 +181,7 @@ class _CommunicationPageState extends State<CommunicationPage> {
     await _flutterTts.speak(_generatedMessage);
   }
 
-  void _analyzeSituation() {
+  Future<void> _analyzeSituation() async {
     final text = _messageController.text.toLowerCase().trim();
 
     String situation = 'General';
@@ -203,25 +242,77 @@ class _CommunicationPageState extends State<CommunicationPage> {
       _detectedSituation = situation;
       _isEmergency = emergency;
       _generatedMessage = result;
+      _isSaving = true;
     });
+
+    try {
+      await _saveCommunicationLog(
+        inputText: _messageController.text.trim(),
+        generatedMessage: result,
+        situation: situation,
+        isEmergency: emergency,
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
+    }
   }
 
-  void _talkForMe() {
+  Future<void> _talkForMe() async {
+    const result =
+        'Hello, I need assistance. I may not be able to speak clearly. Please be patient and help me communicate.';
+
     setState(() {
       _detectedSituation = 'Talk For Me';
       _isEmergency = false;
-      _generatedMessage =
-          'Hello, I need assistance. I may not be able to speak clearly. Please be patient and help me communicate.';
+      _generatedMessage = result;
+      _isSaving = true;
     });
+
+    try {
+      await _saveCommunicationLog(
+        inputText: 'Talk For Me',
+        generatedMessage: result,
+        situation: 'Talk For Me',
+        isEmergency: false,
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
+    }
   }
 
-  void _emergencyMessage() {
+  Future<void> _emergencyMessage() async {
+    const result =
+        'This is an emergency. I need help immediately. Please call my companion or emergency services.';
+
     setState(() {
       _detectedSituation = 'Emergency';
       _isEmergency = true;
-      _generatedMessage =
-          'This is an emergency. I need help immediately. Please call my companion or emergency services.';
+      _generatedMessage = result;
+      _isSaving = true;
     });
+
+    try {
+      await _saveCommunicationLog(
+        inputText: 'Emergency',
+        generatedMessage: result,
+        situation: 'Emergency',
+        isEmergency: true,
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
+    }
   }
 
   void _copyMessage() {
@@ -294,15 +385,20 @@ class _CommunicationPageState extends State<CommunicationPage> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {
-            void sendMessage() {
+            Future<void> sendMessage() async {
               final text = _aiChatController.text.trim();
               if (text.isEmpty) return;
 
+              final reply = _getAiReply(text);
+
               setModalState(() {
                 _aiMessages.add({'sender': 'user', 'text': text});
-                _aiMessages.add({'sender': 'ai', 'text': _getAiReply(text)});
+                _aiMessages.add({'sender': 'ai', 'text': reply});
                 _aiChatController.clear();
               });
+
+              await _saveAiChatMessage(sender: 'user', text: text);
+              await _saveAiChatMessage(sender: 'ai', text: reply);
             }
 
             return Container(
@@ -504,7 +600,6 @@ class _CommunicationPageState extends State<CommunicationPage> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7FBFD),
-
       floatingActionButton: FloatingActionButton.large(
         backgroundColor: const Color(0xFF87CEEB),
         elevation: 8,
@@ -512,7 +607,6 @@ class _CommunicationPageState extends State<CommunicationPage> {
         child: const Text('🤖', style: TextStyle(fontSize: 38)),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-
       body: SafeArea(
         child: Column(
           children: [
@@ -536,7 +630,6 @@ class _CommunicationPageState extends State<CommunicationPage> {
                 ),
               ],
             ),
-
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
               child: Row(
@@ -549,7 +642,6 @@ class _CommunicationPageState extends State<CommunicationPage> {
                       color: Color(0xFF263238),
                     ),
                   ),
-
                   const Expanded(
                     child: Center(
                       child: Text(
@@ -562,12 +654,10 @@ class _CommunicationPageState extends State<CommunicationPage> {
                       ),
                     ),
                   ),
-
                   const SizedBox(width: 48),
                 ],
               ),
             ),
-
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(18),
@@ -576,7 +666,6 @@ class _CommunicationPageState extends State<CommunicationPage> {
                   children: [
                     _sectionTitle('Where are you now?'),
                     const SizedBox(height: 12),
-
                     SizedBox(
                       height: 115,
                       child: ListView.separated(
@@ -850,14 +939,16 @@ class _CommunicationPageState extends State<CommunicationPage> {
                             width: double.infinity,
                             height: 55,
                             child: ElevatedButton.icon(
-                              onPressed: _analyzeSituation,
+                              onPressed: _isSaving ? null : _analyzeSituation,
                               icon: const Text(
                                 '🧠',
                                 style: TextStyle(fontSize: 22),
                               ),
-                              label: const Text(
-                                'Analyze & Generate Message',
-                                style: TextStyle(
+                              label: Text(
+                                _isSaving
+                                    ? 'Saving...'
+                                    : 'Analyze & Generate Message',
+                                style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -972,7 +1063,6 @@ class _CommunicationPageState extends State<CommunicationPage> {
           ],
         ),
       ),
-
       bottomNavigationBar: Container(
         margin: const EdgeInsets.all(16),
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),

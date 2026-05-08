@@ -1,13 +1,12 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
-// import 'package:firebase_auth/firebase_auth.dart';
-// import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'location_picker_page.dart';
 import 'VolunteerDashboard_page.dart';
 import 'Login_page.dart';
 import 'SignUp_page.dart';
-import 'profile_store.dart';
 
 class SignUpVolunteerPage extends StatefulWidget {
   const SignUpVolunteerPage({super.key});
@@ -27,8 +26,6 @@ class _SignUpVolunteerPageState extends State<SignUpVolunteerPage> {
       TextEditingController();
   final TextEditingController _assistanceController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
-
-  final ProfileStore profileStore = ProfileStore.instance;
 
   final FocusNode _nameFocusNode = FocusNode();
   final FocusNode _emailFocusNode = FocusNode();
@@ -69,6 +66,7 @@ class _SignUpVolunteerPageState extends State<SignUpVolunteerPage> {
     _passwordFocusNode.dispose();
     _confirmPasswordFocusNode.dispose();
     _assistanceFocusNode.dispose();
+
     super.dispose();
   }
 
@@ -228,9 +226,7 @@ class _SignUpVolunteerPageState extends State<SignUpVolunteerPage> {
   Future<void> _handleSignUp() async {
     FocusScope.of(context).unfocus();
 
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
 
     if (_selectedGender == null || _selectedGender!.isEmpty) {
       ScaffoldMessenger.of(
@@ -252,30 +248,86 @@ class _SignUpVolunteerPageState extends State<SignUpVolunteerPage> {
       _isLoading = true;
     });
 
-    await Future.delayed(const Duration(milliseconds: 700));
+    try {
+      final UserCredential userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+            email: _emailController.text.trim(),
+            password: _passwordController.text.trim(),
+          );
 
-    profileStore.updateName(_nameController.text.trim());
-    profileStore.updateEmail(_emailController.text.trim());
-    profileStore.updatePhoneNumber(_phoneController.text.trim());
-    profileStore.updatePassword(_passwordController.text.trim());
-    profileStore.updateUserRole('volunteer');
+      final User? user = userCredential.user;
 
-    await profileStore.saveProfile();
+      if (user == null) {
+        throw Exception('Failed to create account');
+      }
 
-    if (!mounted) return;
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'uid': user.uid,
+        'name': _nameController.text.trim(),
+        'email': _emailController.text.trim(),
+        'phone': _phoneController.text.trim(),
+        'phoneNumber': _phoneController.text.trim(),
+        'gender': _selectedGender,
+        'assistanceType': _assistanceController.text.trim(),
+        'helpType': _assistanceController.text.trim(),
+        'volunteerType': _assistanceController.text.trim(),
+        'location': _locationController.text.trim(),
+        'latitude': _selectedLatitude,
+        'longitude': _selectedLongitude,
+        'role': 'volunteer',
+        'isAvailable': true,
+        'rating': 5.0,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
 
-    setState(() {
-      _isLoading = false;
-    });
+      if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Volunteer account created successfully')),
-    );
+      setState(() {
+        _isLoading = false;
+      });
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const VolunteerDashboardPage()),
-    );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Volunteer account created successfully')),
+      );
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const VolunteerDashboardPage()),
+      );
+    } on FirebaseAuthException catch (e) {
+      String message = 'Failed to create account.';
+
+      if (e.code == 'email-already-in-use') {
+        message = 'This email is already used.';
+      } else if (e.code == 'invalid-email') {
+        message = 'Please enter a valid email.';
+      } else if (e.code == 'weak-password') {
+        message = 'Password is too weak.';
+      } else if (e.message != null && e.message!.trim().isNotEmpty) {
+        message = e.message!;
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
   }
 
   @override
@@ -339,7 +391,6 @@ class _SignUpVolunteerPageState extends State<SignUpVolunteerPage> {
                           ),
                         ),
                         const SizedBox(height: 30),
-
                         _buildFieldContainer(
                           child: TextFormField(
                             controller: _nameController,
@@ -360,9 +411,7 @@ class _SignUpVolunteerPageState extends State<SignUpVolunteerPage> {
                             },
                           ),
                         ),
-
                         const SizedBox(height: 10),
-
                         _buildFieldContainer(
                           child: TextFormField(
                             controller: _emailController,
@@ -388,9 +437,7 @@ class _SignUpVolunteerPageState extends State<SignUpVolunteerPage> {
                             },
                           ),
                         ),
-
                         const SizedBox(height: 10),
-
                         _buildFieldContainer(
                           child: TextFormField(
                             controller: _phoneController,
@@ -416,9 +463,7 @@ class _SignUpVolunteerPageState extends State<SignUpVolunteerPage> {
                             },
                           ),
                         ),
-
                         const SizedBox(height: 10),
-
                         Align(
                           alignment: Alignment.centerRight,
                           child: TextButton.icon(
@@ -431,9 +476,7 @@ class _SignUpVolunteerPageState extends State<SignUpVolunteerPage> {
                             ),
                           ),
                         ),
-
                         const SizedBox(height: 6),
-
                         _buildFieldContainer(
                           child: TextFormField(
                             controller: _passwordController,
@@ -494,7 +537,6 @@ class _SignUpVolunteerPageState extends State<SignUpVolunteerPage> {
                             },
                           ),
                         ),
-
                         if (_passwordText.isNotEmpty) ...[
                           const SizedBox(height: 6),
                           Column(
@@ -523,9 +565,7 @@ class _SignUpVolunteerPageState extends State<SignUpVolunteerPage> {
                             ],
                           ),
                         ],
-
                         const SizedBox(height: 10),
-
                         _buildFieldContainer(
                           child: TextFormField(
                             controller: _confirmPasswordController,
@@ -563,9 +603,7 @@ class _SignUpVolunteerPageState extends State<SignUpVolunteerPage> {
                             },
                           ),
                         ),
-
                         const SizedBox(height: 10),
-
                         _buildFieldContainer(
                           child: DropdownButtonFormField<String>(
                             initialValue: _selectedGender,
@@ -588,9 +626,7 @@ class _SignUpVolunteerPageState extends State<SignUpVolunteerPage> {
                             icon: const Icon(Icons.keyboard_arrow_down_rounded),
                           ),
                         ),
-
                         const SizedBox(height: 10),
-
                         _buildFieldContainer(
                           child: TextFormField(
                             controller: _assistanceController,
@@ -608,9 +644,7 @@ class _SignUpVolunteerPageState extends State<SignUpVolunteerPage> {
                             },
                           ),
                         ),
-
                         const SizedBox(height: 10),
-
                         SizedBox(
                           width: double.infinity,
                           height: 56,
@@ -645,9 +679,7 @@ class _SignUpVolunteerPageState extends State<SignUpVolunteerPage> {
                             ),
                           ),
                         ),
-
                         const SizedBox(height: 20),
-
                         SizedBox(
                           width: double.infinity,
                           height: 56,
@@ -673,9 +705,7 @@ class _SignUpVolunteerPageState extends State<SignUpVolunteerPage> {
                                   ),
                           ),
                         ),
-
                         const SizedBox(height: 10),
-
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [

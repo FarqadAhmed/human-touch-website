@@ -5,13 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'Dashboard_page.dart';
 import 'Login_page.dart';
 import 'Profile_page.dart';
 import 'Settings_page.dart';
-import 'profile_store.dart';
 
 class Profile2Page extends StatefulWidget {
   const Profile2Page({super.key});
@@ -21,8 +21,6 @@ class Profile2Page extends StatefulWidget {
 }
 
 class _Profile2PageState extends State<Profile2Page> {
-  final ProfileStore profileStore = ProfileStore.instance;
-
   late TextEditingController _nameController;
   late TextEditingController _phoneController;
   late TextEditingController _emailController;
@@ -34,6 +32,13 @@ class _Profile2PageState extends State<Profile2Page> {
   late TextEditingController _volunteerWorkController;
 
   bool _isScanning = false;
+  bool _isLoading = true;
+  bool _isSaving = false;
+
+  String _userRole = 'patient';
+  String _profileImageBase64 = '';
+  String _patientLinkCode = '';
+  String _linkedPatientCode = '';
 
   String _selectedVolunteerType = 'Medical';
 
@@ -48,19 +53,17 @@ class _Profile2PageState extends State<Profile2Page> {
   void initState() {
     super.initState();
 
-    profileStore.loadProfile();
-
-    _nameController = TextEditingController(text: profileStore.name);
-    _phoneController = TextEditingController(text: profileStore.phoneNumber);
-    _emailController = TextEditingController(text: profileStore.email);
-    _passwordController = TextEditingController(text: profileStore.password);
+    _nameController = TextEditingController();
+    _phoneController = TextEditingController();
+    _emailController = TextEditingController();
+    _passwordController = TextEditingController();
 
     _volunteerSpecialtyController = TextEditingController();
     _volunteerSkillController = TextEditingController();
     _volunteerBioController = TextEditingController();
     _volunteerWorkController = TextEditingController();
 
-    _loadVolunteerInfo();
+    _loadProfileFromFirebase();
   }
 
   @override
@@ -78,42 +81,83 @@ class _Profile2PageState extends State<Profile2Page> {
     super.dispose();
   }
 
-  Future<void> _loadVolunteerInfo() async {
-    final prefs = await SharedPreferences.getInstance();
+  Future<void> _loadProfileFromFirebase() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
 
-    if (!mounted) return;
+      if (user == null) {
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
 
-    setState(() {
-      _volunteerSpecialtyController.text =
-          prefs.getString('volunteerSpecialty') ?? '';
-      _volunteerSkillController.text = prefs.getString('volunteerSkill') ?? '';
-      _volunteerBioController.text = prefs.getString('volunteerBio') ?? '';
-      _volunteerWorkController.text = prefs.getString('volunteerWork') ?? '';
-      _selectedVolunteerType = prefs.getString('volunteerType') ?? 'Medical';
-    });
-  }
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
 
-  Future<void> _saveVolunteerInfo() async {
-    final prefs = await SharedPreferences.getInstance();
+      final data = doc.data() ?? {};
 
-    await prefs.setString(
-      'volunteerSpecialty',
-      _volunteerSpecialtyController.text.trim(),
-    );
+      if (!mounted) return;
 
-    await prefs.setString(
-      'volunteerSkill',
-      _volunteerSkillController.text.trim(),
-    );
+      setState(() {
+        _nameController.text =
+            (data['name'] ?? data['fullName'] ?? data['username'] ?? '')
+                .toString();
 
-    await prefs.setString('volunteerBio', _volunteerBioController.text.trim());
+        _phoneController.text = (data['phone'] ?? data['phoneNumber'] ?? '')
+            .toString();
 
-    await prefs.setString(
-      'volunteerWork',
-      _volunteerWorkController.text.trim(),
-    );
+        _emailController.text = (data['email'] ?? user.email ?? '').toString();
 
-    await prefs.setString('volunteerType', _selectedVolunteerType);
+        _passwordController.text = '';
+
+        _userRole = (data['role'] ?? 'patient').toString();
+
+        _profileImageBase64 =
+            (data['profileImageBase64'] ?? data['image'] ?? '').toString();
+
+        _patientLinkCode = (data['patientLinkCode'] ?? 'PATIENT-${user.uid}')
+            .toString();
+
+        _linkedPatientCode = (data['linkedPatientCode'] ?? '').toString();
+
+        _volunteerSpecialtyController.text = (data['volunteerSpecialty'] ?? '')
+            .toString();
+        _volunteerSkillController.text = (data['volunteerSkill'] ?? '')
+            .toString();
+        _volunteerBioController.text = (data['volunteerBio'] ?? '').toString();
+        _volunteerWorkController.text = (data['volunteerWork'] ?? '')
+            .toString();
+
+        _selectedVolunteerType = (data['volunteerType'] ?? 'Medical')
+            .toString();
+
+        if (!_volunteerTypes.contains(_selectedVolunteerType)) {
+          _selectedVolunteerType = 'Medical';
+        }
+
+        _isLoading = false;
+      });
+
+      if (!data.containsKey('patientLinkCode')) {
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+          'patientLinkCode': 'PATIENT-${user.uid}',
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error loading profile: $e')));
+    }
   }
 
   void _goToPage(int index) {
@@ -191,7 +235,7 @@ class _Profile2PageState extends State<Profile2Page> {
 
     final XFile? pickedImage = await picker.pickImage(
       source: source,
-      imageQuality: 80,
+      imageQuality: 60,
     );
 
     if (pickedImage == null) return;
@@ -199,28 +243,137 @@ class _Profile2PageState extends State<Profile2Page> {
     final Uint8List imageBytes = await pickedImage.readAsBytes();
     final String base64Image = base64Encode(imageBytes);
 
-    profileStore.updateProfileImageBase64(base64Image);
-    await profileStore.saveProfile();
-
-    setState(() {});
+    setState(() {
+      _profileImageBase64 = base64Image;
+    });
   }
 
   Future<void> _saveProfile() async {
-    profileStore.updateName(_nameController.text.trim());
-    profileStore.updatePhoneNumber(_phoneController.text.trim());
-    profileStore.updateEmail(_emailController.text.trim());
-    profileStore.updatePassword(_passwordController.text.trim());
+    final user = FirebaseAuth.instance.currentUser;
 
-    await profileStore.saveProfile();
-
-    if (profileStore.userRole == 'volunteer') {
-      await _saveVolunteerInfo();
+    if (user == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please login first')));
+      return;
     }
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      final Map<String, dynamic> updatedData = {
+        'name': _nameController.text.trim(),
+        'phone': _phoneController.text.trim(),
+        'email': _emailController.text.trim(),
+        'profileImageBase64': _profileImageBase64,
+        'role': _userRole,
+        'patientLinkCode': _patientLinkCode,
+        'linkedPatientCode': _linkedPatientCode,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      if (_userRole == 'volunteer') {
+        updatedData.addAll({
+          'volunteerSpecialty': _volunteerSpecialtyController.text.trim(),
+          'volunteerSkill': _volunteerSkillController.text.trim(),
+          'volunteerBio': _volunteerBioController.text.trim(),
+          'volunteerWork': _volunteerWorkController.text.trim(),
+          'volunteerType': _selectedVolunteerType,
+        });
+      }
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .set(updatedData, SetOptions(merge: true));
+
+      if (_emailController.text.trim().isNotEmpty &&
+          _emailController.text.trim() != user.email) {
+        await user.verifyBeforeUpdateEmail(_emailController.text.trim());
+      }
+
+      if (_passwordController.text.trim().isNotEmpty) {
+        await user.updatePassword(_passwordController.text.trim());
+      }
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile updated successfully')),
+      );
+    } on FirebaseAuthException catch (e) {
+      String message = e.message ?? 'Authentication error';
+
+      if (e.code == 'requires-recent-login') {
+        message =
+            'Please log out and log in again before changing email or password.';
+      }
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error saving profile: $e')));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _deleteAccount() async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) return;
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .delete();
+      await user.delete();
+
+      if (!mounted) return;
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginPage()),
+        (route) => false,
+      );
+    } on FirebaseAuthException catch (e) {
+      String message = e.message ?? 'Could not delete account';
+
+      if (e.code == 'requires-recent-login') {
+        message = 'Please log out and log in again before deleting account.';
+      }
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    }
+  }
+
+  Future<void> _logout() async {
+    await FirebaseAuth.instance.signOut();
 
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Profile updated successfully')),
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => const LoginPage()),
+      (route) => false,
     );
   }
 
@@ -233,8 +386,24 @@ class _Profile2PageState extends State<Profile2Page> {
       context,
       MaterialPageRoute(
         builder: (context) => _ScanPatientQrPage(
-          onScanned: (code) {
-            profileStore.linkPatientCode(code);
+          onScanned: (code) async {
+            final user = FirebaseAuth.instance.currentUser;
+            if (user == null) return;
+
+            setState(() {
+              _linkedPatientCode = code;
+            });
+
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(user.uid)
+                .set({
+                  'linkedPatientCode': code,
+                  'updatedAt': FieldValue.serverTimestamp(),
+                }, SetOptions(merge: true));
+
+            if (!mounted) return;
+
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('Patient linked successfully: $code')),
             );
@@ -278,11 +447,15 @@ class _Profile2PageState extends State<Profile2Page> {
   }
 
   Widget _profileImageWidget() {
-    if (profileStore.profileImageBase64.isNotEmpty) {
-      return Image.memory(
-        base64Decode(profileStore.profileImageBase64),
-        fit: BoxFit.cover,
-      );
+    if (_profileImageBase64.isNotEmpty) {
+      try {
+        return Image.memory(
+          base64Decode(_profileImageBase64),
+          fit: BoxFit.cover,
+        );
+      } catch (_) {
+        return const Icon(Icons.person, size: 40, color: Colors.white);
+      }
     }
 
     return const Icon(Icons.person, size: 40, color: Colors.white);
@@ -425,9 +598,7 @@ class _Profile2PageState extends State<Profile2Page> {
           obscureText: obscureText,
           keyboardType: keyboardType,
           maxLines: obscureText ? 1 : maxLines,
-          onChanged: (_) {
-            setState(() {});
-          },
+          onChanged: (_) => setState(() {}),
           decoration: InputDecoration(
             icon: Icon(icon, color: const Color(0xFF57636C)),
             border: InputBorder.none,
@@ -524,7 +695,6 @@ class _Profile2PageState extends State<Profile2Page> {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 14),
-
             TextField(
               controller: _volunteerSpecialtyController,
               onChanged: (_) => setState(() {}),
@@ -535,9 +705,7 @@ class _Profile2PageState extends State<Profile2Page> {
                 border: OutlineInputBorder(),
               ),
             ),
-
             const SizedBox(height: 12),
-
             TextField(
               controller: _volunteerSkillController,
               onChanged: (_) => setState(() {}),
@@ -548,9 +716,7 @@ class _Profile2PageState extends State<Profile2Page> {
                 border: OutlineInputBorder(),
               ),
             ),
-
             const SizedBox(height: 12),
-
             DropdownButtonFormField<String>(
               value: _selectedVolunteerType,
               decoration: const InputDecoration(
@@ -569,9 +735,7 @@ class _Profile2PageState extends State<Profile2Page> {
                 });
               },
             ),
-
             const SizedBox(height: 12),
-
             TextField(
               controller: _volunteerBioController,
               maxLines: 3,
@@ -583,9 +747,7 @@ class _Profile2PageState extends State<Profile2Page> {
                 border: OutlineInputBorder(),
               ),
             ),
-
             const SizedBox(height: 12),
-
             TextField(
               controller: _volunteerWorkController,
               maxLines: 3,
@@ -632,13 +794,13 @@ class _Profile2PageState extends State<Profile2Page> {
             ),
             const SizedBox(height: 14),
             QrImageView(
-              data: profileStore.patientLinkCode,
+              data: _patientLinkCode,
               version: QrVersions.auto,
               size: 200,
             ),
             const SizedBox(height: 12),
             Text(
-              profileStore.patientLinkCode,
+              _patientLinkCode,
               style: const TextStyle(fontSize: 14, color: Colors.black54),
             ),
             const SizedBox(height: 8),
@@ -687,7 +849,7 @@ class _Profile2PageState extends State<Profile2Page> {
               backgroundColor: const Color(0xFF87CEEB),
               foregroundColor: Colors.white,
             ),
-            if (profileStore.linkedPatientCode.isNotEmpty) ...[
+            if (_linkedPatientCode.isNotEmpty) ...[
               const SizedBox(height: 14),
               Container(
                 width: double.infinity,
@@ -697,7 +859,7 @@ class _Profile2PageState extends State<Profile2Page> {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
-                  'Linked Patient Code: ${profileStore.linkedPatientCode}',
+                  'Linked Patient Code: $_linkedPatientCode',
                   style: const TextStyle(fontSize: 14),
                 ),
               ),
@@ -710,110 +872,81 @@ class _Profile2PageState extends State<Profile2Page> {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: profileStore,
-      builder: (context, _) {
-        return GestureDetector(
-          onTap: () => FocusScope.of(context).unfocus(),
-          child: Scaffold(
-            backgroundColor: const Color(0xFFF4F4F4),
-            body: SafeArea(
-              child: Column(
-                children: [
-                  _buildHeader(),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        children: [
-                          _buildTopProfileInfo(),
-                          _buildSectionTitleCard(),
-                          _buildUploadImageButton(),
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFF4F4F4),
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFF87CEEB)),
+        ),
+      );
+    }
 
-                          _buildField(
-                            icon: Icons.person_outlined,
-                            label: 'Name',
-                            controller: _nameController,
-                          ),
-
-                          _buildField(
-                            icon: Icons.phone_in_talk,
-                            label: 'Phone Number',
-                            controller: _phoneController,
-                            keyboardType: TextInputType.phone,
-                          ),
-
-                          _buildField(
-                            icon: Icons.mail_outline_rounded,
-                            label: 'Email',
-                            controller: _emailController,
-                            keyboardType: TextInputType.emailAddress,
-                          ),
-
-                          _buildField(
-                            icon: Icons.lock_open,
-                            label: 'Password',
-                            controller: _passwordController,
-                            obscureText: true,
-                          ),
-
-                          if (profileStore.userRole == 'volunteer')
-                            _buildVolunteerInfoSection(),
-
-                          if (profileStore.userRole == 'patient')
-                            _buildPatientQrSection(),
-
-                          if (profileStore.userRole == 'companion')
-                            _buildCompanionScanSection(),
-
-                          _buildActionButton(
-                            text: 'Save Changes',
-                            icon: Icons.save_outlined,
-                            onPressed: _saveProfile,
-                            backgroundColor: const Color(0xFF87CEEB),
-                            foregroundColor: Colors.white,
-                          ),
-
-                          _buildActionButton(
-                            text: 'Delete Account',
-                            icon: Icons.delete_outlined,
-                            onPressed: () async {
-                              await profileStore.deleteAccount();
-
-                              if (!mounted) return;
-
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Account deleted'),
-                                ),
-                              );
-                            },
-                          ),
-
-                          _buildActionButton(
-                            text: 'Log Out',
-                            onPressed: () {
-                              Navigator.pushAndRemoveUntil(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const LoginPage(),
-                                ),
-                                (route) => false,
-                              );
-                            },
-                          ),
-
-                          const SizedBox(height: 20),
-                        ],
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF4F4F4),
+        body: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      _buildTopProfileInfo(),
+                      _buildSectionTitleCard(),
+                      _buildUploadImageButton(),
+                      _buildField(
+                        icon: Icons.person_outlined,
+                        label: 'Name',
+                        controller: _nameController,
                       ),
-                    ),
+                      _buildField(
+                        icon: Icons.phone_in_talk,
+                        label: 'Phone Number',
+                        controller: _phoneController,
+                        keyboardType: TextInputType.phone,
+                      ),
+                      _buildField(
+                        icon: Icons.mail_outline_rounded,
+                        label: 'Email',
+                        controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
+                      ),
+                      _buildField(
+                        icon: Icons.lock_open,
+                        label: 'New Password',
+                        controller: _passwordController,
+                        obscureText: true,
+                      ),
+                      if (_userRole == 'volunteer')
+                        _buildVolunteerInfoSection(),
+                      if (_userRole == 'patient') _buildPatientQrSection(),
+                      if (_userRole == 'companion')
+                        _buildCompanionScanSection(),
+                      _buildActionButton(
+                        text: _isSaving ? 'Saving...' : 'Save Changes',
+                        icon: Icons.save_outlined,
+                        onPressed: _isSaving ? () {} : _saveProfile,
+                        backgroundColor: const Color(0xFF87CEEB),
+                        foregroundColor: Colors.white,
+                      ),
+                      _buildActionButton(
+                        text: 'Delete Account',
+                        icon: Icons.delete_outlined,
+                        onPressed: _deleteAccount,
+                      ),
+                      _buildActionButton(text: 'Log Out', onPressed: _logout),
+                      const SizedBox(height: 20),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
-            bottomNavigationBar: _buildBottomNavigation(),
+            ],
           ),
-        );
-      },
+        ),
+        bottomNavigationBar: _buildBottomNavigation(),
+      ),
     );
   }
 }

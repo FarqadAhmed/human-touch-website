@@ -1,10 +1,12 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'location_picker_page.dart';
 import 'Dashboard_page.dart';
 import 'Login_page.dart';
 import 'SignUp_page.dart';
-import 'profile_store.dart';
 
 class SignUpPatientPage extends StatefulWidget {
   const SignUpPatientPage({super.key});
@@ -26,8 +28,6 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
   final TextEditingController _locationController = TextEditingController();
   final TextEditingController _multipleDisabilitiesController =
       TextEditingController();
-
-  final ProfileStore profileStore = ProfileStore.instance;
 
   final FocusNode _nameFocusNode = FocusNode();
   final FocusNode _emailFocusNode = FocusNode();
@@ -81,6 +81,7 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
     _confirmPasswordFocusNode.dispose();
     _ageFocusNode.dispose();
     _multipleDisabilitiesFocusNode.dispose();
+
     super.dispose();
   }
 
@@ -279,26 +280,81 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
       _isLoading = true;
     });
 
-    await Future.delayed(const Duration(milliseconds: 700));
+    try {
+      final UserCredential userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+            email: _emailController.text.trim(),
+            password: _passwordController.text.trim(),
+          );
 
-    profileStore.updateName(_nameController.text.trim());
-    profileStore.updateEmail(_emailController.text.trim());
-    profileStore.updatePhoneNumber(_phoneController.text.trim());
-    profileStore.updatePassword(_passwordController.text.trim());
-    profileStore.updateUserRole('patient');
+      final User? user = userCredential.user;
 
-    await profileStore.saveProfile();
+      if (user == null) {
+        throw Exception('Failed to create account');
+      }
 
-    if (!mounted) return;
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'uid': user.uid,
+        'name': _nameController.text.trim(),
+        'email': _emailController.text.trim(),
+        'phone': _phoneController.text.trim(),
+        'phoneNumber': _phoneController.text.trim(),
+        'age': int.tryParse(_ageController.text.trim()) ?? 0,
+        'gender': _selectedGender,
+        'disability': _selectedDisability,
+        'multipleDisabilities': _multipleDisabilitiesController.text.trim(),
+        'location': _locationController.text.trim(),
+        'latitude': _selectedLatitude,
+        'longitude': _selectedLongitude,
+        'role': 'patient',
+        'patientLinkCode': 'PATIENT-${user.uid}',
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
 
-    setState(() {
-      _isLoading = false;
-    });
+      if (!mounted) return;
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const DashboardPage()),
-    );
+      setState(() {
+        _isLoading = false;
+      });
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const DashboardPage()),
+      );
+    } on FirebaseAuthException catch (e) {
+      String message = 'Failed to create account.';
+
+      if (e.code == 'email-already-in-use') {
+        message = 'This email is already used.';
+      } else if (e.code == 'invalid-email') {
+        message = 'Please enter a valid email.';
+      } else if (e.code == 'weak-password') {
+        message = 'Password is too weak.';
+      } else if (e.message != null && e.message!.trim().isNotEmpty) {
+        message = e.message!;
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
   }
 
   @override

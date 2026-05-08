@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -76,10 +75,10 @@ class _HealthPageState extends State<HealthPage> {
   @override
   void initState() {
     super.initState();
-    _loadUserNameFromFirebase();
+    _loadUserDataFromFirebase();
   }
 
-  Future<void> _loadUserNameFromFirebase() async {
+  Future<void> _loadUserDataFromFirebase() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
@@ -89,18 +88,26 @@ class _HealthPageState extends State<HealthPage> {
           .doc(user.uid)
           .get();
 
+      if (!mounted) return;
+
       if (doc.exists && doc.data() != null) {
         final data = doc.data()!;
-        final name = data['name'] ?? data['fullName'] ?? data['username'];
 
-        if (name != null && name.toString().trim().isNotEmpty) {
-          setState(() {
+        final name = data['name'] ?? data['fullName'] ?? data['username'];
+        final mood = data['patientMoodLabel'];
+
+        setState(() {
+          if (name != null && name.toString().trim().isNotEmpty) {
             _userName = name.toString();
-          });
-        }
+          }
+
+          if (mood != null && mood.toString().trim().isNotEmpty) {
+            _selectedMood = mood.toString();
+          }
+        });
       }
     } catch (e) {
-      debugPrint('Error loading user name: $e');
+      debugPrint('Error loading user data: $e');
     }
   }
 
@@ -110,19 +117,43 @@ class _HealthPageState extends State<HealthPage> {
   }
 
   Future<void> _saveMoodForCompanion(HealthMood mood) async {
-    final prefs = await SharedPreferences.getInstance();
+    try {
+      final user = FirebaseAuth.instance.currentUser;
 
-    await prefs.setString('patient_mood_label', mood.label);
-    await prefs.setString('patient_mood_emoji', mood.emoji);
-    await prefs.setString('patient_mood_time', DateTime.now().toString());
+      if (user == null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Please login first')));
+        return;
+      }
 
-    setState(() {
-      _selectedMood = mood.label;
-    });
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .update({
+            'patientMoodLabel': mood.label,
+            'patientMoodEmoji': mood.emoji,
+            'patientMoodTime': FieldValue.serverTimestamp(),
+          });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${mood.emoji} Mood saved and sent to companion')),
-    );
+      if (!mounted) return;
+
+      setState(() {
+        _selectedMood = mood.label;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${mood.emoji} Mood saved and sent to companion'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error saving mood: $e')));
+    }
   }
 
   void _openTipDetails(HealthTip tip) {
@@ -356,7 +387,7 @@ class _HealthPageState extends State<HealthPage> {
   }
 
   Widget _buildHealthTipsFromFirebase() {
-    return StreamBuilder<QuerySnapshot>(
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
           .collection('healthTips')
           .orderBy('createdAt', descending: true)
@@ -410,7 +441,7 @@ class _HealthPageState extends State<HealthPage> {
 
         return Column(
           children: docs.map((doc) {
-            final data = doc.data() as Map<String, dynamic>;
+            final data = doc.data();
 
             final tip = HealthTip(
               id: doc.id,

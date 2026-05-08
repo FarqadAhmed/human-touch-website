@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:humantouch/pages/AddHealthTip_page.dart';
+
 import 'package:humantouch/pages/Communication_page.dart';
 import 'package:humantouch/pages/Dashboard_page.dart';
-import 'package:humantouch/pages/EmergencySettings_store.dart';
 import 'package:humantouch/pages/Emergency_page.dart';
 import 'package:humantouch/pages/ForgetPassword_page.dart';
 import 'package:humantouch/pages/Health_page.dart';
@@ -20,13 +19,13 @@ import 'package:humantouch/pages/SignUp_page.dart';
 import 'package:humantouch/pages/Splash_page.dart';
 import 'package:humantouch/pages/VolunteerHelp_page.dart';
 import 'package:humantouch/pages/Welcome_page.dart';
-import 'package:humantouch/pages/profile_store.dart';
-import 'package:provider/provider.dart';
-import 'package:intl/date_symbol_data_local.dart';
-//import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 
-// notification
+import 'package:intl/date_symbol_data_local.dart';
+
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 final FlutterLocalNotificationsPlugin notificationsPlugin =
@@ -35,14 +34,11 @@ final FlutterLocalNotificationsPlugin notificationsPlugin =
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Firebase
-  //await Firebase.initializeApp();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // Localization
   await initializeDateFormatting('en', null);
   await initializeDateFormatting('ar', null);
 
-  // Local Notifications
   const AndroidInitializationSettings androidSettings =
       AndroidInitializationSettings('@mipmap/ic_launcher');
 
@@ -64,119 +60,94 @@ class HumanTouchApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider<EmergencySettingsStore>.value(
-          value: EmergencySettingsStore.instance,
-        ),
-        ChangeNotifierProvider<ProfileStore>.value(
-          value: ProfileStore.instance,
-        ),
-
-        // لو فعلتيه بعدين
-        // ChangeNotifierProvider<ReminderStore>.value(
-        //   value: ReminderStore.instance,
-        // ),
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Human Touch',
+      locale: const Locale('en'),
+      supportedLocales: const [Locale('en'), Locale('ar')],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
       ],
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
-        title: 'Human Touch',
-
-        locale: const Locale('en'),
-        supportedLocales: const [Locale('en'), Locale('ar')],
-
-        localizationsDelegates: const [
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-        ],
-
-        theme: ThemeData(
-          useMaterial3: true,
-          scaffoldBackgroundColor: const Color(0xFFF4F4F4),
-          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF87CEEB)),
-          appBarTheme: const AppBarTheme(
-            backgroundColor: Color(0xFF87CEEB),
+      theme: ThemeData(
+        useMaterial3: true,
+        scaffoldBackgroundColor: const Color(0xFFF4F4F4),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF87CEEB)),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF87CEEB),
+          elevation: 0,
+          centerTitle: true,
+          foregroundColor: Colors.black,
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: const Color(0xFFF4F4F4),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: const BorderSide(color: Color(0xFF87CEEB), width: 1.5),
+          ),
+          contentPadding: const EdgeInsets.all(16),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF87CEEB),
+            foregroundColor: Colors.white,
             elevation: 0,
-            centerTitle: true,
-            foregroundColor: Colors.black,
-          ),
-          inputDecorationTheme: InputDecorationTheme(
-            filled: true,
-            fillColor: const Color(0xFFF4F4F4),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide.none,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide.none,
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(
-                color: Color(0xFF87CEEB),
-                width: 1.5,
-              ),
-            ),
-            contentPadding: const EdgeInsets.all(16),
-          ),
-          elevatedButtonTheme: ElevatedButtonThemeData(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF87CEEB),
-              foregroundColor: Colors.white,
-              elevation: 0,
-              minimumSize: const Size(double.infinity, 52),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
-          ),
-          cardTheme: CardThemeData(
-            color: Colors.white,
-            elevation: 3,
-            shadowColor: Colors.black12,
+            minimumSize: const Size(double.infinity, 52),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(16),
             ),
           ),
         ),
-
-        initialRoute: '/splash',
-
-        routes: {
-          '/splash': (context) => const SplashPage(),
-          '/welcome': (context) => const WelcomePage(),
-          '/login': (context) => const LoginPage(),
-          '/signup': (context) => const SignUpPage(),
-          '/signupVolunteer': (context) => const SignUpVolunteerPage(),
-          '/signupCompanion': (context) => const SignUpCompanionPage(),
-          '/signupPatient': (context) => const SignUpPatientPage(),
-          '/forgetPassword': (context) => const ForgetPasswordPage(),
-          '/dashboard': (context) => const DashboardPage(),
-          '/reminders': (context) => const RemindersPage(),
-          '/companionReminders': (context) => const CompanionRemindersPage(),
-          '/health': (context) => const HealthPage(),
-          '/communication': (context) => const CommunicationPage(),
-          '/emergency': (context) => const EmergencyPage(),
-          '/map': (context) => const MapPage(),
-          '/volunteerHelp': (context) => const VolunteerHelpPage(),
-          '/profile': (context) => const ProfilePage(),
-          '/profile2': (context) => const Profile2Page(),
-          '/settings': (context) => const SettingsPage(),
-          '/addHealthTip': (context) => const AddHealthTipPage(),
-        },
-
-        onUnknownRoute: (settings) {
-          return MaterialPageRoute(
-            builder: (_) => const Scaffold(
-              body: Center(
-                child: Text('Page not found', style: TextStyle(fontSize: 20)),
-              ),
-            ),
-          );
-        },
+        cardTheme: CardThemeData(
+          color: Colors.white,
+          elevation: 3,
+          shadowColor: Colors.black12,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+        ),
       ),
+      initialRoute: '/splash',
+      routes: {
+        '/splash': (context) => const SplashPage(),
+        '/welcome': (context) => const WelcomePage(),
+        '/login': (context) => const LoginPage(),
+        '/signup': (context) => const SignUpPage(),
+        '/signupVolunteer': (context) => const SignUpVolunteerPage(),
+        '/signupCompanion': (context) => const SignUpCompanionPage(),
+        '/signupPatient': (context) => const SignUpPatientPage(),
+        '/forgetPassword': (context) => const ForgetPasswordPage(),
+        '/dashboard': (context) => const DashboardPage(),
+        '/reminders': (context) => const RemindersPage(),
+        '/companionReminders': (context) => const CompanionRemindersPage(),
+        '/health': (context) => const HealthPage(),
+        '/communication': (context) => const CommunicationPage(),
+        '/emergency': (context) => const EmergencyPage(),
+        '/map': (context) => const MapPage(),
+        '/volunteerHelp': (context) => const VolunteerHelpPage(),
+        '/profile': (context) => const ProfilePage(),
+        '/profile2': (context) => const Profile2Page(),
+        '/settings': (context) => const SettingsPage(),
+      },
+      onUnknownRoute: (settings) {
+        return MaterialPageRoute(
+          builder: (_) => const Scaffold(
+            body: Center(
+              child: Text('Page not found', style: TextStyle(fontSize: 20)),
+            ),
+          ),
+        );
+      },
     );
   }
 }

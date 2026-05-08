@@ -7,7 +7,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'Dashboard_page.dart';
 import 'ForgetPassword_page.dart';
 import 'SignUp_page.dart';
-import 'profile_store.dart';
 import 'CompanionDashboard_page.dart';
 import 'VolunteerDashboard_page.dart';
 
@@ -28,7 +27,6 @@ class _LoginPageState extends State<LoginPage> {
   final FocusNode _passwordFocusNode = FocusNode();
 
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
-  final ProfileStore profileStore = ProfileStore.instance;
 
   bool _obscurePassword = true;
   bool _rememberMe = true;
@@ -114,7 +112,6 @@ class _LoginPageState extends State<LoginPage> {
       final String role = (userDoc.data()?['role'] ?? '').toString();
 
       await _saveLoginData();
-      await profileStore.loadProfile();
 
       if (!mounted) return;
 
@@ -281,7 +278,6 @@ class _LoginPageState extends State<LoginPage> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   const SizedBox(height: 10),
-
                   Center(
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
@@ -293,9 +289,7 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 4),
-
                   const Center(
                     child: Text(
                       'Login',
@@ -306,9 +300,7 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 16),
-
                   _buildFieldContainer(
                     child: TextFormField(
                       controller: _emailController,
@@ -336,9 +328,7 @@ class _LoginPageState extends State<LoginPage> {
                       },
                     ),
                   ),
-
                   const SizedBox(height: 10),
-
                   _buildFieldContainer(
                     child: TextFormField(
                       controller: _passwordController,
@@ -375,9 +365,7 @@ class _LoginPageState extends State<LoginPage> {
                       onFieldSubmitted: (_) => _handleLogin(),
                     ),
                   ),
-
                   const SizedBox(height: 12),
-
                   Row(
                     children: [
                       Checkbox(
@@ -413,9 +401,7 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 30),
-
                   SizedBox(
                     width: double.infinity,
                     height: 56,
@@ -448,9 +434,7 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                     ),
                   ),
-
                   const SizedBox(height: 50),
-
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [

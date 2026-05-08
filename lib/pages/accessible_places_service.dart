@@ -4,9 +4,8 @@ import 'package:http/http.dart' as http;
 import 'accessible_place.dart';
 
 class AccessiblePlacesService {
-  // بدليه لاحقًا برابط الـ Cloud Function أو الـ API الخارجي
   static const String baseUrl =
-      'https://YOUR_REGION-YOUR_PROJECT.cloudfunctions.net/searchAccessiblePlaces';
+      'https://us-central1-human-touch-35bd0.cloudfunctions.net/searchAccessiblePlaces';
 
   Future<List<AccessiblePlace>> searchPlaces({
     required String query,
@@ -30,6 +29,7 @@ class AccessiblePlacesService {
     }
 
     final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+
     final results = (decoded['results'] as List<dynamic>? ?? [])
         .map((item) => AccessiblePlace.fromJson(item as Map<String, dynamic>))
         .toList();

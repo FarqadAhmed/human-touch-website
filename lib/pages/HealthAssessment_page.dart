@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'Dashboard_page.dart';
 import 'Profile_page.dart';
@@ -15,6 +17,8 @@ class HealthAssessmentPage extends StatefulWidget {
 class _HealthAssessmentPageState extends State<HealthAssessmentPage> {
   int _currentQuestionIndex = 0;
   double _moodValue = 2;
+  bool _isSaving = false;
+
   final Map<int, dynamic> _answers = {};
 
   final List<AssessmentQuestion> _questions = [
@@ -73,7 +77,77 @@ class _HealthAssessmentPageState extends State<HealthAssessmentPage> {
     }
   }
 
-  void _goNext() {
+  String _moodTextFromValue(double value) {
+    if (value <= 1) return 'Low';
+    if (value <= 2) return 'Medium';
+    return 'High';
+  }
+
+  String _moodEmojiFromValue(double value) {
+    if (value <= 1) return '😞';
+    if (value <= 2) return '🙂';
+    return '😃';
+  }
+
+  bool _calculateNeedsHelp() {
+    final dynamic q6 = _answers[5];
+
+    return q6 == 'Yes ✅' ||
+        q6 == 'Maybe 🤔' ||
+        (_moodValue <= 1.5) ||
+        _answers[1] == 'Really Bad 😞' ||
+        _answers[2] == 'Exhausted 🛌' ||
+        _answers[3] == 'Not well 🤕' ||
+        _answers[4] == 'Poor 😴';
+  }
+
+  Future<void> _saveAssessmentToFirebase(bool needsHelp) async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please login first')));
+      return;
+    }
+
+    final String result = needsHelp
+        ? 'The patient may need support today.'
+        : 'The patient seems okay today.';
+
+    await FirebaseFirestore.instance.collection('health_assessments').add({
+      'userId': user.uid,
+      'moodValue': _moodValue,
+      'mood': _moodTextFromValue(_moodValue),
+      'moodEmoji': _moodEmojiFromValue(_moodValue),
+      'dayStatus': _answers[1] ?? '',
+      'energy': _answers[2] ?? '',
+      'physical': _answers[3] ?? '',
+      'sleep': _answers[4] ?? '',
+      'supportNeeded': _answers[5] ?? '',
+      'needsHelp': needsHelp,
+      'result': result,
+      'answers': {
+        'mood': _moodTextFromValue(_moodValue),
+        'dayStatus': _answers[1] ?? '',
+        'energy': _answers[2] ?? '',
+        'physical': _answers[3] ?? '',
+        'sleep': _answers[4] ?? '',
+        'supportNeeded': _answers[5] ?? '',
+      },
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
+    await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+      'lastAssessmentResult': result,
+      'lastAssessmentNeedsHelp': needsHelp,
+      'lastAssessmentMood': _moodTextFromValue(_moodValue),
+      'lastAssessmentMoodEmoji': _moodEmojiFromValue(_moodValue),
+      'lastAssessmentTime': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> _goNext() async {
     if (_currentQuestion.type == QuestionType.slider) {
       _saveCurrentAnswer();
     }
@@ -83,7 +157,7 @@ class _HealthAssessmentPageState extends State<HealthAssessmentPage> {
         _currentQuestionIndex++;
       });
     } else {
-      _showFinalResult();
+      await _showFinalResult();
     }
   }
 
@@ -100,70 +174,78 @@ class _HealthAssessmentPageState extends State<HealthAssessmentPage> {
     return _answers[_currentQuestionIndex] != null;
   }
 
-  void _showFinalResult() {
-    final dynamic q6 = _answers[5];
-    final bool needsHelp =
-        q6 == 'Yes ✅' ||
-        q6 == 'Maybe 🤔' ||
-        (_moodValue <= 1.5) ||
-        _answers[1] == 'Really Bad 😞' ||
-        _answers[2] == 'Exhausted 🛌' ||
-        _answers[3] == 'Not well 🤕' ||
-        _answers[4] == 'Poor 😴';
+  Future<void> _showFinalResult() async {
+    final bool needsHelp = _calculateNeedsHelp();
 
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Assessment Result'),
-          content: Text(
-            needsHelp
-                ? 'The patient may need support today.'
-                : 'The patient seems okay today.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                if (needsHelp) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const HealthSupportChatPage(),
-                    ),
-                  );
-                }
-              },
-              child: Text(needsHelp ? 'Open Help' : 'Done'),
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      await _saveAssessmentToFirebase(needsHelp);
+
+      if (!mounted) return;
+
+      setState(() {
+        _isSaving = false;
+      });
+
+      showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Assessment Result'),
+            content: Text(
+              needsHelp
+                  ? 'The patient may need support today.'
+                  : 'The patient seems okay today.',
             ),
-          ],
-        );
-      },
-    );
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+
+                  if (needsHelp) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const HealthSupportChatPage(),
+                      ),
+                    );
+                  } else {
+                    Navigator.pop(context);
+                  }
+                },
+                child: Text(needsHelp ? 'Open Help' : 'Done'),
+              ),
+            ],
+          );
+        },
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _isSaving = false;
+      });
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error saving assessment: $e')));
+    }
   }
 
   Widget _buildQuestionContent() {
     if (_currentQuestion.type == QuestionType.slider) {
-      String moodText = 'Medium';
-      String emoji = '🙂';
-
-      if (_moodValue <= 1) {
-        moodText = 'Low';
-        emoji = '😞';
-      } else if (_moodValue <= 2) {
-        moodText = 'Medium';
-        emoji = '🙂';
-      } else {
-        moodText = 'High';
-        emoji = '😃';
-      }
+      final String moodText = _moodTextFromValue(_moodValue);
+      final String emoji = _moodEmojiFromValue(_moodValue);
 
       return Column(
         children: [
           const SizedBox(height: 30),
-          Row(
+          const Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: const [
+            children: [
               Text('😞', style: TextStyle(fontSize: 42)),
               Text('🙂', style: TextStyle(fontSize: 42)),
               Text('😃', style: TextStyle(fontSize: 42)),
@@ -360,15 +442,17 @@ class _HealthAssessmentPageState extends State<HealthAssessmentPage> {
                             child: SizedBox(
                               height: 50,
                               child: ElevatedButton(
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                          const HealthSupportChatPage(),
-                                    ),
-                                  );
-                                },
+                                onPressed: _isSaving
+                                    ? null
+                                    : () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                const HealthSupportChatPage(),
+                                          ),
+                                        );
+                                      },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF87CEEB),
                                   foregroundColor: Colors.white,
@@ -389,7 +473,9 @@ class _HealthAssessmentPageState extends State<HealthAssessmentPage> {
                             child: SizedBox(
                               height: 50,
                               child: ElevatedButton(
-                                onPressed: _canContinue ? _goNext : null,
+                                onPressed: _canContinue && !_isSaving
+                                    ? _goNext
+                                    : null,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF87CEEB),
                                   foregroundColor: Colors.white,
@@ -399,12 +485,21 @@ class _HealthAssessmentPageState extends State<HealthAssessmentPage> {
                                     borderRadius: BorderRadius.circular(40),
                                   ),
                                 ),
-                                child: Text(
-                                  questionNumber == 6
-                                      ? 'Finish'
-                                      : 'Next Question',
-                                  style: const TextStyle(fontSize: 16),
-                                ),
+                                child: _isSaving
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : Text(
+                                        questionNumber == 6
+                                            ? 'Finish'
+                                            : 'Next Question',
+                                        style: const TextStyle(fontSize: 16),
+                                      ),
                               ),
                             ),
                           ),

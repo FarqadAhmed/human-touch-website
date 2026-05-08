@@ -1,13 +1,12 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'Dashboard_page.dart';
 import 'Profile_page.dart';
 import 'Login_page.dart';
-import 'EmergencySettings_store.dart';
-import 'AppSettings_store.dart';
-import 'profile_store.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -17,30 +16,98 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  final EmergencySettingsStore settingsStore = EmergencySettingsStore.instance;
-  final AppSettingsStore appSettingsStore = AppSettingsStore.instance;
-  final ProfileStore profileStore = ProfileStore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   late TextEditingController _companionPhoneController;
 
+  String _name = '';
+  String _email = '';
+  String _profileImageBase64 = '';
+
+  bool _darkMode = false;
   bool _notifications = true;
   bool _locationSharing = true;
+  bool _callCompanion = true;
+  bool _sendSmsToCompanion = true;
+  bool _alertNearbyVolunteers = true;
+
+  String _language = 'en';
+  double _textScale = 1.0;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-
-    profileStore.loadProfile();
-
-    _companionPhoneController = TextEditingController(
-      text: settingsStore.companionPhone,
-    );
+    _companionPhoneController = TextEditingController();
+    _loadUserSettings();
   }
 
   @override
   void dispose() {
     _companionPhoneController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadUserSettings() async {
+    final user = _auth.currentUser;
+
+    if (user == null) {
+      setState(() {
+        _isLoading = false;
+      });
+      return;
+    }
+
+    final doc = await _firestore.collection('users').doc(user.uid).get();
+    final data = doc.data() ?? {};
+
+    if (!mounted) return;
+
+    setState(() {
+      _name = (data['name'] ?? data['fullName'] ?? data['username'] ?? '')
+          .toString();
+      _email = (data['email'] ?? user.email ?? '').toString();
+      _profileImageBase64 = (data['profileImageBase64'] ?? data['image'] ?? '')
+          .toString();
+
+      _darkMode = data['darkMode'] ?? false;
+      _notifications = data['notifications'] ?? true;
+      _locationSharing = data['locationSharing'] ?? true;
+      _callCompanion = data['callCompanion'] ?? true;
+      _sendSmsToCompanion = data['sendSmsToCompanion'] ?? true;
+      _alertNearbyVolunteers = data['alertNearbyVolunteers'] ?? true;
+
+      _language = (data['language'] ?? 'en').toString();
+      _textScale = (data['textScale'] ?? 1.0).toDouble();
+
+      _companionPhoneController.text = (data['companionPhone'] ?? '')
+          .toString();
+
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _updateSetting(String field, dynamic value) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    await _firestore.collection('users').doc(user.uid).set({
+      field: value,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> _logout() async {
+    await FirebaseAuth.instance.signOut();
+
+    if (!mounted) return;
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => const LoginPage()),
+      (route) => false,
+    );
   }
 
   void _goToPage(int index) {
@@ -169,124 +236,33 @@ We are here to support you. If you have any questions, feedback, technical issue
       content: '''Privacy Policy
 Effective Date: April 27, 2026
 
-This Privacy Policy applies to the Human Touch app (hereafter referred to as the “Application”), developed and provided as a free service by the Human Touch Team (hereafter referred to as the “Service Provider”). The Application is provided “AS IS”, and this Privacy Policy explains how user data is collected, used, and protected.
+This Privacy Policy applies to the Human Touch app, developed and provided as a free service by the Human Touch Team. The Application is provided “AS IS”, and this Privacy Policy explains how user data is collected, used, and protected.
 
 1. Information Collection and Use
 
-1.1 User-Provided Information
-
-The Application may collect certain personally identifiable information (e.g., name, email address, phone number) when:
-
-Users create an account or sign in.
-Users contact the Service Provider for support or inquiries.
-Users use specific features such as volunteer assistance, emergency contacts, or reminders.
-
-This information is securely stored and used only as outlined in this Privacy Policy.
-
-1.2 Automatically Collected Information
-
-The Application may automatically collect certain data to improve user experience and service quality. This may include:
-
-Operation Logs: Basic records of feature usage for analytics and performance improvements.
-Last Login Time: The date and time of the user’s most recent login.
-Device Information: Device type, operating system version, and app version.
-Push Notification Identifiers: Device identifiers used to send reminders, alerts, and updates.
-
-🚫 What the Application Does NOT Collect Automatically:
-
-No tracking of browsing activity outside the app.
-No access to photos, files, or contacts without user permission.
-No collection of sensitive personal data unless required for specific features and approved by the user.
+The Application may collect information such as name, email address, phone number, emergency contacts, reminders, health-related information, location permissions, and volunteer assistance data.
 
 2. Use of Information
 
-The Service Provider uses collected information solely for the following purposes:
-
-To provide and improve Application functionality.
-To manage reminders for medications, meals, appointments, and tasks.
-To enable emergency support features and volunteer assistance.
-To improve communication tools such as voice and sign support.
-To analyze engagement and enhance user experience.
-To send important notifications, reminders, or updates.
-To prevent fraudulent activity and ensure security.
+The Service Provider uses collected information to provide app features, manage reminders, enable emergency support, support communication tools, improve accessibility, and enhance user experience.
 
 3. Third-Party Services
 
-The Application may integrate third-party services which may collect limited data as part of their functionality. These may include:
-
-Google Play Services
-Firebase Authentication / Database
-OneSignal or similar Push Notification Services
-
-These providers have their own Privacy Policies, which users are encouraged to review.
-
-🚨 Important: The Service Provider does not sell, rent, or share user data with advertisers or third-party marketing platforms.
+The Application may use Firebase Authentication, Firestore Database, Google Maps, and notification services.
 
 4. Data Sharing and Disclosure
 
-The Service Provider may disclose collected information only in the following circumstances:
+The Service Provider does not sell user data. Data may only be shared when required by law, for emergency support, or with trusted service providers needed to operate the app.
 
-Legal Compliance: If required by law or government request.
-User Protection: If necessary to protect user safety or investigate fraud/security issues.
-Trusted Service Providers: For secure backend support under strict confidentiality agreements.
-Emergency Situations: If the user activates emergency assistance features requiring contact with selected companions or responders.
+5. User Rights
 
-🚫 No user data is shared for advertising purposes.
+Users may disable optional permissions, update their profile, request deletion, or stop using the app at any time.
 
-5. Opt-Out Rights
+6. Security
 
-Users may opt-out of certain data collection by:
+The Service Provider uses reasonable security measures to protect user data, but no online system is 100% secure.
 
-Disabling notifications in device settings.
-Disabling optional permissions such as location or microphone access.
-Uninstalling the Application.
-Requesting account or data deletion by contacting the Service Provider.
-
-6. Data Retention Policy
-
-The Service Provider retains user data only as long as necessary to provide services.
-
-Reminder and account data are retained while the account remains active.
-Emergency contacts remain stored until edited or deleted by the user.
-Notification identifiers remain while notifications are enabled.
-
-📌 Users may request deletion of their personal data at any time.
-
-7. Children’s Privacy
-
-The Application is not intended for children under the age of 13 without parental supervision.
-
-The Service Provider does not knowingly collect personal data from children under 13. If discovered, such data will be deleted promptly.
-
-8. Security Measures
-
-The Service Provider takes reasonable precautions to protect user data, including:
-
-Encryption and secure storage of sensitive information.
-Restricted access controls.
-Regular security monitoring and updates.
-
-📌 However, no online method is 100% secure, and users should take care when sharing personal information.
-
-9. Privacy Policy Updates
-
-This Privacy Policy may be updated periodically to reflect:
-
-Changes in Application features.
-Security improvements.
-Compliance with new laws or regulations.
-
-📌 Users will be notified of significant updates through the app or email.
-
-Continued use of the Application after updates means acceptance of the revised policy.
-
-10. Your Consent
-
-By using the Application, you consent to the collection and processing of your information as described in this Privacy Policy.
-
-11. Contact Us
-
-For privacy-related questions or concerns, you may contact:
+7. Contact Us
 
 📧 Email: humantouchapp@gmail.com
 
@@ -373,11 +349,15 @@ For privacy-related questions or concerns, you may contact:
   }
 
   Widget _profileImageWidget() {
-    if (profileStore.profileImageBase64.isNotEmpty) {
-      return Image.memory(
-        base64Decode(profileStore.profileImageBase64),
-        fit: BoxFit.cover,
-      );
+    if (_profileImageBase64.isNotEmpty) {
+      try {
+        return Image.memory(
+          base64Decode(_profileImageBase64),
+          fit: BoxFit.cover,
+        );
+      } catch (_) {
+        return const Icon(Icons.person, size: 40, color: Colors.white);
+      }
     }
 
     return const Icon(Icons.person, size: 40, color: Colors.white);
@@ -421,7 +401,7 @@ For privacy-related questions or concerns, you may contact:
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    profileStore.name.isEmpty ? 'No Name' : profileStore.name,
+                    _name.isEmpty ? 'No Name' : _name,
                     style: const TextStyle(
                       color: Color(0xFF14181B),
                       fontSize: 24,
@@ -430,9 +410,7 @@ For privacy-related questions or concerns, you may contact:
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    profileStore.email.isEmpty
-                        ? 'No Email'
-                        : profileStore.email,
+                    _email.isEmpty ? 'No Email' : _email,
                     style: const TextStyle(
                       color: Color(0xFF87CEEB),
                       fontSize: 14,
@@ -511,11 +489,7 @@ For privacy-related questions or concerns, you may contact:
           Expanded(
             child: Text(
               title,
-              style: const TextStyle(
-                color: Color(0xFF14181B),
-                fontSize: 14,
-                fontWeight: FontWeight.normal,
-              ),
+              style: const TextStyle(color: Color(0xFF14181B), fontSize: 14),
             ),
           ),
           Switch(
@@ -594,8 +568,8 @@ For privacy-related questions or concerns, you may contact:
                 border: InputBorder.none,
                 hintText: 'Enter companion phone number',
               ),
-              onChanged: (value) {
-                settingsStore.updateCompanionPhone(value.trim());
+              onChanged: (value) async {
+                await _updateSetting('companionPhone', value.trim());
               },
             ),
           ),
@@ -609,13 +583,7 @@ For privacy-related questions or concerns, you may contact:
       padding: const EdgeInsets.fromLTRB(0, 20, 0, 20),
       child: Center(
         child: ElevatedButton(
-          onPressed: () {
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(builder: (context) => const LoginPage()),
-              (route) => false,
-            );
-          },
+          onPressed: _logout,
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.white,
             elevation: 1,
@@ -630,154 +598,175 @@ For privacy-related questions or concerns, you may contact:
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: Listenable.merge([
-        settingsStore,
-        appSettingsStore,
-        profileStore,
-      ]),
-      builder: (context, _) {
-        return GestureDetector(
-          onTap: () {
-            FocusScope.of(context).unfocus();
-          },
-          child: Scaffold(
-            backgroundColor: const Color(0xFFF4F4F4),
-            body: SafeArea(
-              child: Column(
-                children: [
-                  _buildHeader(),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Column(
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFF4F4F4),
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFF87CEEB)),
+        ),
+      );
+    }
+
+    return GestureDetector(
+      onTap: () {
+        FocusScope.of(context).unfocus();
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF4F4F4),
+        body: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      _buildProfileCard(),
+                      _buildCard(
                         children: [
-                          _buildProfileCard(),
-                          _buildCard(
-                            children: [
-                              _buildSectionTitle('Account Settings'),
-                              _buildDivider(),
-                              _buildSwitchRow(
-                                title: 'Switch to Dark Mode',
-                                value: appSettingsStore.isDarkMode,
-                                onChanged: (value) {
-                                  appSettingsStore.updateThemeMode(value);
-                                },
-                              ),
-                              _buildDivider(),
-                              _buildSwitchRow(
-                                title: 'Notifications',
-                                value: _notifications,
-                                onChanged: (value) {
-                                  setState(() {
-                                    _notifications = value;
-                                  });
-                                },
-                              ),
-                              _buildDivider(),
-                              _buildSwitchRow(
-                                title: 'Location Sharing',
-                                value: _locationSharing,
-                                onChanged: (value) {
-                                  setState(() {
-                                    _locationSharing = value;
-                                  });
-                                },
-                              ),
-                              _buildDivider(),
-                              _buildSimpleRow(
-                                icon: Icons.g_translate_sharp,
-                                title: 'Language',
-                                trailingText: appSettingsStore.isArabic
-                                    ? 'Arabic'
-                                    : 'English',
-                                onTap: () {
-                                  if (appSettingsStore.isArabic) {
-                                    appSettingsStore.updateLocale('en');
-                                  } else {
-                                    appSettingsStore.updateLocale('ar');
-                                  }
-                                },
-                              ),
-                              _buildDivider(),
-                              _buildSwitchRow(
-                                title: 'Increase font size',
-                                value: appSettingsStore.textScale > 1.0,
-                                onChanged: (value) {
-                                  appSettingsStore.updateTextScale(
-                                    value ? 1.15 : 1.0,
-                                  );
-                                },
-                                icon: Icons.format_size_rounded,
-                              ),
-                              _buildDivider(),
-                              _buildCompanionPhoneRow(),
-                              _buildDivider(),
-                              _buildSwitchRow(
-                                title: 'Call Companion in Emergency',
-                                value: settingsStore.callCompanion,
-                                onChanged: (value) {
-                                  settingsStore.updateCallCompanion(value);
-                                },
-                                icon: Icons.phone_rounded,
-                              ),
-                              _buildDivider(),
-                              _buildSwitchRow(
-                                title: 'Send SMS to Companion',
-                                value: settingsStore.sendSmsToCompanion,
-                                onChanged: (value) {
-                                  settingsStore.updateSendSmsToCompanion(value);
-                                },
-                                icon: Icons.sms_outlined,
-                              ),
-                              _buildDivider(),
-                              _buildSwitchRow(
-                                title: 'Alert Nearby Volunteers',
-                                value: settingsStore.alertNearbyVolunteers,
-                                onChanged: (value) {
-                                  settingsStore.updateAlertNearbyVolunteers(
-                                    value,
-                                  );
-                                },
-                                icon: Icons.location_on_outlined,
-                              ),
-                            ],
+                          _buildSectionTitle('Account Settings'),
+                          _buildDivider(),
+                          _buildSwitchRow(
+                            title: 'Switch to Dark Mode',
+                            value: _darkMode,
+                            onChanged: (value) async {
+                              setState(() {
+                                _darkMode = value;
+                              });
+                              await _updateSetting('darkMode', value);
+                            },
                           ),
-                          _buildCard(
-                            children: [
-                              _buildSectionTitle('Human Touch'),
-                              _buildDivider(),
-                              _buildSimpleRow(
-                                icon: Icons.supervisor_account,
-                                title: 'About Human Touch',
-                                onTap: _showAboutHumanTouch,
-                              ),
-                              _buildDivider(),
-                              _buildSimpleRow(
-                                icon: Icons.phone_paused_rounded,
-                                title: 'Contact Us',
-                                onTap: _showContactUs,
-                              ),
-                              _buildDivider(),
-                              _buildSimpleRow(
-                                icon: Icons.privacy_tip_outlined,
-                                title: 'Privacy Policy',
-                                onTap: _showPrivacyPolicy,
-                              ),
-                            ],
+                          _buildDivider(),
+                          _buildSwitchRow(
+                            title: 'Notifications',
+                            value: _notifications,
+                            onChanged: (value) async {
+                              setState(() {
+                                _notifications = value;
+                              });
+                              await _updateSetting('notifications', value);
+                            },
                           ),
-                          _buildLogoutButton(),
-                          const SizedBox(height: 20),
+                          _buildDivider(),
+                          _buildSwitchRow(
+                            title: 'Location Sharing',
+                            value: _locationSharing,
+                            onChanged: (value) async {
+                              setState(() {
+                                _locationSharing = value;
+                              });
+                              await _updateSetting('locationSharing', value);
+                            },
+                          ),
+                          _buildDivider(),
+                          _buildSimpleRow(
+                            icon: Icons.g_translate_sharp,
+                            title: 'Language',
+                            trailingText: _language == 'ar'
+                                ? 'Arabic'
+                                : 'English',
+                            onTap: () async {
+                              final newLang = _language == 'ar' ? 'en' : 'ar';
+
+                              setState(() {
+                                _language = newLang;
+                              });
+
+                              await _updateSetting('language', newLang);
+                            },
+                          ),
+                          _buildDivider(),
+                          _buildSwitchRow(
+                            title: 'Increase font size',
+                            value: _textScale > 1.0,
+                            onChanged: (value) async {
+                              final newScale = value ? 1.15 : 1.0;
+
+                              setState(() {
+                                _textScale = newScale;
+                              });
+
+                              await _updateSetting('textScale', newScale);
+                            },
+                            icon: Icons.format_size_rounded,
+                          ),
+                          _buildDivider(),
+                          _buildCompanionPhoneRow(),
+                          _buildDivider(),
+                          _buildSwitchRow(
+                            title: 'Call Companion in Emergency',
+                            value: _callCompanion,
+                            onChanged: (value) async {
+                              setState(() {
+                                _callCompanion = value;
+                              });
+                              await _updateSetting('callCompanion', value);
+                            },
+                            icon: Icons.phone_rounded,
+                          ),
+                          _buildDivider(),
+                          _buildSwitchRow(
+                            title: 'Send SMS to Companion',
+                            value: _sendSmsToCompanion,
+                            onChanged: (value) async {
+                              setState(() {
+                                _sendSmsToCompanion = value;
+                              });
+                              await _updateSetting('sendSmsToCompanion', value);
+                            },
+                            icon: Icons.sms_outlined,
+                          ),
+                          _buildDivider(),
+                          _buildSwitchRow(
+                            title: 'Alert Nearby Volunteers',
+                            value: _alertNearbyVolunteers,
+                            onChanged: (value) async {
+                              setState(() {
+                                _alertNearbyVolunteers = value;
+                              });
+                              await _updateSetting(
+                                'alertNearbyVolunteers',
+                                value,
+                              );
+                            },
+                            icon: Icons.location_on_outlined,
+                          ),
                         ],
                       ),
-                    ),
+                      _buildCard(
+                        children: [
+                          _buildSectionTitle('Human Touch'),
+                          _buildDivider(),
+                          _buildSimpleRow(
+                            icon: Icons.supervisor_account,
+                            title: 'About Human Touch',
+                            onTap: _showAboutHumanTouch,
+                          ),
+                          _buildDivider(),
+                          _buildSimpleRow(
+                            icon: Icons.phone_paused_rounded,
+                            title: 'Contact Us',
+                            onTap: _showContactUs,
+                          ),
+                          _buildDivider(),
+                          _buildSimpleRow(
+                            icon: Icons.privacy_tip_outlined,
+                            title: 'Privacy Policy',
+                            onTap: _showPrivacyPolicy,
+                          ),
+                        ],
+                      ),
+                      _buildLogoutButton(),
+                      const SizedBox(height: 20),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
-            bottomNavigationBar: _buildBottomNavigation(),
+            ],
           ),
-        );
-      },
+        ),
+        bottomNavigationBar: _buildBottomNavigation(),
+      ),
     );
   }
 }

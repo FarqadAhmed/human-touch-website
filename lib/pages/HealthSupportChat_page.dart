@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HealthSupportChatPage extends StatefulWidget {
   const HealthSupportChatPage({super.key});
@@ -10,50 +12,50 @@ class HealthSupportChatPage extends StatefulWidget {
 class _HealthSupportChatPageState extends State<HealthSupportChatPage> {
   final TextEditingController _messageController = TextEditingController();
 
-  final List<ChatMessage> _messages = [
-    ChatMessage(
-      text: 'Hello! How can I assist you today?',
-      isFromBot: true,
-      time: '08:00 PM',
-    ),
-  ];
-
-  void _sendMessage() {
-    final text = _messageController.text.trim();
-    if (text.isEmpty) return;
-
-    setState(() {
-      _messages.add(
-        ChatMessage(text: text, isFromBot: false, time: _formatNow()),
-      );
-    });
-
-    _messageController.clear();
-
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (!mounted) return;
-
-      setState(() {
-        _messages.add(
-          ChatMessage(
-            text:
-                'Thank you. Your message has been received and help can follow up with you.',
-            isFromBot: true,
-            time: _formatNow(),
-          ),
-        );
-      });
-    });
-  }
-
   String _formatNow() {
     final now = DateTime.now();
-    final int hour = now.hour > 12
-        ? now.hour - 12
-        : (now.hour == 0 ? 12 : now.hour);
+    final int hour =
+        now.hour > 12 ? now.hour - 12 : (now.hour == 0 ? 12 : now.hour);
     final String minute = now.minute.toString().padLeft(2, '0');
     final String suffix = now.hour >= 12 ? 'PM' : 'AM';
     return '$hour:$minute $suffix';
+  }
+
+  Future<void> _sendMessage() async {
+    final text = _messageController.text.trim();
+    if (text.isEmpty) return;
+
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please login first')));
+      return;
+    }
+
+    _messageController.clear();
+
+    await FirebaseFirestore.instance.collection('health_support_chats').add({
+      'userId': user.uid,
+      'text': text,
+      'isFromBot': false,
+      'senderRole': 'patient',
+      'time': _formatNow(),
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    await FirebaseFirestore.instance.collection('health_support_chats').add({
+      'userId': user.uid,
+      'text':
+          'Thank you. Your message has been received and help can follow up with you.',
+      'isFromBot': true,
+      'senderRole': 'bot',
+      'time': _formatNow(),
+      'createdAt': FieldValue.serverTimestamp(),
+    });
   }
 
   @override
@@ -63,13 +65,11 @@ class _HealthSupportChatPageState extends State<HealthSupportChatPage> {
   }
 
   Widget _buildMessageBubble(ChatMessage message) {
-    final alignment = message.isFromBot
-        ? CrossAxisAlignment.start
-        : CrossAxisAlignment.end;
+    final alignment =
+        message.isFromBot ? CrossAxisAlignment.start : CrossAxisAlignment.end;
 
-    final bubbleColor = message.isFromBot
-        ? const Color(0xFF87CEEB)
-        : Colors.white;
+    final bubbleColor =
+        message.isFromBot ? const Color(0xFF87CEEB) : Colors.white;
 
     final textColor = message.isFromBot ? Colors.white : Colors.black87;
 
@@ -112,8 +112,20 @@ class _HealthSupportChatPageState extends State<HealthSupportChatPage> {
     );
   }
 
+  Stream<QuerySnapshot<Map<String, dynamic>>> _messagesStream() {
+    final user = FirebaseAuth.instance.currentUser;
+
+    return FirebaseFirestore.instance
+        .collection('health_support_chats')
+        .where('userId', isEqualTo: user?.uid ?? '')
+        .orderBy('createdAt')
+        .snapshots();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
@@ -149,30 +161,84 @@ class _HealthSupportChatPageState extends State<HealthSupportChatPage> {
                   ],
                 ),
               ),
-
               Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
-                  child: ListView.separated(
-                    itemCount: _messages.length + 1,
-                    separatorBuilder: (_, _) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      if (index == 0) {
-                        return const Center(
-                          child: Text(
-                            'Today',
-                            style: TextStyle(color: Colors.grey, fontSize: 13),
-                          ),
-                        );
-                      }
+                child: user == null
+                    ? const Center(
+                        child: Text(
+                          'Please login to use chat',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      )
+                    : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                        stream: _messagesStream(),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                              child: CircularProgressIndicator(
+                                color: Color(0xFF87CEEB),
+                              ),
+                            );
+                          }
 
-                      final message = _messages[index - 1];
-                      return _buildMessageBubble(message);
-                    },
-                  ),
-                ),
+                          if (snapshot.hasError) {
+                            return const Center(
+                              child: Text(
+                                'Error loading messages',
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                            );
+                          }
+
+                          final docs = snapshot.data?.docs ?? [];
+
+                          final messages = docs.map((doc) {
+                            final data = doc.data();
+
+                            return ChatMessage(
+                              text: (data['text'] ?? '').toString(),
+                              isFromBot: data['isFromBot'] ?? false,
+                              time: (data['time'] ?? '').toString(),
+                            );
+                          }).toList();
+
+                          if (messages.isEmpty) {
+                            messages.add(
+                              ChatMessage(
+                                text: 'Hello! How can I assist you today?',
+                                isFromBot: true,
+                                time: _formatNow(),
+                              ),
+                            );
+                          }
+
+                          return Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+                            child: ListView.separated(
+                              itemCount: messages.length + 1,
+                              separatorBuilder: (context, index) =>
+                                  const SizedBox(height: 12),
+                              itemBuilder: (context, index) {
+                                if (index == 0) {
+                                  return const Center(
+                                    child: Text(
+                                      'Today',
+                                      style: TextStyle(
+                                        color: Colors.grey,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  );
+                                }
+
+                                final message = messages[index - 1];
+                                return _buildMessageBubble(message);
+                              },
+                            ),
+                          );
+                        },
+                      ),
               ),
-
               Padding(
                 padding: const EdgeInsets.fromLTRB(8, 0, 8, 14),
                 child: Row(
@@ -226,7 +292,7 @@ class _HealthSupportChatPageState extends State<HealthSupportChatPage> {
                           color: Color(0xFF87CEEB),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.mic, color: Colors.white),
+                        child: const Icon(Icons.send, color: Colors.white),
                       ),
                     ),
                   ],

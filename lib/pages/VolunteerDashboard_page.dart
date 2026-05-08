@@ -161,11 +161,15 @@ class _VolunteerDashboardPageState extends State<VolunteerDashboardPage>
     await FirebaseFirestore.instance.collection('healthTips').add({
       'volunteerId': user?.uid ?? '',
       'volunteerName': _volunteerName,
+      'personName': _volunteerName,
       'personType': 'Volunteer',
       'title': _tipTitleController.text.trim(),
+      'shortTip': _tipDescController.text.trim(),
+      'fullTip': _tipDescController.text.trim(),
       'description': _tipDescController.text.trim(),
       'category': _selectedTipCategory,
       'emoji': _getEmojiForCategory(_selectedTipCategory),
+      'color': _getColorForCategory(_selectedTipCategory).value,
       'createdAt': FieldValue.serverTimestamp(),
     });
 
@@ -195,6 +199,25 @@ class _VolunteerDashboardPageState extends State<VolunteerDashboardPage>
         return '✨';
       default:
         return '💡';
+    }
+  }
+
+  Color _getColorForCategory(String category) {
+    switch (category) {
+      case 'Health':
+        return const Color(0xFFC5E7F5);
+      case 'Food':
+        return const Color(0xFFFFC6FF);
+      case 'Medicine':
+        return const Color(0xFFCAFFBF);
+      case 'Exercise':
+        return const Color(0xFF9BF6FF);
+      case 'Mental Health':
+        return const Color(0xFFFFADAD);
+      case 'Others':
+        return const Color(0xFFFDFFB6);
+      default:
+        return const Color(0xFFC5E7F5);
     }
   }
 
