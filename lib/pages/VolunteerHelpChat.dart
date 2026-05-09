@@ -1,7 +1,13 @@
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:record/record.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:path_provider/path_provider.dart';
 
 class VolunteerHelpChatPage extends StatefulWidget {
   final String volunteerId;
@@ -20,10 +26,18 @@ class VolunteerHelpChatPage extends StatefulWidget {
 class _VolunteerHelpChatPageState extends State<VolunteerHelpChatPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
 
   final TextEditingController _messageController = TextEditingController();
   final FocusNode _messageFocusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
+
+  final AudioRecorder _audioRecorder = AudioRecorder();
+  final AudioPlayer _audioPlayer = AudioPlayer();
+
+  bool _isRecording = false;
+  bool _isSendingVoice = false;
+  String? _playingUrl;
 
   String get _currentUserId => _auth.currentUser!.uid;
 
@@ -95,15 +109,146 @@ class _VolunteerHelpChatPageState extends State<VolunteerHelpChatPage> {
 
     _messageController.clear();
 
-    Future.delayed(const Duration(milliseconds: 100), () {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent + 120,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
+    _scrollToBottom();
+  }
+
+  Future<void> _startRecording() async {
+    final hasPermission = await _audioRecorder.hasPermission();
+
+    if (!hasPermission) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Microphone permission is required')),
+      );
+      return;
+    }
+
+    final dir = await getTemporaryDirectory();
+    final path =
+        '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+
+    await _audioRecorder.start(
+      const RecordConfig(
+        encoder: AudioEncoder.aacLc,
+        bitRate: 128000,
+        sampleRate: 44100,
+      ),
+      path: path,
+    );
+
+    setState(() {
+      _isRecording = true;
     });
+  }
+
+  Future<void> _stopAndSendVoice(Map<String, dynamic> volunteerData) async {
+    if (_isSendingVoice) return;
+
+    setState(() {
+      _isSendingVoice = true;
+    });
+
+    try {
+      final path = await _audioRecorder.stop();
+
+      setState(() {
+        _isRecording = false;
+      });
+
+      if (path == null) {
+        setState(() {
+          _isSendingVoice = false;
+        });
+        return;
+      }
+
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) return;
+
+      final chatId = _buildChatId(_currentUserId, widget.volunteerId);
+      final chatRef = _firestore.collection('chats').doc(chatId);
+
+      await _ensureChatExists(chatId: chatId, volunteerData: volunteerData);
+
+      final file = File(path);
+      final fileName = 'voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+
+      final storageRef = _storage
+          .ref()
+          .child('chat_voice_messages')
+          .child(chatId)
+          .child(fileName);
+
+      await storageRef.putFile(file);
+
+      final audioUrl = await storageRef.getDownloadURL();
+
+      final messageRef = chatRef.collection('messages').doc();
+
+      await messageRef.set({
+        'messageId': messageRef.id,
+        'text': '',
+        'audioUrl': audioUrl,
+        'senderId': _currentUserId,
+        'receiverId': widget.volunteerId,
+        'createdAt': FieldValue.serverTimestamp(),
+        'isSeen': false,
+        'type': 'voice',
+      });
+
+      await chatRef.update({
+        'lastMessage': 'Voice message',
+        'lastMessageTime': FieldValue.serverTimestamp(),
+        'lastSenderId': _currentUserId,
+      });
+
+      _scrollToBottom();
+    } catch (e) {
+      setState(() {
+        _isRecording = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Voice message failed: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSendingVoice = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _playVoice(String audioUrl) async {
+    try {
+      if (_playingUrl == audioUrl) {
+        await _audioPlayer.stop();
+        setState(() {
+          _playingUrl = null;
+        });
+        return;
+      }
+
+      await _audioPlayer.stop();
+
+      setState(() {
+        _playingUrl = audioUrl;
+      });
+
+      await _audioPlayer.play(UrlSource(audioUrl));
+
+      _audioPlayer.onPlayerComplete.listen((event) {
+        if (mounted) {
+          setState(() {
+            _playingUrl = null;
+          });
+        }
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not play voice: $e')),
+      );
+    }
   }
 
   Future<void> _markMessagesAsSeen(String chatId) async {
@@ -118,6 +263,18 @@ class _VolunteerHelpChatPageState extends State<VolunteerHelpChatPage> {
     for (final doc in query.docs) {
       await doc.reference.update({'isSeen': true});
     }
+  }
+
+  void _scrollToBottom() {
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent + 120,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   String _formatTime(Timestamp? timestamp) {
@@ -144,7 +301,7 @@ class _VolunteerHelpChatPageState extends State<VolunteerHelpChatPage> {
     return '$dayName $hour:$minute $period';
   }
 
-  Widget _buildMessageBubble({
+  Widget _buildTextBubble({
     required String text,
     required bool isMe,
     required String time,
@@ -183,6 +340,72 @@ class _VolunteerHelpChatPageState extends State<VolunteerHelpChatPage> {
     );
   }
 
+  Widget _buildVoiceBubble({
+    required String audioUrl,
+    required bool isMe,
+    required String time,
+  }) {
+    final bool isPlaying = _playingUrl == audioUrl;
+
+    return Align(
+      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+      child: Column(
+        crossAxisAlignment:
+            isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        children: [
+          Container(
+            constraints: const BoxConstraints(maxWidth: 240),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: isMe ? const Color(0xFFF2F2F2) : const Color(0xFF87CEEB),
+              borderRadius: BorderRadius.only(
+                topLeft: const Radius.circular(12),
+                topRight: const Radius.circular(12),
+                bottomLeft: Radius.circular(isMe ? 12 : 0),
+                bottomRight: Radius.circular(isMe ? 0 : 12),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                InkWell(
+                  onTap: () => _playVoice(audioUrl),
+                  borderRadius: BorderRadius.circular(30),
+                  child: CircleAvatar(
+                    radius: 18,
+                    backgroundColor: isMe
+                        ? const Color(0xFF87CEEB)
+                        : Colors.white.withOpacity(0.95),
+                    child: Icon(
+                      isPlaying ? Icons.pause : Icons.play_arrow,
+                      color: isMe ? Colors.white : const Color(0xFF87CEEB),
+                      size: 22,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Icon(
+                  Icons.graphic_eq_rounded,
+                  color: isMe ? Colors.black54 : Colors.white,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'Voice',
+                  style: TextStyle(
+                    color: isMe ? Colors.black87 : Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(time, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        ],
+      ),
+    );
+  }
+
   Widget _buildInputBar(Map<String, dynamic> volunteerData) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
@@ -210,8 +433,10 @@ class _VolunteerHelpChatPageState extends State<VolunteerHelpChatPage> {
                       focusNode: _messageFocusNode,
                       textInputAction: TextInputAction.send,
                       onFieldSubmitted: (_) => _sendMessage(volunteerData),
-                      decoration: const InputDecoration(
-                        hintText: 'Type a message',
+                      decoration: InputDecoration(
+                        hintText: _isRecording
+                            ? 'Recording voice...'
+                            : 'Type a message',
                         border: InputBorder.none,
                         isDense: true,
                       ),
@@ -239,6 +464,40 @@ class _VolunteerHelpChatPageState extends State<VolunteerHelpChatPage> {
             ),
           ),
           const SizedBox(width: 10),
+          InkWell(
+            onTap: _isSendingVoice
+                ? null
+                : () {
+                    if (_isRecording) {
+                      _stopAndSendVoice(volunteerData);
+                    } else {
+                      _startRecording();
+                    }
+                  },
+            borderRadius: BorderRadius.circular(30),
+            child: Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: _isRecording ? Colors.red : const Color(0xFF87CEEB),
+                shape: BoxShape.circle,
+              ),
+              child: _isSendingVoice
+                  ? const Padding(
+                      padding: EdgeInsets.all(13),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Icon(
+                      _isRecording ? Icons.stop : Icons.mic,
+                      color: Colors.white,
+                      size: 23,
+                    ),
+            ),
+          ),
+          const SizedBox(width: 8),
           InkWell(
             onTap: () => _sendMessage(volunteerData),
             borderRadius: BorderRadius.circular(30),
@@ -323,6 +582,8 @@ class _VolunteerHelpChatPageState extends State<VolunteerHelpChatPage> {
     _messageController.dispose();
     _messageFocusNode.dispose();
     _scrollController.dispose();
+    _audioRecorder.dispose();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -426,7 +687,21 @@ class _VolunteerHelpChatPageState extends State<VolunteerHelpChatPage> {
                               final bool isMe =
                                   message['senderId'] == _currentUserId;
 
-                              return _buildMessageBubble(
+                              final String type =
+                                  (message['type'] ?? 'text').toString();
+
+                              if (type == 'voice') {
+                                return _buildVoiceBubble(
+                                  audioUrl:
+                                      (message['audioUrl'] ?? '').toString(),
+                                  isMe: isMe,
+                                  time: _formatTime(
+                                    message['createdAt'] as Timestamp?,
+                                  ),
+                                );
+                              }
+
+                              return _buildTextBubble(
                                 text: message['text'] ?? '',
                                 isMe: isMe,
                                 time: _formatTime(

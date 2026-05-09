@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
+import 'app_tts.dart';
 import 'Dashboard_page.dart';
 import 'Profile_page.dart';
 import 'Settings_page.dart';
@@ -204,9 +204,8 @@ class _RemindersPageState extends State<RemindersPage> {
           margin: const EdgeInsets.symmetric(horizontal: 2),
           height: 50,
           decoration: BoxDecoration(
-            color: isSelected
-                ? const Color(0xFF69B7E8)
-                : const Color(0xFFE9E9E9),
+            color:
+                isSelected ? const Color(0xFF69B7E8) : const Color(0xFFE9E9E9),
             borderRadius: BorderRadius.circular(13),
           ),
           child: Center(

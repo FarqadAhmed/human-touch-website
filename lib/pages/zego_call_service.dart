@@ -4,24 +4,35 @@ import 'package:zego_uikit_signaling_plugin/zego_uikit_signaling_plugin.dart';
 import 'zego_config.dart';
 
 class ZegoCallService {
-  static final ZegoCallService instance = ZegoCallService._internal();
-  ZegoCallService._internal();
+  static final instance = ZegoCallService._();
+  ZegoCallService._();
 
-  bool _initialized = false;
-  String? currentUserID;
+  bool _init = false;
+  String? userID;
 
-  Future<void> init({required String userID, required String userName}) async {
-    if (_initialized) return;
+  String? get currentUserID => userID;
 
-    currentUserID = userID;
+  Future<void> init({
+    required String userID,
+    required String userName,
+  }) async {
+    if (_init && this.userID == userID) return;
+
+    if (_init && this.userID != userID) {
+      await uninit();
+    }
+
+    this.userID = userID;
 
     await ZegoUIKitPrebuiltCallInvitationService().init(
       appID: ZegoConfig.appID,
       appSign: ZegoConfig.appSign,
       userID: userID,
       userName: userName,
-      plugins: [ZegoUIKitSignalingPlugin()],
-      requireConfig: (ZegoCallInvitationData data) {
+      plugins: [
+        ZegoUIKitSignalingPlugin(),
+      ],
+      requireConfig: (data) {
         final config = ZegoUIKitPrebuiltCallConfig.oneOnOneVideoCall();
 
         config.turnOnCameraWhenJoining = true;
@@ -32,12 +43,12 @@ class ZegoCallService {
       },
     );
 
-    _initialized = true;
+    _init = true;
   }
 
   Future<void> uninit() async {
     await ZegoUIKitPrebuiltCallInvitationService().uninit();
-    _initialized = false;
-    currentUserID = null;
+    _init = false;
+    userID = null;
   }
 }

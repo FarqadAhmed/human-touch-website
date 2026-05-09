@@ -1,17 +1,27 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+
 import 'package:zego_uikit/zego_uikit.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:zego_uikit_prebuilt_call/zego_uikit_prebuilt_call.dart';
 
-import 'zego_call_service.dart';
 import 'VolunteerHelpChat.dart';
+import 'call_engine_service.dart';
 
 class VolunteerHelpCallPage extends StatefulWidget {
   final String volunteerId;
+  final String volunteerName;
+  final String? callId;
+  final bool isIncoming;
 
-  const VolunteerHelpCallPage({super.key, required this.volunteerId});
+  const VolunteerHelpCallPage({
+    super.key,
+    required this.volunteerId,
+    required this.volunteerName,
+    this.callId,
+    this.isIncoming = false,
+  });
 
   @override
   State<VolunteerHelpCallPage> createState() => _VolunteerHelpCallPageState();
@@ -19,378 +29,273 @@ class VolunteerHelpCallPage extends StatefulWidget {
 
 class _VolunteerHelpCallPageState extends State<VolunteerHelpCallPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  bool _invitationSent = false;
-  bool _isMutedUi = false;
-  bool _isSpeakerUi = true;
-  bool _isVideoUi = true;
+  Timer? _timeoutTimer;
+  Timer? _ringingTimer;
 
-  String _buildCallID(String myId, String volunteerId) {
-    final ids = [myId, volunteerId]..sort();
-    return 'call_${ids[0]}_${ids[1]}';
+  bool _isCreatingCall = false;
+
+  String get _currentStatus => CallEngineService.instance.callStatus;
+
+  @override
+  void initState() {
+    super.initState();
+
+    if (widget.callId != null && widget.callId!.isNotEmpty) {
+      CallEngineService.instance.listenToCall(widget.callId!);
+    }
   }
 
-  Future<void> _initZegoIfNeeded(Map<String, dynamic> userData) async {
+  @override
+  void dispose() {
+    _timeoutTimer?.cancel();
+    _ringingTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<String?> _createCallIfNeeded() async {
+    if (CallEngineService.instance.activeCallId != null) {
+      return CallEngineService.instance.activeCallId;
+    }
+
+    if (_isCreatingCall) {
+      return CallEngineService.instance.activeCallId;
+    }
+
+    _isCreatingCall = true;
+
+    final callId = await CallEngineService.instance.createCall(
+      receiverId: widget.volunteerId,
+      receiverName: widget.volunteerName,
+    );
+
+    _isCreatingCall = false;
+
+    return callId;
+  }
+
+  void _startRingingTimer() {
+    _ringingTimer?.cancel();
+
+    _ringingTimer = Timer(const Duration(seconds: 2), () async {
+      if (!mounted) return;
+
+      if (CallEngineService.instance.callStatus == 'calling') {
+        await CallEngineService.instance.updateStatus('ringing');
+      }
+    });
+  }
+
+  void _startTimeoutWatcher() {
+    _timeoutTimer?.cancel();
+
+    _timeoutTimer = Timer(const Duration(seconds: 25), () async {
+      if (!mounted) return;
+
+      final status = CallEngineService.instance.callStatus;
+
+      if (status == 'calling' || status == 'ringing') {
+        await CallEngineService.instance.updateStatus('missed');
+      }
+    });
+  }
+
+  Future<void> _startCall() async {
     final user = _auth.currentUser;
     if (user == null) return;
 
-    if (ZegoCallService.instance.currentUserID == user.uid) return;
+    final callId = await _createCallIfNeeded();
+    if (callId == null) return;
 
-    await ZegoCallService.instance.init(
-      userID: user.uid,
-      userName: userData['name'] ?? 'User',
+    await CallEngineService.instance.updateStatus('calling');
+
+    _startRingingTimer();
+    _startTimeoutWatcher();
+  }
+
+  Future<void> _acceptCall() async {
+    final callId = CallEngineService.instance.activeCallId ?? widget.callId;
+    if (callId == null || callId.isEmpty) return;
+
+    await CallEngineService.instance.acceptCall(callId);
+  }
+
+  Future<void> _endCall() async {
+    await CallEngineService.instance.endCall();
+  }
+
+  void _openChat() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => VolunteerHelpChatPage(
+          volunteerId: widget.volunteerId,
+          volunteerName: widget.volunteerName,
+        ),
+      ),
     );
+  }
+
+  String _statusText(String status) {
+    switch (status) {
+      case 'calling':
+        return 'Calling...';
+      case 'ringing':
+        return 'Ringing...';
+      case 'accepted':
+        return 'Connected';
+      case 'rejected':
+        return 'Rejected';
+      case 'missed':
+        return 'Missed Call';
+      case 'ended':
+        return 'Call Ended';
+      case 'failed':
+        return 'Failed';
+      default:
+        return 'Ready';
+    }
+  }
+
+  bool _showLoading(String status) {
+    return status == 'calling' || status == 'ringing';
   }
 
   @override
   Widget build(BuildContext context) {
-    final currentUser = _auth.currentUser;
+    final user = _auth.currentUser;
 
-    if (currentUser == null) {
-      return const Scaffold(body: Center(child: Text('Please login first')));
+    if (user == null) {
+      return const Scaffold(
+        body: Center(child: Text('Login required')),
+      );
     }
 
-    return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      future: _firestore.collection('users').doc(currentUser.uid).get(),
-      builder: (context, userSnapshot) {
-        if (!userSnapshot.hasData) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
+    final callID = CallEngineService.instance.activeCallId ??
+        widget.callId ??
+        'temp_${user.uid}_${widget.volunteerId}';
 
-        final userData = userSnapshot.data!.data() ?? {};
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: StreamBuilder<String>(
+            stream: CallEngineService.instance.statusStream,
+            initialData: CallEngineService.instance.callStatus,
+            builder: (context, snapshot) {
+              final status = snapshot.data ?? 'idle';
 
-        return FutureBuilder<void>(
-          future: _initZegoIfNeeded(userData),
-          builder: (context, initSnapshot) {
-            return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-              stream: _firestore
-                  .collection('users')
-                  .doc(widget.volunteerId)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const Scaffold(
-                    body: Center(child: CircularProgressIndicator()),
-                  );
-                }
+              return Column(
+                children: [
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      IconButton(
+                        onPressed: () async {
+                          if (status == 'calling' ||
+                              status == 'ringing' ||
+                              status == 'accepted') {
+                            await _endCall();
+                          }
 
-                if (!snapshot.data!.exists) {
-                  return const Scaffold(
-                    body: Center(child: Text('Volunteer not found')),
-                  );
-                }
-
-                final volunteer = snapshot.data!.data()!;
-                final volunteerName =
-                    (volunteer['name'] ?? 'Volunteer').toString();
-                final volunteerPhoto = (volunteer['photoUrl'] ?? '').toString();
-                final isAvailable = volunteer['isAvailable'] ?? true;
-
-                final callID = _buildCallID(
-                  currentUser.uid,
-                  widget.volunteerId,
-                );
-
-                return Scaffold(
-                  backgroundColor: Colors.black,
-                  body: Container(
-                    width: double.infinity,
-                    height: double.infinity,
-                    decoration: BoxDecoration(
-                      image: DecorationImage(
-                        fit: BoxFit.cover,
-                        image: volunteerPhoto.isNotEmpty
-                            ? NetworkImage(volunteerPhoto)
-                            : const AssetImage(
-                                'assets/images/placeholder_person.png',
-                              ) as ImageProvider,
-                        colorFilter: ColorFilter.mode(
-                          Colors.black.withOpacity(0.45),
-                          BlendMode.darken,
-                        ),
+                          if (Navigator.canPop(context)) {
+                            Navigator.pop(context);
+                          }
+                        },
+                        icon: const Icon(Icons.arrow_back, color: Colors.white),
                       ),
-                    ),
-                    child: SafeArea(
-                      child: Column(
-                        children: [
-                          const SizedBox(height: 14),
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
-                            child: Row(
-                              children: [
-                                IconButton(
-                                  onPressed: () => Navigator.pop(context),
-                                  icon: const Icon(
-                                    Icons.arrow_back,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                Expanded(
-                                  child: Column(
-                                    children: [
-                                      Text(
-                                        volunteerName,
-                                        textAlign: TextAlign.center,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        isAvailable
-                                            ? (_invitationSent
-                                                ? 'Calling...'
-                                                : 'Ready to video call')
-                                            : 'Busy',
-                                        style: TextStyle(
-                                          color: isAvailable
-                                              ? Colors.greenAccent
-                                              : Colors.redAccent,
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 8,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.92),
-                                    borderRadius: BorderRadius.circular(30),
-                                  ),
-                                  child: const Text(
-                                    'Video Call',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.black87,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const Spacer(),
-                          Padding(
-                            padding: const EdgeInsets.only(right: 24),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Container(
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF87CEEB),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 10,
-                                  ),
-                                  child: const Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.videocam,
-                                        color: Colors.white,
-                                        size: 16,
-                                      ),
-                                      SizedBox(width: 4),
-                                      Text(
-                                        'Video Call',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 10),
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(10),
-                                  child: Container(
-                                    width: 100,
-                                    height: 143,
-                                    color: Colors.white12,
-                                    child: volunteerPhoto.isNotEmpty
-                                        ? Image.network(
-                                            volunteerPhoto,
-                                            fit: BoxFit.cover,
-                                          )
-                                        : const Icon(
-                                            Icons.person,
-                                            color: Colors.white,
-                                            size: 50,
-                                          ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 28),
-                          Stack(
-                            alignment: Alignment.topCenter,
-                            children: [
-                              Container(
-                                width: double.infinity,
-                                height: 90,
-                                margin: const EdgeInsets.only(top: 27),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      blurRadius: 30,
-                                      color: Colors.black.withOpacity(0.15),
-                                      offset: const Offset(0, -4),
-                                    ),
-                                  ],
-                                  borderRadius: const BorderRadius.vertical(
-                                    top: Radius.circular(24),
-                                  ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Center(
-                                        child: _roundButton(
-                                          icon: _isMutedUi
-                                              ? Icons.mic_off
-                                              : FontAwesomeIcons.microphone,
-                                          active: _isMutedUi,
-                                          onTap: () {
-                                            setState(() {
-                                              _isMutedUi = !_isMutedUi;
-                                            });
-                                          },
-                                        ),
-                                      ),
-                                    ),
-                                    Expanded(
-                                      child: Center(
-                                        child: _roundButton(
-                                          icon: _isVideoUi
-                                              ? FontAwesomeIcons.video
-                                              : FontAwesomeIcons.videoSlash,
-                                          active: _isVideoUi,
-                                          onTap: () {
-                                            setState(() {
-                                              _isVideoUi = !_isVideoUi;
-                                            });
-                                          },
-                                        ),
-                                      ),
-                                    ),
-                                    const Expanded(child: SizedBox()),
-                                    Expanded(
-                                      child: Center(
-                                        child: _roundButton(
-                                          icon: _isSpeakerUi
-                                              ? FontAwesomeIcons.volumeHigh
-                                              : FontAwesomeIcons.volumeLow,
-                                          active: _isSpeakerUi,
-                                          onTap: () {
-                                            setState(() {
-                                              _isSpeakerUi = !_isSpeakerUi;
-                                            });
-                                          },
-                                        ),
-                                      ),
-                                    ),
-                                    Expanded(
-                                      child: Center(
-                                        child: _roundButton(
-                                          icon: Icons.message_outlined,
-                                          active: false,
-                                          onTap: () {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (context) =>
-                                                    VolunteerHelpChatPage(
-                                                  volunteerId:
-                                                      widget.volunteerId,
-                                                  volunteerName: volunteerName,
-                                                ),
-                                              ),
-                                            );
-                                          },
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              ZegoSendCallInvitationButton(
-                                isVideoCall: true,
-                                resourceID: 'zegouikit_call',
-                                invitees: [
-                                  ZegoUIKitUser(
-                                    id: widget.volunteerId,
-                                    name: volunteerName,
-                                  ),
-                                ],
-                                iconSize: const Size(60, 60),
-                                buttonSize: const Size(60, 60),
-                                callID: callID,
-                                onPressed: (code, message, errorInvitees) {
-                                  setState(() {
-                                    _invitationSent = code.isEmpty;
-                                  });
-
-                                  if (code.isNotEmpty && mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text('Call failed: $message'),
-                                      ),
-                                    );
-                                  }
-                                },
-                              ),
-                            ],
-                          ),
-                        ],
+                      const Spacer(),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  CircleAvatar(
+                    radius: 45,
+                    backgroundColor: Colors.white,
+                    child: Text(
+                      widget.volunteerName.isNotEmpty
+                          ? widget.volunteerName[0].toUpperCase()
+                          : 'V',
+                      style: const TextStyle(
+                        fontSize: 35,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF025590),
                       ),
                     ),
                   ),
-                );
-              },
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Widget _roundButton({
-    required IconData icon,
-    required bool active,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 56,
-        height: 56,
-        decoration: BoxDecoration(
-          color: active ? const Color(0xFF87CEEB) : Colors.white,
-          shape: BoxShape.circle,
-        ),
-        child: Icon(
-          icon,
-          color: active ? Colors.white : const Color(0xFF2E5B75),
-          size: 24,
+                  const SizedBox(height: 20),
+                  Text(
+                    widget.volunteerName,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    _statusText(status),
+                    style: const TextStyle(color: Colors.white70),
+                  ),
+                  const Spacer(),
+                  if (_showLoading(status))
+                    const CircularProgressIndicator(color: Colors.white),
+                  const SizedBox(height: 20),
+                  ElevatedButton.icon(
+                    onPressed: _openChat,
+                    icon: const Icon(Icons.chat),
+                    label: const Text('Chat'),
+                  ),
+                  const SizedBox(height: 15),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: _startCall,
+                          child: const Text('Call'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: _acceptCall,
+                          child: const Text('Accept'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: _endCall,
+                          child: const Text('End'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  ZegoSendCallInvitationButton(
+                    isVideoCall: true,
+                    resourceID: 'zegouikit_call',
+                    callID: callID,
+                    invitees: [
+                      ZegoUIKitUser(
+                        id: widget.volunteerId,
+                        name: widget.volunteerName,
+                      ),
+                    ],
+                    onPressed: (code, message, _) async {
+                      if (code.isEmpty) {
+                        await _startCall();
+                      } else {
+                        await _createCallIfNeeded();
+                        await CallEngineService.instance.updateStatus('failed');
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 40),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );

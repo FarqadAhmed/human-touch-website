@@ -171,6 +171,21 @@ class _CommunicationPageState extends State<CommunicationPage> {
     });
   }
 
+  Future<void> _saveMoodActivityLog() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final activities = _moodActivities[_selectedMood] ?? [];
+
+    await FirebaseFirestore.instance.collection('communication_mood_logs').add({
+      'userId': user.uid,
+      'selectedMood': _selectedMood,
+      'place': _selectedPlace,
+      'suggestedActivities': activities,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   Future<void> _speakMessage() async {
     if (_generatedMessage.isEmpty) return;
 
@@ -179,6 +194,19 @@ class _CommunicationPageState extends State<CommunicationPage> {
     await _flutterTts.setSpeechRate(0.45);
     await _flutterTts.setPitch(1.0);
     await _flutterTts.speak(_generatedMessage);
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    await FirebaseFirestore.instance.collection('communication_tts_logs').add({
+      'userId': user.uid,
+      'place': _selectedPlace,
+      'mood': _selectedMood,
+      'spokenText': _generatedMessage,
+      'detectedSituation': _detectedSituation,
+      'isEmergency': _isEmergency,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
   }
 
   Future<void> _analyzeSituation() async {
@@ -494,6 +522,7 @@ class _CommunicationPageState extends State<CommunicationPage> {
                               borderSide: BorderSide.none,
                             ),
                           ),
+                          onSubmitted: (_) => sendMessage(),
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -722,23 +751,20 @@ class _CommunicationPageState extends State<CommunicationPage> {
                         },
                       ),
                     ),
-
                     const SizedBox(height: 24),
-
                     _sectionTitle('Suggested phrases for $_selectedPlace'),
                     const SizedBox(height: 12),
-
                     GridView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: phrases.length,
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            mainAxisSpacing: 12,
-                            crossAxisSpacing: 12,
-                            childAspectRatio: 1.65,
-                          ),
+                        crossAxisCount: 2,
+                        mainAxisSpacing: 12,
+                        crossAxisSpacing: 12,
+                        childAspectRatio: 1.65,
+                      ),
                       itemBuilder: (context, index) {
                         return GestureDetector(
                           onTap: () {
@@ -771,12 +797,9 @@ class _CommunicationPageState extends State<CommunicationPage> {
                         );
                       },
                     ),
-
                     const SizedBox(height: 24),
-
                     _sectionTitle('How do you feel?'),
                     const SizedBox(height: 12),
-
                     SizedBox(
                       height: 82,
                       child: ListView.separated(
@@ -788,10 +811,12 @@ class _CommunicationPageState extends State<CommunicationPage> {
                           final selected = mood['label'] == _selectedMood;
 
                           return GestureDetector(
-                            onTap: () {
+                            onTap: () async {
                               setState(() {
                                 _selectedMood = mood['label']!;
                               });
+
+                              await _saveMoodActivityLog();
                             },
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 220),
@@ -828,9 +853,7 @@ class _CommunicationPageState extends State<CommunicationPage> {
                         },
                       ),
                     ),
-
                     const SizedBox(height: 14),
-
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(16),
@@ -875,12 +898,9 @@ class _CommunicationPageState extends State<CommunicationPage> {
                         ],
                       ),
                     ),
-
                     const SizedBox(height: 24),
-
                     _sectionTitle('Quick Talk For Me'),
                     const SizedBox(height: 12),
-
                     Row(
                       children: [
                         Expanded(
@@ -904,12 +924,9 @@ class _CommunicationPageState extends State<CommunicationPage> {
                         ),
                       ],
                     ),
-
                     const SizedBox(height: 24),
-
                     _sectionTitle('Smart Situation Mode'),
                     const SizedBox(height: 12),
-
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
@@ -966,12 +983,10 @@ class _CommunicationPageState extends State<CommunicationPage> {
                         ],
                       ),
                     ),
-
                     if (_generatedMessage.isNotEmpty) ...[
                       const SizedBox(height: 24),
                       _sectionTitle('AI Message Result'),
                       const SizedBox(height: 12),
-
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(18),
@@ -1054,7 +1069,6 @@ class _CommunicationPageState extends State<CommunicationPage> {
                         ),
                       ),
                     ],
-
                     const SizedBox(height: 100),
                   ],
                 ),

@@ -12,6 +12,7 @@ import 'Dashboard_page.dart';
 import 'Login_page.dart';
 import 'Profile_page.dart';
 import 'Settings_page.dart';
+import 'ForgetPassword_page.dart';
 
 class Profile2Page extends StatefulWidget {
   const Profile2Page({super.key});
@@ -24,7 +25,6 @@ class _Profile2PageState extends State<Profile2Page> {
   late TextEditingController _nameController;
   late TextEditingController _phoneController;
   late TextEditingController _emailController;
-  late TextEditingController _passwordController;
 
   late TextEditingController _volunteerSpecialtyController;
   late TextEditingController _volunteerSkillController;
@@ -56,7 +56,6 @@ class _Profile2PageState extends State<Profile2Page> {
     _nameController = TextEditingController();
     _phoneController = TextEditingController();
     _emailController = TextEditingController();
-    _passwordController = TextEditingController();
 
     _volunteerSpecialtyController = TextEditingController();
     _volunteerSkillController = TextEditingController();
@@ -71,7 +70,6 @@ class _Profile2PageState extends State<Profile2Page> {
     _nameController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
-    _passwordController.dispose();
 
     _volunteerSpecialtyController.dispose();
     _volunteerSkillController.dispose();
@@ -106,33 +104,34 @@ class _Profile2PageState extends State<Profile2Page> {
             (data['name'] ?? data['fullName'] ?? data['username'] ?? '')
                 .toString();
 
-        _phoneController.text = (data['phone'] ?? data['phoneNumber'] ?? '')
-            .toString();
+        _phoneController.text =
+            (data['phone'] ?? data['phoneNumber'] ?? '').toString();
 
         _emailController.text = (data['email'] ?? user.email ?? '').toString();
-
-        _passwordController.text = '';
 
         _userRole = (data['role'] ?? 'patient').toString();
 
         _profileImageBase64 =
             (data['profileImageBase64'] ?? data['image'] ?? '').toString();
 
-        _patientLinkCode = (data['patientLinkCode'] ?? 'PATIENT-${user.uid}')
-            .toString();
+        _patientLinkCode =
+            (data['patientLinkCode'] ?? 'PATIENT-${user.uid}').toString();
 
         _linkedPatientCode = (data['linkedPatientCode'] ?? '').toString();
 
-        _volunteerSpecialtyController.text = (data['volunteerSpecialty'] ?? '')
-            .toString();
-        _volunteerSkillController.text = (data['volunteerSkill'] ?? '')
-            .toString();
-        _volunteerBioController.text = (data['volunteerBio'] ?? '').toString();
-        _volunteerWorkController.text = (data['volunteerWork'] ?? '')
-            .toString();
+        _volunteerSpecialtyController.text =
+            (data['volunteerSpecialty'] ?? '').toString();
 
-        _selectedVolunteerType = (data['volunteerType'] ?? 'Medical')
-            .toString();
+        _volunteerSkillController.text =
+            (data['volunteerSkill'] ?? '').toString();
+
+        _volunteerBioController.text = (data['volunteerBio'] ?? '').toString();
+
+        _volunteerWorkController.text =
+            (data['volunteerWork'] ?? '').toString();
+
+        _selectedVolunteerType =
+            (data['volunteerType'] ?? 'Medical').toString();
 
         if (!_volunteerTypes.contains(_selectedVolunteerType)) {
           _selectedVolunteerType = 'Medical';
@@ -294,10 +293,6 @@ class _Profile2PageState extends State<Profile2Page> {
         await user.verifyBeforeUpdateEmail(_emailController.text.trim());
       }
 
-      if (_passwordController.text.trim().isNotEmpty) {
-        await user.updatePassword(_passwordController.text.trim());
-      }
-
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -307,8 +302,7 @@ class _Profile2PageState extends State<Profile2Page> {
       String message = e.message ?? 'Authentication error';
 
       if (e.code == 'requires-recent-login') {
-        message =
-            'Please log out and log in again before changing email or password.';
+        message = 'Please log out and log in again before changing email.';
       }
 
       if (!mounted) return;
@@ -331,6 +325,37 @@ class _Profile2PageState extends State<Profile2Page> {
     }
   }
 
+  Future<void> _confirmDeleteAccount() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Delete Account'),
+          content: const Text(
+            'Are you sure you want to delete your account? This action cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text(
+                'Delete',
+                style: TextStyle(color: Colors.red),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm == true) {
+      await _deleteAccount();
+    }
+  }
+
   Future<void> _deleteAccount() async {
     final user = FirebaseAuth.instance.currentUser;
 
@@ -341,6 +366,7 @@ class _Profile2PageState extends State<Profile2Page> {
           .collection('users')
           .doc(user.uid)
           .delete();
+
       await user.delete();
 
       if (!mounted) return;
@@ -390,6 +416,22 @@ class _Profile2PageState extends State<Profile2Page> {
             final user = FirebaseAuth.instance.currentUser;
             if (user == null) return;
 
+            final patientQuery = await FirebaseFirestore.instance
+                .collection('users')
+                .where('patientLinkCode', isEqualTo: code)
+                .where('role', isEqualTo: 'patient')
+                .limit(1)
+                .get();
+
+            if (patientQuery.docs.isEmpty) {
+              if (!mounted) return;
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Invalid patient QR code')),
+              );
+              return;
+            }
+
             setState(() {
               _linkedPatientCode = code;
             });
@@ -398,9 +440,10 @@ class _Profile2PageState extends State<Profile2Page> {
                 .collection('users')
                 .doc(user.uid)
                 .set({
-                  'linkedPatientCode': code,
-                  'updatedAt': FieldValue.serverTimestamp(),
-                }, SetOptions(merge: true));
+              'linkedPatientCode': code,
+              'patientUid': patientQuery.docs.first.id,
+              'updatedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
 
             if (!mounted) return;
 
@@ -573,7 +616,6 @@ class _Profile2PageState extends State<Profile2Page> {
     required IconData icon,
     required String label,
     required TextEditingController controller,
-    bool obscureText = false,
     TextInputType? keyboardType,
     int maxLines = 1,
   }) {
@@ -595,9 +637,8 @@ class _Profile2PageState extends State<Profile2Page> {
         ),
         child: TextField(
           controller: controller,
-          obscureText: obscureText,
           keyboardType: keyboardType,
-          maxLines: obscureText ? 1 : maxLines,
+          maxLines: maxLines,
           onChanged: (_) => setState(() {}),
           decoration: InputDecoration(
             icon: Icon(icon, color: const Color(0xFF57636C)),
@@ -913,11 +954,17 @@ class _Profile2PageState extends State<Profile2Page> {
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
                       ),
-                      _buildField(
-                        icon: Icons.lock_open,
-                        label: 'New Password',
-                        controller: _passwordController,
-                        obscureText: true,
+                      _buildActionButton(
+                        text: 'Change / Forgot Password',
+                        icon: Icons.lock_reset,
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const ForgetPasswordPage(),
+                            ),
+                          );
+                        },
                       ),
                       if (_userRole == 'volunteer')
                         _buildVolunteerInfoSection(),
@@ -934,7 +981,7 @@ class _Profile2PageState extends State<Profile2Page> {
                       _buildActionButton(
                         text: 'Delete Account',
                         icon: Icons.delete_outlined,
-                        onPressed: _deleteAccount,
+                        onPressed: _confirmDeleteAccount,
                       ),
                       _buildActionButton(text: 'Log Out', onPressed: _logout),
                       const SizedBox(height: 20),

@@ -17,7 +17,25 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
   final TextEditingController _searchController = TextEditingController();
 
   String _searchText = '';
+  String _selectedAvailability = 'All';
+  String _selectedHelpType = 'All';
+
   List<String> _favoriteIds = [];
+
+  final List<String> _availabilityOptions = [
+    'All',
+    'Available',
+    'Busy',
+  ];
+
+  final List<String> _helpTypeOptions = [
+    'All',
+    'Medical',
+    'Shopping',
+    'Transportation',
+    'Daily Support',
+    'Other',
+  ];
 
   @override
   void initState() {
@@ -79,43 +97,116 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
   }
 
   List<Map<String, dynamic>> _filterVolunteers(QuerySnapshot snapshot) {
-    final volunteers = snapshot.docs
-        .map((doc) {
-          final data = doc.data() as Map<String, dynamic>;
+    final volunteers = snapshot.docs.map((doc) {
+      final data = doc.data() as Map<String, dynamic>;
 
-          return {
-            'id': doc.id,
-            'name': data['name'] ?? 'Volunteer',
-            'helpType':
-                data['helpType'] ?? data['volunteerType'] ?? 'Daily Support',
-            'gender': data['gender'] ?? 'Unknown',
-            'isAvailable': data['isAvailable'] ?? true,
-            'rating': (data['rating'] ?? 0).toDouble(),
-            'photoUrl': data['photoUrl'] ?? '',
-            'phone': data['phone'] ?? data['phoneNumber'] ?? '',
-            'volunteerSpecialty': data['volunteerSpecialty'] ?? '',
-            'volunteerSkill': data['volunteerSkill'] ?? '',
-            'volunteerBio': data['volunteerBio'] ?? '',
-            'volunteerWork': data['volunteerWork'] ?? '',
-          };
-        })
-        .where((v) {
-          final name = v['name'].toString().toLowerCase();
-          final helpType = v['helpType'].toString().toLowerCase();
+      return {
+        'id': doc.id,
+        'name': data['name'] ?? 'Volunteer',
+        'helpType':
+            data['helpType'] ?? data['volunteerType'] ?? 'Daily Support',
+        'gender': data['gender'] ?? 'Unknown',
+        'isAvailable': data['isAvailable'] ?? true,
+        'rating': (data['rating'] ?? 0).toDouble(),
+        'photoUrl': data['photoUrl'] ?? '',
+        'phone': data['phone'] ?? data['phoneNumber'] ?? '',
+        'volunteerSpecialty': data['volunteerSpecialty'] ?? '',
+        'volunteerSkill': data['volunteerSkill'] ?? '',
+        'volunteerBio': data['volunteerBio'] ?? '',
+        'volunteerWork': data['volunteerWork'] ?? '',
+      };
+    }).where((v) {
+      final name = v['name'].toString().toLowerCase();
+      final helpType = v['helpType'].toString().toLowerCase();
+      final isAvailable = v['isAvailable'] == true;
 
-          return _searchText.isEmpty ||
-              name.contains(_searchText) ||
-              helpType.contains(_searchText);
-        })
-        .toList();
+      final matchesSearch = _searchText.isEmpty ||
+          name.contains(_searchText) ||
+          helpType.contains(_searchText);
+
+      final matchesAvailability = _selectedAvailability == 'All' ||
+          (_selectedAvailability == 'Available' && isAvailable) ||
+          (_selectedAvailability == 'Busy' && !isAvailable);
+
+      final matchesHelpType = _selectedHelpType == 'All' ||
+          helpType == _selectedHelpType.toLowerCase();
+
+      return matchesSearch && matchesAvailability && matchesHelpType;
+    }).toList();
 
     volunteers.sort((a, b) {
       return a['name'].toString().toLowerCase().compareTo(
-        b['name'].toString().toLowerCase(),
-      );
+            b['name'].toString().toLowerCase(),
+          );
     });
 
     return volunteers;
+  }
+
+  Widget _buildFilterDropdown({
+    required String value,
+    required List<String> items,
+    required ValueChanged<String?> onChanged,
+  }) {
+    return Expanded(
+      child: Container(
+        height: 48,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF4F4F4),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            value: value,
+            isExpanded: true,
+            icon: const Icon(Icons.keyboard_arrow_down_rounded),
+            items: items.map((item) {
+              return DropdownMenuItem(
+                value: item,
+                child: Text(
+                  item,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 13),
+                ),
+              );
+            }).toList(),
+            onChanged: onChanged,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFiltersRow() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      child: Row(
+        children: [
+          _buildFilterDropdown(
+            value: _selectedAvailability,
+            items: _availabilityOptions,
+            onChanged: (value) {
+              if (value == null) return;
+              setState(() {
+                _selectedAvailability = value;
+              });
+            },
+          ),
+          const SizedBox(width: 10),
+          _buildFilterDropdown(
+            value: _selectedHelpType,
+            items: _helpTypeOptions,
+            onChanged: (value) {
+              if (value == null) return;
+              setState(() {
+                _selectedHelpType = value;
+              });
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildVolunteerCard(Map<String, dynamic> data) {
@@ -153,9 +244,8 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
                 CircleAvatar(
                   radius: 34,
                   backgroundColor: Colors.white,
-                  backgroundImage: photoUrl.isNotEmpty
-                      ? NetworkImage(photoUrl)
-                      : null,
+                  backgroundImage:
+                      photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
                   child: photoUrl.isEmpty
                       ? const Icon(Icons.person, size: 34, color: Colors.grey)
                       : null,
@@ -252,6 +342,19 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
     );
   }
 
+  void _goBack() {
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const DashboardPage(),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -296,18 +399,7 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
               child: Row(
                 children: [
                   IconButton(
-                    onPressed: () {
-                      if (Navigator.canPop(context)) {
-                        Navigator.pop(context);
-                      } else {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const DashboardPage(),
-                          ),
-                        );
-                      }
-                    },
+                    onPressed: _goBack,
                     icon: const Icon(Icons.arrow_back, size: 28),
                   ),
                   const Expanded(
@@ -344,6 +436,7 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
                 ),
               ),
             ),
+            _buildFiltersRow(),
             const SizedBox(height: 12),
             Expanded(
               child: StreamBuilder<QuerySnapshot>(

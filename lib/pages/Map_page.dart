@@ -91,22 +91,22 @@ class _MapPageState extends State<MapPage> {
     await FirebaseFirestore.instance
         .collection('selected_accessible_places')
         .add({
-          'userId': user.uid,
-          'action': action,
-          'placeId': place.id,
-          'name': place.name,
-          'category': place.category,
-          'lat': place.lat,
-          'lng': place.lng,
-          'distanceKm': place.distanceKm,
-          'mapsUri': place.mapsUri,
-          'wheelchairEntrance': place.wheelchairEntrance,
-          'accessibleParking': place.accessibleParking,
-          'accessibleRestroom': place.accessibleRestroom,
-          'accessibleSeating': place.accessibleSeating,
-          'note': place.note,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
+      'userId': user.uid,
+      'action': action,
+      'placeId': place.id,
+      'name': place.name,
+      'category': place.category,
+      'lat': place.lat,
+      'lng': place.lng,
+      'distanceKm': place.distanceKm,
+      'mapsUri': place.mapsUri,
+      'wheelchairEntrance': place.wheelchairEntrance,
+      'accessibleParking': place.accessibleParking,
+      'accessibleRestroom': place.accessibleRestroom,
+      'accessibleSeating': place.accessibleSeating,
+      'note': place.note,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
   }
 
   void _goBack() {
@@ -629,6 +629,7 @@ class _MapPageState extends State<MapPage> {
                                 _buildQuickChip('Cafe'),
                                 _buildQuickChip('Hospital'),
                                 _buildQuickChip('Mall'),
+                                _buildQuickChip('Park'),
                               ],
                             ),
                             const SizedBox(height: 10),
@@ -654,8 +655,8 @@ class _MapPageState extends State<MapPage> {
                                   onTap: _isSearching
                                       ? null
                                       : () => _searchByPrompt(
-                                          _searchController.text,
-                                        ),
+                                            _searchController.text,
+                                          ),
                                   borderRadius: BorderRadius.circular(14),
                                   child: Container(
                                     width: 52,

@@ -115,7 +115,7 @@ class _HealthAssessmentPageState extends State<HealthAssessmentPage> {
         ? 'The patient may need support today.'
         : 'The patient seems okay today.';
 
-    await FirebaseFirestore.instance.collection('health_assessments').add({
+    await FirebaseFirestore.instance.collection('health_ai_reports').add({
       'userId': user.uid,
       'moodValue': _moodValue,
       'mood': _moodTextFromValue(_moodValue),
@@ -378,7 +378,6 @@ class _HealthAssessmentPageState extends State<HealthAssessmentPage> {
                   ),
                 ],
               ),
-
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
@@ -406,7 +405,6 @@ class _HealthAssessmentPageState extends State<HealthAssessmentPage> {
                         ),
                       ),
                       const SizedBox(height: 80),
-
                       Center(
                         child: Text(
                           _currentQuestion.title,
@@ -431,11 +429,8 @@ class _HealthAssessmentPageState extends State<HealthAssessmentPage> {
                         ),
                       ),
                       const SizedBox(height: 30),
-
                       _buildQuestionContent(),
-
                       const SizedBox(height: 50),
-
                       Row(
                         children: [
                           Expanded(
@@ -473,9 +468,8 @@ class _HealthAssessmentPageState extends State<HealthAssessmentPage> {
                             child: SizedBox(
                               height: 50,
                               child: ElevatedButton(
-                                onPressed: _canContinue && !_isSaving
-                                    ? _goNext
-                                    : null,
+                                onPressed:
+                                    _canContinue && !_isSaving ? _goNext : null,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF87CEEB),
                                   foregroundColor: Colors.white,
@@ -509,7 +503,6 @@ class _HealthAssessmentPageState extends State<HealthAssessmentPage> {
                   ),
                 ),
               ),
-
               Container(
                 width: double.infinity,
                 height: 60,

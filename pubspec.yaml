@@ -32,8 +32,9 @@ dependencies:
   intl: ^0.20.2
 
   # Communication
-  flutter_tts: ^4.2.3
+  flutter_tts: ^4.2.5
   speech_to_text: ^7.3.0
+  permission_handler: ^12.0.1
 
   # Notifications
   flutter_local_notifications: ^17.2.3
@@ -57,10 +58,17 @@ dependencies:
   firebase_core: ^4.7.0
   firebase_auth: ^6.4.0
   cloud_firestore: ^6.3.0
+  firebase_messaging: ^16.2.0
 
   # File & Image
   image_picker: ^1.1.2
 
+  # Voice Messages
+  record: ^6.0.0
+  audioplayers: ^6.1.0
+  firebase_storage: ^13.0.0
+  path_provider: ^2.1.5
+  
   # Rating
   flutter_rating_bar: ^4.0.1
 

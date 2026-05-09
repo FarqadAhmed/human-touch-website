@@ -294,14 +294,14 @@ class _VolunteerDashboardPageState extends State<VolunteerDashboardPage>
                     await FirebaseFirestore.instance
                         .collection('messages')
                         .add({
-                          'requestId': data['requestId'] ?? '',
-                          'patientName': data['patientName'] ?? '',
-                          'patientId': data['patientId'] ?? '',
-                          'senderRole': 'volunteer',
-                          'senderName': _volunteerName,
-                          'message': messageController.text.trim(),
-                          'createdAt': FieldValue.serverTimestamp(),
-                        });
+                      'requestId': data['requestId'] ?? '',
+                      'patientName': data['patientName'] ?? '',
+                      'patientId': data['patientId'] ?? '',
+                      'senderRole': 'volunteer',
+                      'senderName': _volunteerName,
+                      'message': messageController.text.trim(),
+                      'createdAt': FieldValue.serverTimestamp(),
+                    });
 
                     if (!mounted) return;
                     Navigator.pop(context);

@@ -39,6 +39,46 @@ class CompanionReminder {
   }
 }
 
+class HealthAIReport {
+  final String id;
+  final String moodAnswer;
+  final String dayAnswer;
+  final String energyAnswer;
+  final String physicalAnswer;
+  final String sleepAnswer;
+  final String helpAnswer;
+  final String resultMessage;
+  final dynamic createdAt;
+
+  HealthAIReport({
+    required this.id,
+    required this.moodAnswer,
+    required this.dayAnswer,
+    required this.energyAnswer,
+    required this.physicalAnswer,
+    required this.sleepAnswer,
+    required this.helpAnswer,
+    required this.resultMessage,
+    required this.createdAt,
+  });
+
+  factory HealthAIReport.fromDoc(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+
+    return HealthAIReport(
+      id: doc.id,
+      moodAnswer: (data['moodAnswer'] ?? '').toString(),
+      dayAnswer: (data['dayAnswer'] ?? '').toString(),
+      energyAnswer: (data['energyAnswer'] ?? '').toString(),
+      physicalAnswer: (data['physicalAnswer'] ?? '').toString(),
+      sleepAnswer: (data['sleepAnswer'] ?? '').toString(),
+      helpAnswer: (data['helpAnswer'] ?? '').toString(),
+      resultMessage: (data['resultMessage'] ?? '').toString(),
+      createdAt: data['createdAt'],
+    );
+  }
+}
+
 class CompanionDashboardPage extends StatefulWidget {
   const CompanionDashboardPage({super.key});
 
@@ -108,8 +148,8 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
       patientUid = (companionData['patientUid'] ?? '').toString();
 
       if (patientUid.trim().isEmpty) {
-        final linkedPatientCode = (companionData['linkedPatientCode'] ?? '')
-            .toString();
+        final linkedPatientCode =
+            (companionData['linkedPatientCode'] ?? '').toString();
 
         if (linkedPatientCode.isNotEmpty) {
           final patientQuery = await FirebaseFirestore.instance
@@ -155,7 +195,12 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
       setState(() {
         patientName = (patientData['name'] ?? 'Patient').toString();
         patientStatus = (patientData['status'] ?? 'Stable').toString();
-        mood = (patientData['mood'] ?? 'Calm 😊').toString();
+
+        mood = (patientData['patientMoodEmoji'] != null &&
+                patientData['patientMoodLabel'] != null)
+            ? '${patientData['patientMoodEmoji']} ${patientData['patientMoodLabel']}'
+            : (patientData['mood'] ?? 'Calm 😊').toString();
+
         location = (patientData['location'] ?? 'Manama').toString();
         heartRate = patientData['heartRate'] ?? 78;
         sleepHours = patientData['sleepHours'] ?? 7;
@@ -183,14 +228,29 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
         .where('userId', isEqualTo: patientUid)
         .snapshots()
         .map((snapshot) {
-          final reminders = snapshot.docs
-              .map((doc) => CompanionReminder.fromDoc(doc))
-              .toList();
+      final reminders =
+          snapshot.docs.map((doc) => CompanionReminder.fromDoc(doc)).toList();
 
-          reminders.sort((a, b) => a.time.compareTo(b.time));
+      reminders.sort((a, b) => a.time.compareTo(b.time));
 
-          return reminders;
-        });
+      return reminders;
+    });
+  }
+
+  Stream<List<HealthAIReport>> _healthAIReportsStream() {
+    if (patientUid.isEmpty) {
+      return const Stream.empty();
+    }
+
+    return FirebaseFirestore.instance
+        .collection('health_ai_reports')
+        .where('userId', isEqualTo: patientUid)
+        .orderBy('createdAt', descending: true)
+        .limit(30)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) => HealthAIReport.fromDoc(doc)).toList();
+    });
   }
 
   void _updateTime() {
@@ -628,11 +688,50 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
     );
   }
 
-  Widget _buildDailyReport(List<CompanionReminder> reminders) {
+  Widget _aiReportSummary(HealthAIReport? report) {
+    if (report == null) {
+      return const Text(
+        'No AI Health Check report yet.',
+        style: TextStyle(color: Colors.grey),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'AI Health Check Summary',
+          style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 10),
+        Text('Mood: ${report.moodAnswer}'),
+        Text('Day: ${report.dayAnswer}'),
+        Text('Energy: ${report.energyAnswer}'),
+        Text('Physical: ${report.physicalAnswer}'),
+        Text('Sleep: ${report.sleepAnswer}'),
+        Text('Help Needed: ${report.helpAnswer}'),
+        const SizedBox(height: 10),
+        Text(
+          report.resultMessage,
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDailyReport(
+    List<CompanionReminder> reminders,
+    List<HealthAIReport> aiReports,
+  ) {
     final progress = _careProgress(reminders);
     final done = _doneCount(reminders);
     final missed = _missedCount(reminders);
     final pending = reminders.length - done - missed;
+
+    final latestAIReport = aiReports.isNotEmpty ? aiReports.first : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -647,12 +746,33 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
         Text('Pending Reminders: $pending'),
         Text('Missed Reminders: $missed'),
         Text('Daily Progress: ${(progress * 100).round()}%'),
+        const SizedBox(height: 18),
+        _aiReportSummary(latestAIReport),
       ],
     );
   }
 
-  Widget _buildWeeklyReport(double progress) {
+  Widget _buildWeeklyReport(
+    double progress,
+    List<HealthAIReport> aiReports,
+  ) {
     final today = (progress * 100).round();
+
+    final int totalReports = aiReports.length;
+    final int helpNeededCount = aiReports
+        .where((report) => report.helpAnswer.toLowerCase().contains('yes'))
+        .length;
+
+    final int lowEnergyCount = aiReports.where((report) {
+      final text = report.energyAnswer.toLowerCase();
+      return text.contains('low') || text.contains('exhausted');
+    }).length;
+
+    final int poorSleepCount = aiReports
+        .where((report) => report.sleepAnswer.toLowerCase().contains('poor'))
+        .length;
+
+    final latestAIReport = aiReports.isNotEmpty ? aiReports.first : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -668,12 +788,43 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
           [70, 65, 80, 75, 90, 60, today],
           ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Today'],
         ),
+        const SizedBox(height: 18),
+        const Text(
+          'AI Weekly Health Summary',
+          style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 10),
+        Text('Total AI reports this week: $totalReports'),
+        Text('Help needed reports: $helpNeededCount'),
+        Text('Low energy reports: $lowEnergyCount'),
+        Text('Poor sleep reports: $poorSleepCount'),
+        const SizedBox(height: 12),
+        _aiReportSummary(latestAIReport),
       ],
     );
   }
 
-  Widget _buildMonthlyReport(double progress) {
+  Widget _buildMonthlyReport(
+    double progress,
+    List<HealthAIReport> aiReports,
+  ) {
     final current = (progress * 100).round();
+
+    final int totalReports = aiReports.length;
+    final int helpNeededCount = aiReports
+        .where((report) => report.helpAnswer.toLowerCase().contains('yes'))
+        .length;
+
+    final int notWellCount = aiReports.where((report) {
+      return report.physicalAnswer.toLowerCase().contains('not well');
+    }).length;
+
+    final int badDayCount = aiReports.where((report) {
+      final text = report.dayAnswer.toLowerCase();
+      return text.contains('bad') || text.contains('okay');
+    }).length;
+
+    final latestAIReport = aiReports.isNotEmpty ? aiReports.first : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -686,25 +837,43 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
         const Text('This chart shows monthly care progress overview.'),
         const SizedBox(height: 16),
         _buildSimpleBarChart([62, 74, 81, current], ['W1', 'W2', 'W3', 'Now']),
+        const SizedBox(height: 18),
+        const Text(
+          'AI Monthly Health Summary',
+          style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 10),
+        Text('Total AI reports this month: $totalReports'),
+        Text('Help needed reports: $helpNeededCount'),
+        Text('Physical concern reports: $notWellCount'),
+        Text('Difficult/okay day reports: $badDayCount'),
+        const SizedBox(height: 12),
+        _aiReportSummary(latestAIReport),
       ],
     );
   }
 
-  Widget _buildReportContent(List<CompanionReminder> reminders) {
+  Widget _buildReportContent(
+    List<CompanionReminder> reminders,
+    List<HealthAIReport> aiReports,
+  ) {
     final progress = _careProgress(reminders);
 
     if (_selectedReport == 'Weekly') {
-      return _buildWeeklyReport(progress);
+      return _buildWeeklyReport(progress, aiReports.take(7).toList());
     }
 
     if (_selectedReport == 'Monthly') {
-      return _buildMonthlyReport(progress);
+      return _buildMonthlyReport(progress, aiReports);
     }
 
-    return _buildDailyReport(reminders);
+    return _buildDailyReport(reminders, aiReports);
   }
 
-  Widget _buildLinkedDashboard(List<CompanionReminder> reminders) {
+  Widget _buildLinkedDashboard(
+    List<CompanionReminder> reminders,
+    List<HealthAIReport> aiReports,
+  ) {
     final missedReminders = reminders.where((item) {
       return _reminderStatusText(item.status) == 'Missed';
     }).toList();
@@ -733,7 +902,6 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
               'Here is $patientName\'s latest update',
               style: const TextStyle(fontSize: 16, color: Colors.black54),
             ),
-
             _card(
               child: Row(
                 children: [
@@ -784,10 +952,8 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
                 ],
               ),
             ),
-
             const SizedBox(height: 18),
             _sectionTitle('Alerts'),
-
             if (missedReminders.isEmpty)
               _card(
                 child: const Row(
@@ -831,10 +997,8 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
                   }).toList(),
                 ),
               ),
-
             const SizedBox(height: 18),
             _sectionTitle('Health Summary'),
-
             _card(
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -845,10 +1009,8 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
                 ],
               ),
             ),
-
             const SizedBox(height: 18),
             _sectionTitle('Daily Care Progress'),
-
             _card(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -872,10 +1034,8 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
                 ],
               ),
             ),
-
             const SizedBox(height: 18),
             _sectionTitle('Today Reminders'),
-
             if (reminders.isEmpty)
               _card(
                 child: const Text(
@@ -915,9 +1075,8 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: _reminderStatusColor(
-                              item.status,
-                            ).withOpacity(0.12),
+                            color: _reminderStatusColor(item.status)
+                                .withOpacity(0.12),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
@@ -933,9 +1092,7 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
                   );
                 }).toList(),
               ),
-
             const SizedBox(height: 10),
-
             Align(
               alignment: Alignment.centerRight,
               child: TextButton.icon(
@@ -951,10 +1108,8 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
                 label: const Text('Manage Reminders'),
               ),
             ),
-
             const SizedBox(height: 18),
             _sectionTitle('Location'),
-
             _card(
               child: Row(
                 children: [
@@ -969,10 +1124,8 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
                 ],
               ),
             ),
-
             const SizedBox(height: 18),
             _sectionTitle('AI Insights'),
-
             Column(
               children: aiInsights.map((insight) {
                 return _card(
@@ -1005,12 +1158,9 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
                 );
               }).toList(),
             ),
-
             const SizedBox(height: 18),
             _sectionTitle('Quick Actions'),
-
             const SizedBox(height: 12),
-
             GridView.count(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -1048,10 +1198,8 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
                 ),
               ],
             ),
-
             const SizedBox(height: 18),
             _sectionTitle('Daily Report'),
-
             _card(
               child: Column(
                 children: [
@@ -1065,11 +1213,10 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
                     ],
                   ),
                   const SizedBox(height: 18),
-                  _buildReportContent(reminders),
+                  _buildReportContent(reminders, aiReports),
                 ],
               ),
             ),
-
             const SizedBox(height: 25),
           ],
         ),
@@ -1080,8 +1227,8 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
   Widget _buildLinkedDashboardWithStream() {
     return StreamBuilder<List<CompanionReminder>>(
       stream: _patientRemindersStream(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+      builder: (context, remindersSnapshot) {
+        if (remindersSnapshot.connectionState == ConnectionState.waiting) {
           return const Expanded(
             child: Center(
               child: CircularProgressIndicator(color: Color(0xFF87CEEB)),
@@ -1089,9 +1236,16 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
           );
         }
 
-        final reminders = snapshot.data ?? [];
+        final reminders = remindersSnapshot.data ?? [];
 
-        return _buildLinkedDashboard(reminders);
+        return StreamBuilder<List<HealthAIReport>>(
+          stream: _healthAIReportsStream(),
+          builder: (context, aiSnapshot) {
+            final aiReports = aiSnapshot.data ?? [];
+
+            return _buildLinkedDashboard(reminders, aiReports);
+          },
+        );
       },
     );
   }

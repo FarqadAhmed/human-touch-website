@@ -524,27 +524,61 @@ This Privacy Policy applies to the Human Touch app.''',
         children: [
           const Text(
             'Companion Phone Number',
-            style: TextStyle(color: Color(0xFF14181B), fontSize: 14),
+            style: TextStyle(
+              color: Color(0xFF14181B),
+              fontSize: 14,
+            ),
           ),
           const SizedBox(height: 10),
-          Container(
-            height: 52,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF4F4F4),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: TextField(
-              controller: _companionPhoneController,
-              keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(
-                border: InputBorder.none,
-                hintText: 'Enter companion phone number',
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF4F4F4),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: TextField(
+                    controller: _companionPhoneController,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      hintText: 'Enter companion phone number',
+                    ),
+                  ),
+                ),
               ),
-              onSubmitted: (value) async {
-                await _updateSetting('companionPhone', value.trim());
-              },
-            ),
+              const SizedBox(width: 10),
+              SizedBox(
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    final phone = _companionPhoneController.text.trim();
+
+                    await _updateSetting('companionPhone', phone);
+
+                    if (!mounted) return;
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Companion phone saved successfully'),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF87CEEB),
+                    foregroundColor: Colors.white,
+                    elevation: 1,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text('Save'),
+                ),
+              ),
+            ],
           ),
         ],
       ),

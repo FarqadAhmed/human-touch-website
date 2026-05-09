@@ -131,10 +131,10 @@ class _HealthPageState extends State<HealthPage> {
           .collection('users')
           .doc(user.uid)
           .update({
-            'patientMoodLabel': mood.label,
-            'patientMoodEmoji': mood.emoji,
-            'patientMoodTime': FieldValue.serverTimestamp(),
-          });
+        'patientMoodLabel': mood.label,
+        'patientMoodEmoji': mood.emoji,
+        'patientMoodTime': FieldValue.serverTimestamp(),
+      });
 
       if (!mounted) return;
 
@@ -445,27 +445,24 @@ class _HealthPageState extends State<HealthPage> {
 
             final tip = HealthTip(
               id: doc.id,
-              personName:
-                  (data['volunteerName'] ??
-                          data['personName'] ??
-                          data['name'] ??
-                          'Volunteer')
-                      .toString(),
+              personName: (data['volunteerName'] ??
+                      data['personName'] ??
+                      data['name'] ??
+                      'Volunteer')
+                  .toString(),
               personType: (data['personType'] ?? 'Volunteer').toString(),
               title: (data['title'] ?? 'Health Tip').toString(),
-              shortTip:
-                  (data['shortTip'] ??
-                          data['description'] ??
-                          data['tip'] ??
-                          'No details available.')
-                      .toString(),
-              fullTip:
-                  (data['fullTip'] ??
-                          data['description'] ??
-                          data['tip'] ??
-                          data['shortTip'] ??
-                          'No details available.')
-                      .toString(),
+              shortTip: (data['shortTip'] ??
+                      data['description'] ??
+                      data['tip'] ??
+                      'No details available.')
+                  .toString(),
+              fullTip: (data['fullTip'] ??
+                      data['description'] ??
+                      data['tip'] ??
+                      data['shortTip'] ??
+                      'No details available.')
+                  .toString(),
               category: (data['category'] ?? 'Health').toString(),
               emoji: (data['emoji'] ?? '💙').toString(),
               createdAt: data['createdAt'],
@@ -561,9 +558,8 @@ class _HealthPageState extends State<HealthPage> {
 
   @override
   Widget build(BuildContext context) {
-    final activitiesToShow = _showAllActivities
-        ? _activities
-        : _activities.take(3).toList();
+    final activitiesToShow =
+        _showAllActivities ? _activities : _activities.take(3).toList();
 
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
@@ -992,18 +988,50 @@ class _AIQuestionsPageState extends State<AIQuestionsPage> {
     }
   }
 
-  void _showResult() {
+  Future<void> _saveAIReport(String resultMessage) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+
+      if (user == null) return;
+
+      await FirebaseFirestore.instance.collection('health_ai_reports').add({
+        'userId': user.uid,
+        'moodAnswer': _answers[0] ?? '',
+        'dayAnswer': _answers[1] ?? '',
+        'energyAnswer': _answers[2] ?? '',
+        'physicalAnswer': _answers[3] ?? '',
+        'sleepAnswer': _answers[4] ?? '',
+        'helpAnswer': _answers[5] ?? '',
+        'resultMessage': resultMessage,
+        'createdAt': FieldValue.serverTimestamp(),
+        'reportType': 'daily',
+      });
+    } catch (e) {
+      debugPrint('Error saving AI report: $e');
+    }
+  }
+
+  void _showResult() async {
     final resultMessage = _buildSmartResultMessage();
+
+    await _saveAIReport(resultMessage);
+
+    if (!mounted) return;
 
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Center(child: Text('AI Result')),
+          title: const Center(
+            child: Text('AI Result'),
+          ),
           content: Text(
             resultMessage,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 16, height: 1.4),
+            style: const TextStyle(
+              fontSize: 16,
+              height: 1.4,
+            ),
           ),
           actionsAlignment: MainAxisAlignment.center,
           actions: [

@@ -28,13 +28,21 @@ import 'firebase_options.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
+/// 🔥 NEW IMPORT (FCM SERVICE)
+import 'package:humantouch/pages/services/fcm_service.dart';
+
+/// 🔥 Navigator Key for Notifications → Navigation
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 final FlutterLocalNotificationsPlugin notificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   await initializeDateFormatting('en', null);
   await initializeDateFormatting('ar', null);
@@ -52,6 +60,9 @@ Future<void> main() async {
 
   await notificationsPlugin.initialize(initSettings);
 
+  /// 🔥 INIT FCM SYSTEM (IMPORTANT)
+  await FCMService.init(navigatorKey);
+
   runApp(const HumanTouchApp());
 }
 
@@ -61,6 +72,9 @@ class HumanTouchApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      /// 🔥 REQUIRED FOR NOTIFICATION NAVIGATION
+      navigatorKey: navigatorKey,
+
       debugShowCheckedModeBanner: false,
       title: 'Human Touch',
       locale: const Locale('en'),
@@ -93,7 +107,10 @@ class HumanTouchApp extends StatelessWidget {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
-            borderSide: const BorderSide(color: Color(0xFF87CEEB), width: 1.5),
+            borderSide: const BorderSide(
+              color: Color(0xFF87CEEB),
+              width: 1.5,
+            ),
           ),
           contentPadding: const EdgeInsets.all(16),
         ),
@@ -143,7 +160,10 @@ class HumanTouchApp extends StatelessWidget {
         return MaterialPageRoute(
           builder: (_) => const Scaffold(
             body: Center(
-              child: Text('Page not found', style: TextStyle(fontSize: 20)),
+              child: Text(
+                'Page not found',
+                style: TextStyle(fontSize: 20),
+              ),
             ),
           ),
         );

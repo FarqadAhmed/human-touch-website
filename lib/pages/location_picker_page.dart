@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LocationPickerPage extends StatefulWidget {
   const LocationPickerPage({super.key});
@@ -108,7 +110,24 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
     }
   }
 
-  void _confirmLocation() {
+  Future<void> _saveLocationLog() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    await FirebaseFirestore.instance.collection('location_logs').add({
+      'userId': user.uid,
+      'address': _locationText,
+      'latitude': _selectedLocation.latitude,
+      'longitude': _selectedLocation.longitude,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> _confirmLocation() async {
+    await _saveLocationLog();
+
+    if (!mounted) return;
+
     Navigator.pop(context, {
       'address': _locationText,
       'latitude': _selectedLocation.latitude,
@@ -218,7 +237,6 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                             });
                           },
                         ),
-
                         Positioned(
                           top: 16,
                           right: 16,
@@ -233,7 +251,6 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                             ),
                           ),
                         ),
-
                         Positioned(
                           left: 16,
                           right: 16,

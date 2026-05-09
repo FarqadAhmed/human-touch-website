@@ -21,6 +21,65 @@ class _HealthSupportChatPageState extends State<HealthSupportChatPage> {
     return '$hour:$minute $suffix';
   }
 
+  String _generateSmartBotReply(String userMessage) {
+    final message = userMessage.toLowerCase();
+
+    if (message.contains('emergency') ||
+        message.contains('urgent') ||
+        message.contains('danger') ||
+        message.contains('help me') ||
+        message.contains('sos')) {
+      return 'This sounds urgent. Please press the Emergency SOS button or contact your companion immediately.';
+    }
+
+    if (message.contains('pain') ||
+        message.contains('hurt') ||
+        message.contains('sick') ||
+        message.contains('fever') ||
+        message.contains('headache') ||
+        message.contains('dizzy')) {
+      return 'I am sorry you are not feeling well. Try to rest, drink water, and tell your companion if the pain continues.';
+    }
+
+    if (message.contains('sad') ||
+        message.contains('cry') ||
+        message.contains('lonely') ||
+        message.contains('depressed') ||
+        message.contains('upset')) {
+      return 'I am sorry you feel this way. You are not alone. Try to talk to your companion or someone you trust.';
+    }
+
+    if (message.contains('tired') ||
+        message.contains('sleep') ||
+        message.contains('exhausted') ||
+        message.contains('weak')) {
+      return 'It sounds like you need rest. Try to relax, drink water, and take a short break.';
+    }
+
+    if (message.contains('medicine') ||
+        message.contains('medication') ||
+        message.contains('pill') ||
+        message.contains('dose')) {
+      return 'Please check your medication reminder. If you are unsure, ask your companion before taking anything.';
+    }
+
+    if (message.contains('food') ||
+        message.contains('hungry') ||
+        message.contains('eat') ||
+        message.contains('meal')) {
+      return 'Try to have a light healthy meal and drink enough water.';
+    }
+
+    if (message.contains('anxious') ||
+        message.contains('stress') ||
+        message.contains('worried') ||
+        message.contains('scared')) {
+      return 'Take a slow deep breath. You are safe. Try to relax and contact your companion if you need support.';
+    }
+
+    return 'Thank you for sharing. I am here to support you. Tell me more about how you feel.';
+  }
+
   Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
@@ -47,10 +106,11 @@ class _HealthSupportChatPageState extends State<HealthSupportChatPage> {
 
     await Future.delayed(const Duration(milliseconds: 500));
 
+    final botReply = _generateSmartBotReply(text);
+
     await FirebaseFirestore.instance.collection('health_support_chats').add({
       'userId': user.uid,
-      'text':
-          'Thank you. Your message has been received and help can follow up with you.',
+      'text': botReply,
       'isFromBot': true,
       'senderRole': 'bot',
       'time': _formatNow(),
@@ -265,6 +325,7 @@ class _HealthSupportChatPageState extends State<HealthSupportChatPage> {
                                   hintText: 'Type a message',
                                   border: InputBorder.none,
                                 ),
+                                onSubmitted: (_) => _sendMessage(),
                               ),
                             ),
                             const Icon(
