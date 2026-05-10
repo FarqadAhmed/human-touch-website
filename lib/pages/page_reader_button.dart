@@ -4,7 +4,10 @@ import 'app_tts.dart';
 class PageReaderButton extends StatefulWidget {
   final String pageText;
 
-  const PageReaderButton({super.key, required this.pageText});
+  const PageReaderButton({
+    super.key,
+    required this.pageText,
+  });
 
   @override
   State<PageReaderButton> createState() => _PageReaderButtonState();
@@ -15,14 +18,16 @@ class _PageReaderButtonState extends State<PageReaderButton> {
 
   Future<void> _toggleReading() async {
     if (_isSpeaking) {
-      await AppTts.instance.stop();
+      await AppTts.stop();
+
       if (mounted) {
         setState(() {
           _isSpeaking = false;
         });
       }
     } else {
-      await AppTts.instance.speakPage(widget.pageText);
+      await AppTts.speak(widget.pageText);
+
       if (mounted) {
         setState(() {
           _isSpeaking = true;

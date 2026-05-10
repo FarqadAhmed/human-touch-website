@@ -1,4 +1,6 @@
 import 'dart:math';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -7,6 +9,7 @@ import 'location_picker_page.dart';
 import 'CompanionDashboard_page.dart';
 import 'Login_page.dart';
 import 'SignUp_page.dart';
+import 'app_settings_store.dart';
 
 class SignUpCompanionPage extends StatefulWidget {
   const SignUpCompanionPage({super.key});
@@ -40,6 +43,10 @@ class _SignUpCompanionPageState extends State<SignUpCompanionPage> {
 
   String _passwordText = '';
 
+  bool get isArabic => AppSettingsStore.instance.isArabic;
+
+  String tr(String en, String ar) => isArabic ? ar : en;
+
   bool get _hasLowercase => RegExp(r'[a-z]').hasMatch(_passwordText);
   bool get _hasUppercase => RegExp(r'[A-Z]').hasMatch(_passwordText);
   bool get _hasNumber => RegExp(r'[0-9]').hasMatch(_passwordText);
@@ -50,7 +57,24 @@ class _SignUpCompanionPageState extends State<SignUpCompanionPage> {
   double? _selectedLongitude;
 
   @override
+  void initState() {
+    super.initState();
+    AppSettingsStore.instance.addListener(_onLanguageChanged);
+  }
+
+  void _onLanguageChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _toggleLanguage() {
+    AppSettingsStore.instance.toggleLanguage();
+    setState(() {});
+  }
+
+  @override
   void dispose() {
+    AppSettingsStore.instance.removeListener(_onLanguageChanged);
+
     _nameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
@@ -107,6 +131,7 @@ class _SignUpCompanionPageState extends State<SignUpCompanionPage> {
           Expanded(
             child: Text(
               text,
+              textAlign: isArabic ? TextAlign.right : TextAlign.left,
               style: TextStyle(
                 fontSize: 12,
                 color: isValid ? Colors.green : Colors.red,
@@ -214,10 +239,13 @@ class _SignUpCompanionPageState extends State<SignUpCompanionPage> {
     );
 
     if (result != null && result is Map<String, dynamic>) {
+      final latValue = result['latitude'];
+      final lngValue = result['longitude'];
+
       setState(() {
         _locationController.text = result['address'] ?? '';
-        _selectedLatitude = result['latitude'];
-        _selectedLongitude = result['longitude'];
+        _selectedLatitude = latValue is num ? latValue.toDouble() : null;
+        _selectedLongitude = lngValue is num ? lngValue.toDouble() : null;
       });
     }
   }
@@ -232,9 +260,11 @@ class _SignUpCompanionPageState extends State<SignUpCompanionPage> {
     if (_locationController.text.trim().isEmpty ||
         _selectedLatitude == null ||
         _selectedLongitude == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Please select location')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(tr('Please select location', 'يرجى اختيار الموقع')),
+        ),
+      );
       return;
     }
 
@@ -243,11 +273,11 @@ class _SignUpCompanionPageState extends State<SignUpCompanionPage> {
     });
 
     try {
-      final UserCredential userCredential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
-            email: _emailController.text.trim(),
-            password: _passwordController.text.trim(),
-          );
+      final UserCredential userCredential =
+          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
 
       final User? user = userCredential.user;
 
@@ -280,14 +310,26 @@ class _SignUpCompanionPageState extends State<SignUpCompanionPage> {
         MaterialPageRoute(builder: (context) => const CompanionDashboardPage()),
       );
     } on FirebaseAuthException catch (e) {
-      String message = 'Failed to create account.';
+      String message = tr(
+        'Failed to create account.',
+        'فشل إنشاء الحساب.',
+      );
 
       if (e.code == 'email-already-in-use') {
-        message = 'This email is already used.';
+        message = tr(
+          'This email is already used.',
+          'هذا البريد مستخدم مسبقاً.',
+        );
       } else if (e.code == 'invalid-email') {
-        message = 'Please enter a valid email.';
+        message = tr(
+          'Please enter a valid email.',
+          'يرجى إدخال بريد إلكتروني صحيح.',
+        );
       } else if (e.code == 'weak-password') {
-        message = 'Password is too weak.';
+        message = tr(
+          'Password is too weak.',
+          'كلمة المرور ضعيفة.',
+        );
       } else if (e.message != null && e.message!.trim().isNotEmpty) {
         message = e.message!;
       }
@@ -298,9 +340,9 @@ class _SignUpCompanionPageState extends State<SignUpCompanionPage> {
         _isLoading = false;
       });
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
     } catch (e) {
       if (!mounted) return;
 
@@ -308,379 +350,536 @@ class _SignUpCompanionPageState extends State<SignUpCompanionPage> {
         _isLoading = false;
       });
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(tr('Error: $e', 'حدث خطأ: $e'))),
+      );
     }
+  }
+
+  Widget _languageButton() {
+    return Positioned(
+      top: 8,
+      right: isArabic ? null : 16,
+      left: isArabic ? 16 : null,
+      child: GestureDetector(
+        onTap: _toggleLanguage,
+        child: Container(
+          width: 52,
+          height: 52,
+          decoration: BoxDecoration(
+            color: const Color(0xFF87CEEB),
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.15),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Center(
+            child: Text(
+              isArabic ? 'EN' : 'AR',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        FocusScope.of(context).unfocus();
-      },
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        body: SafeArea(
-          child: Column(
-            children: [
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 0, 0),
-                  child: IconButton(
-                    onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const SignUpPage(),
+    return Directionality(
+      textDirection: isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
+      child: GestureDetector(
+        onTap: () {
+          FocusScope.of(context).unfocus();
+        },
+        child: Scaffold(
+          backgroundColor: Colors.white,
+          body: SafeArea(
+            child: Stack(
+              children: [
+                Column(
+                  children: [
+                    Align(
+                      alignment: isArabic
+                          ? Alignment.centerRight
+                          : Alignment.centerLeft,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+                        child: IconButton(
+                          onPressed: () {
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const SignUpPage(),
+                              ),
+                            );
+                          },
+                          icon: Icon(
+                            isArabic ? Icons.arrow_forward : Icons.arrow_back,
+                            size: 30,
+                            color: Colors.black,
+                          ),
                         ),
-                      );
-                    },
-                    icon: const Icon(
-                      Icons.arrow_back,
-                      size: 30,
-                      color: Colors.black,
+                      ),
                     ),
-                  ),
-                ),
-              ),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(26, 0, 26, 24),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 40),
-                        const Center(
-                          child: Text(
-                            'Sign Up Companion',
-                            style: TextStyle(
-                              fontSize: 40,
-                              fontWeight: FontWeight.w300,
-                              color: Colors.black,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        _buildFieldContainer(
-                          child: TextFormField(
-                            controller: _nameController,
-                            focusNode: _nameFocusNode,
-                            textInputAction: TextInputAction.next,
-                            decoration: _inputDecoration(label: 'Name'),
-                            validator: (value) {
-                              if ((value ?? '').trim().isEmpty) {
-                                return 'Please enter your name';
-                              }
-                              return null;
-                            },
-                            onFieldSubmitted: (_) {
-                              FocusScope.of(
-                                context,
-                              ).requestFocus(_emailFocusNode);
-                            },
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        _buildFieldContainer(
-                          child: TextFormField(
-                            controller: _emailController,
-                            focusNode: _emailFocusNode,
-                            keyboardType: TextInputType.emailAddress,
-                            textInputAction: TextInputAction.next,
-                            decoration: _inputDecoration(label: 'Email'),
-                            validator: (value) {
-                              final text = (value ?? '').trim();
-
-                              if (text.isEmpty) {
-                                return 'Please enter your email';
-                              }
-
-                              if (!text.contains('@') || !text.contains('.')) {
-                                return 'Please enter a valid email';
-                              }
-
-                              return null;
-                            },
-                            onFieldSubmitted: (_) {
-                              FocusScope.of(
-                                context,
-                              ).requestFocus(_phoneFocusNode);
-                            },
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        _buildFieldContainer(
-                          child: TextFormField(
-                            controller: _phoneController,
-                            focusNode: _phoneFocusNode,
-                            keyboardType: TextInputType.phone,
-                            textInputAction: TextInputAction.next,
-                            decoration: _inputDecoration(label: 'Phone Number'),
-                            validator: (value) {
-                              final text = (value ?? '').trim();
-
-                              if (text.isEmpty) {
-                                return 'Please enter your phone number';
-                              }
-
-                              if (text.length != 8) {
-                                return 'Please enter a valid phone number';
-                              }
-
-                              return null;
-                            },
-                            onFieldSubmitted: (_) {
-                              FocusScope.of(
-                                context,
-                              ).requestFocus(_passwordFocusNode);
-                            },
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton.icon(
-                            style: _linkButtonStyle(),
-                            onPressed: _generateStrongPassword,
-                            icon: const Icon(Icons.auto_awesome, size: 18),
-                            label: const Text(
-                              'Generate strong password',
-                              style: TextStyle(fontSize: 13),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        _buildFieldContainer(
-                          child: TextFormField(
-                            controller: _passwordController,
-                            focusNode: _passwordFocusNode,
-                            obscureText: _obscurePassword,
-                            textInputAction: TextInputAction.next,
-                            decoration: _inputDecoration(
-                              label: 'Password',
-                              suffixIcon: InkWell(
-                                onTap: () {
-                                  setState(() {
-                                    _obscurePassword = !_obscurePassword;
-                                  });
-                                },
-                                child: Icon(
-                                  _obscurePassword
-                                      ? Icons.visibility_off_outlined
-                                      : Icons.visibility_outlined,
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(26, 0, 26, 24),
+                        child: Form(
+                          key: _formKey,
+                          child: Column(
+                            children: [
+                              const SizedBox(height: 40),
+                              Center(
+                                child: Text(
+                                  tr('Sign Up Companion', 'تسجيل المرافق'),
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    fontSize: 40,
+                                    fontWeight: FontWeight.w300,
+                                    color: Colors.black,
+                                  ),
                                 ),
                               ),
-                            ),
-                            onChanged: (value) {
-                              setState(() {
-                                _passwordText = value;
-                              });
-                            },
-                            validator: (value) {
-                              final text = value ?? '';
-
-                              if (text.isEmpty) {
-                                return 'Please enter password';
-                              }
-
-                              if (!RegExp(r'[a-z]').hasMatch(text)) {
-                                return 'Password must contain at least one lowercase letter';
-                              }
-
-                              if (!RegExp(r'[A-Z]').hasMatch(text)) {
-                                return 'Password must contain at least one uppercase letter';
-                              }
-
-                              if (!RegExp(r'[0-9]').hasMatch(text)) {
-                                return 'Password must contain at least one number';
-                              }
-
-                              if (!RegExp(r'[@#$!]').hasMatch(text)) {
-                                return 'Password must contain at least one symbol (@#\$!)';
-                              }
-
-                              if (text.length < 8) {
-                                return 'Password must be at least 8 characters';
-                              }
-
-                              return null;
-                            },
-                            onFieldSubmitted: (_) {
-                              FocusScope.of(
-                                context,
-                              ).requestFocus(_confirmPasswordFocusNode);
-                            },
-                          ),
-                        ),
-                        if (_passwordText.isNotEmpty) ...[
-                          const SizedBox(height: 6),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _passwordRequirement(
-                                'At least one lowercase letter (a-z)',
-                                _hasLowercase,
+                              const SizedBox(height: 20),
+                              _buildFieldContainer(
+                                child: TextFormField(
+                                  controller: _nameController,
+                                  focusNode: _nameFocusNode,
+                                  textInputAction: TextInputAction.next,
+                                  textAlign: isArabic
+                                      ? TextAlign.right
+                                      : TextAlign.left,
+                                  decoration: _inputDecoration(
+                                    label: tr('Name', 'الاسم'),
+                                  ),
+                                  validator: (value) {
+                                    if ((value ?? '').trim().isEmpty) {
+                                      return tr(
+                                        'Please enter your name',
+                                        'يرجى إدخال الاسم',
+                                      );
+                                    }
+                                    return null;
+                                  },
+                                  onFieldSubmitted: (_) {
+                                    FocusScope.of(context)
+                                        .requestFocus(_emailFocusNode);
+                                  },
+                                ),
                               ),
-                              _passwordRequirement(
-                                'At least one uppercase letter (A-Z)',
-                                _hasUppercase,
+                              const SizedBox(height: 10),
+                              _buildFieldContainer(
+                                child: TextFormField(
+                                  controller: _emailController,
+                                  focusNode: _emailFocusNode,
+                                  keyboardType: TextInputType.emailAddress,
+                                  textInputAction: TextInputAction.next,
+                                  textAlign: isArabic
+                                      ? TextAlign.right
+                                      : TextAlign.left,
+                                  decoration: _inputDecoration(
+                                    label: tr(
+                                      'Email',
+                                      'البريد الإلكتروني',
+                                    ),
+                                  ),
+                                  validator: (value) {
+                                    final text = (value ?? '').trim();
+
+                                    if (text.isEmpty) {
+                                      return tr(
+                                        'Please enter your email',
+                                        'يرجى إدخال البريد الإلكتروني',
+                                      );
+                                    }
+
+                                    if (!text.contains('@') ||
+                                        !text.contains('.')) {
+                                      return tr(
+                                        'Please enter a valid email',
+                                        'يرجى إدخال بريد إلكتروني صحيح',
+                                      );
+                                    }
+
+                                    return null;
+                                  },
+                                  onFieldSubmitted: (_) {
+                                    FocusScope.of(context)
+                                        .requestFocus(_phoneFocusNode);
+                                  },
+                                ),
                               ),
-                              _passwordRequirement(
-                                'At least one number (0-9)',
-                                _hasNumber,
+                              const SizedBox(height: 10),
+                              _buildFieldContainer(
+                                child: TextFormField(
+                                  controller: _phoneController,
+                                  focusNode: _phoneFocusNode,
+                                  keyboardType: TextInputType.phone,
+                                  textInputAction: TextInputAction.next,
+                                  textAlign: isArabic
+                                      ? TextAlign.right
+                                      : TextAlign.left,
+                                  decoration: _inputDecoration(
+                                    label: tr(
+                                      'Phone Number',
+                                      'رقم الهاتف',
+                                    ),
+                                  ),
+                                  validator: (value) {
+                                    final text = (value ?? '').trim();
+
+                                    if (text.isEmpty) {
+                                      return tr(
+                                        'Please enter your phone number',
+                                        'يرجى إدخال رقم الهاتف',
+                                      );
+                                    }
+
+                                    if (text.length != 8) {
+                                      return tr(
+                                        'Please enter a valid phone number',
+                                        'يرجى إدخال رقم هاتف صحيح',
+                                      );
+                                    }
+
+                                    return null;
+                                  },
+                                  onFieldSubmitted: (_) {
+                                    FocusScope.of(context)
+                                        .requestFocus(_passwordFocusNode);
+                                  },
+                                ),
                               ),
-                              _passwordRequirement(
-                                'At least one symbol (@#\$!)',
-                                _hasSymbol,
+                              const SizedBox(height: 10),
+                              Align(
+                                alignment: isArabic
+                                    ? Alignment.centerLeft
+                                    : Alignment.centerRight,
+                                child: TextButton.icon(
+                                  style: _linkButtonStyle(),
+                                  onPressed: _generateStrongPassword,
+                                  icon:
+                                      const Icon(Icons.auto_awesome, size: 18),
+                                  label: Text(
+                                    tr(
+                                      'Generate strong password',
+                                      'إنشاء كلمة مرور قوية',
+                                    ),
+                                    style: const TextStyle(fontSize: 13),
+                                  ),
+                                ),
                               ),
-                              _passwordRequirement(
-                                'At least 8 characters',
-                                _hasMinLength,
+                              const SizedBox(height: 6),
+                              _buildFieldContainer(
+                                child: TextFormField(
+                                  controller: _passwordController,
+                                  focusNode: _passwordFocusNode,
+                                  obscureText: _obscurePassword,
+                                  textInputAction: TextInputAction.next,
+                                  textAlign: isArabic
+                                      ? TextAlign.right
+                                      : TextAlign.left,
+                                  decoration: _inputDecoration(
+                                    label: tr('Password', 'كلمة المرور'),
+                                    suffixIcon: InkWell(
+                                      onTap: () {
+                                        setState(() {
+                                          _obscurePassword = !_obscurePassword;
+                                        });
+                                      },
+                                      child: Icon(
+                                        _obscurePassword
+                                            ? Icons.visibility_off_outlined
+                                            : Icons.visibility_outlined,
+                                      ),
+                                    ),
+                                  ),
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _passwordText = value;
+                                    });
+                                  },
+                                  validator: (value) {
+                                    final text = value ?? '';
+
+                                    if (text.isEmpty) {
+                                      return tr(
+                                        'Please enter password',
+                                        'يرجى إدخال كلمة المرور',
+                                      );
+                                    }
+
+                                    if (!RegExp(r'[a-z]').hasMatch(text)) {
+                                      return tr(
+                                        'Password must contain at least one lowercase letter',
+                                        'يجب أن تحتوي كلمة المرور على حرف صغير واحد على الأقل',
+                                      );
+                                    }
+
+                                    if (!RegExp(r'[A-Z]').hasMatch(text)) {
+                                      return tr(
+                                        'Password must contain at least one uppercase letter',
+                                        'يجب أن تحتوي كلمة المرور على حرف كبير واحد على الأقل',
+                                      );
+                                    }
+
+                                    if (!RegExp(r'[0-9]').hasMatch(text)) {
+                                      return tr(
+                                        'Password must contain at least one number',
+                                        'يجب أن تحتوي كلمة المرور على رقم واحد على الأقل',
+                                      );
+                                    }
+
+                                    if (!RegExp(r'[@#$!]').hasMatch(text)) {
+                                      return tr(
+                                        'Password must contain at least one symbol (@#\$!)',
+                                        'يجب أن تحتوي كلمة المرور على رمز واحد على الأقل (@#\$!)',
+                                      );
+                                    }
+
+                                    if (text.length < 8) {
+                                      return tr(
+                                        'Password must be at least 8 characters',
+                                        'يجب أن تكون كلمة المرور 8 أحرف على الأقل',
+                                      );
+                                    }
+
+                                    return null;
+                                  },
+                                  onFieldSubmitted: (_) {
+                                    FocusScope.of(context).requestFocus(
+                                      _confirmPasswordFocusNode,
+                                    );
+                                  },
+                                ),
+                              ),
+                              if (_passwordText.isNotEmpty) ...[
+                                const SizedBox(height: 6),
+                                Column(
+                                  crossAxisAlignment: isArabic
+                                      ? CrossAxisAlignment.end
+                                      : CrossAxisAlignment.start,
+                                  children: [
+                                    _passwordRequirement(
+                                      tr(
+                                        'At least one lowercase letter (a-z)',
+                                        'حرف صغير واحد على الأقل (a-z)',
+                                      ),
+                                      _hasLowercase,
+                                    ),
+                                    _passwordRequirement(
+                                      tr(
+                                        'At least one uppercase letter (A-Z)',
+                                        'حرف كبير واحد على الأقل (A-Z)',
+                                      ),
+                                      _hasUppercase,
+                                    ),
+                                    _passwordRequirement(
+                                      tr(
+                                        'At least one number (0-9)',
+                                        'رقم واحد على الأقل (0-9)',
+                                      ),
+                                      _hasNumber,
+                                    ),
+                                    _passwordRequirement(
+                                      tr(
+                                        'At least one symbol (@#\$!)',
+                                        'رمز واحد على الأقل (@#\$!)',
+                                      ),
+                                      _hasSymbol,
+                                    ),
+                                    _passwordRequirement(
+                                      tr(
+                                        'At least 8 characters',
+                                        '8 أحرف على الأقل',
+                                      ),
+                                      _hasMinLength,
+                                    ),
+                                  ],
+                                ),
+                              ],
+                              const SizedBox(height: 10),
+                              _buildFieldContainer(
+                                child: TextFormField(
+                                  controller: _confirmPasswordController,
+                                  focusNode: _confirmPasswordFocusNode,
+                                  obscureText: _obscureConfirmPassword,
+                                  textInputAction: TextInputAction.next,
+                                  textAlign: isArabic
+                                      ? TextAlign.right
+                                      : TextAlign.left,
+                                  decoration: _inputDecoration(
+                                    label: tr(
+                                      'Confirm Password',
+                                      'تأكيد كلمة المرور',
+                                    ),
+                                    suffixIcon: InkWell(
+                                      onTap: () {
+                                        setState(() {
+                                          _obscureConfirmPassword =
+                                              !_obscureConfirmPassword;
+                                        });
+                                      },
+                                      child: Icon(
+                                        _obscureConfirmPassword
+                                            ? Icons.visibility_off_outlined
+                                            : Icons.visibility_outlined,
+                                      ),
+                                    ),
+                                  ),
+                                  validator: (value) {
+                                    final text = value ?? '';
+
+                                    if (text.isEmpty) {
+                                      return tr(
+                                        'Please confirm password',
+                                        'يرجى تأكيد كلمة المرور',
+                                      );
+                                    }
+
+                                    if (text != _passwordController.text) {
+                                      return tr(
+                                        'Passwords do not match',
+                                        'كلمتا المرور غير متطابقتين',
+                                      );
+                                    }
+
+                                    return null;
+                                  },
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              _buildFieldContainer(
+                                child: TextFormField(
+                                  controller: _relationshipController,
+                                  focusNode: _relationshipFocusNode,
+                                  textAlign: isArabic
+                                      ? TextAlign.right
+                                      : TextAlign.left,
+                                  decoration: _inputDecoration(
+                                    label: tr(
+                                      'Relationship with the patient',
+                                      'العلاقة مع المريض',
+                                    ),
+                                  ),
+                                  validator: (value) {
+                                    if ((value ?? '').trim().isEmpty) {
+                                      return tr(
+                                        'Please enter relationship',
+                                        'يرجى إدخال العلاقة',
+                                      );
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              SizedBox(
+                                width: double.infinity,
+                                height: 56,
+                                child: ElevatedButton(
+                                  onPressed: _selectLocation,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFFF4F4F4),
+                                    foregroundColor: Colors.black,
+                                    elevation: 0,
+                                    alignment: isArabic
+                                        ? Alignment.centerRight
+                                        : Alignment.centerLeft,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.place),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          _locationController.text.isEmpty
+                                              ? tr(
+                                                  'Select Location',
+                                                  'اختيار الموقع',
+                                                )
+                                              : _locationController.text,
+                                          overflow: TextOverflow.ellipsis,
+                                          textAlign: isArabic
+                                              ? TextAlign.right
+                                              : TextAlign.left,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              SizedBox(
+                                width: double.infinity,
+                                height: 56,
+                                child: ElevatedButton(
+                                  onPressed: _isLoading ? null : _handleSignUp,
+                                  style: _mainButtonStyle(),
+                                  child: _isLoading
+                                      ? const SizedBox(
+                                          width: 22,
+                                          height: 22,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2.2,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : Text(
+                                          tr('Sign Up', 'تسجيل'),
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(tr('Have an account?', 'لديك حساب؟')),
+                                  const SizedBox(width: 10),
+                                  TextButton(
+                                    style: _linkButtonStyle(),
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              const LoginPage(),
+                                        ),
+                                      );
+                                    },
+                                    child: Text(
+                                      tr('Login', 'تسجيل الدخول'),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
-                        ],
-                        const SizedBox(height: 10),
-                        _buildFieldContainer(
-                          child: TextFormField(
-                            controller: _confirmPasswordController,
-                            focusNode: _confirmPasswordFocusNode,
-                            obscureText: _obscureConfirmPassword,
-                            textInputAction: TextInputAction.next,
-                            decoration: _inputDecoration(
-                              label: 'Confirm Password',
-                              suffixIcon: InkWell(
-                                onTap: () {
-                                  setState(() {
-                                    _obscureConfirmPassword =
-                                        !_obscureConfirmPassword;
-                                  });
-                                },
-                                child: Icon(
-                                  _obscureConfirmPassword
-                                      ? Icons.visibility_off_outlined
-                                      : Icons.visibility_outlined,
-                                ),
-                              ),
-                            ),
-                            validator: (value) {
-                              final text = value ?? '';
-
-                              if (text.isEmpty) {
-                                return 'Please confirm password';
-                              }
-
-                              if (text != _passwordController.text) {
-                                return 'Passwords do not match';
-                              }
-
-                              return null;
-                            },
-                          ),
                         ),
-                        const SizedBox(height: 10),
-                        _buildFieldContainer(
-                          child: TextFormField(
-                            controller: _relationshipController,
-                            focusNode: _relationshipFocusNode,
-                            decoration: _inputDecoration(
-                              label: 'Relationship with the patient',
-                            ),
-                            validator: (value) {
-                              if ((value ?? '').trim().isEmpty) {
-                                return 'Please enter relationship';
-                              }
-                              return null;
-                            },
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 56,
-                          child: ElevatedButton(
-                            onPressed: _selectLocation,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFF4F4F4),
-                              foregroundColor: Colors.black,
-                              elevation: 0,
-                              alignment: Alignment.centerLeft,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.place),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    _locationController.text.isEmpty
-                                        ? 'Select Location'
-                                        : _locationController.text,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 56,
-                          child: ElevatedButton(
-                            onPressed: _isLoading ? null : _handleSignUp,
-                            style: _mainButtonStyle(),
-                            child: _isLoading
-                                ? const SizedBox(
-                                    width: 22,
-                                    height: 22,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2.2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : const Text(
-                                    'Sign Up',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Text('Have an account?'),
-                            const SizedBox(width: 10),
-                            TextButton(
-                              style: _linkButtonStyle(),
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const LoginPage(),
-                                  ),
-                                );
-                              },
-                              child: const Text('Login'),
-                            ),
-                          ],
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-              ),
-            ],
+                _languageButton(),
+              ],
+            ),
           ),
         ),
       ),

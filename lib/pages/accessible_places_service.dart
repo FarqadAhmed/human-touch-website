@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import 'accessible_place.dart';
+import 'app_settings_store.dart';
 
 class AccessiblePlacesService {
   static const String baseUrl =
@@ -25,7 +26,11 @@ class AccessiblePlacesService {
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Search failed: ${response.body}');
+      throw Exception(
+        AppSettingsStore.instance.isArabic
+            ? 'فشل البحث: ${response.body}'
+            : 'Search failed: ${response.body}',
+      );
     }
 
     final decoded = jsonDecode(response.body) as Map<String, dynamic>;

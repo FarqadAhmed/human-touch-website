@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AppSettingsStore extends ChangeNotifier {
   AppSettingsStore._();
@@ -11,8 +12,31 @@ class AppSettingsStore extends ChangeNotifier {
 
   bool get isArabic => _locale.languageCode == 'ar';
 
-  void changeLanguage(String languageCode) {
-    _locale = Locale(languageCode);
+  Future<void> loadSavedLanguage() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final savedLanguage = prefs.getString('app_language') ?? 'en';
+
+    _locale = Locale(savedLanguage);
+
     notifyListeners();
+  }
+
+  Future<void> changeLanguage(String languageCode) async {
+    _locale = Locale(languageCode);
+
+    final prefs = await SharedPreferences.getInstance();
+
+    await prefs.setString('app_language', languageCode);
+
+    notifyListeners();
+  }
+
+  Future<void> toggleLanguage() async {
+    if (isArabic) {
+      await changeLanguage('en');
+    } else {
+      await changeLanguage('ar');
+    }
   }
 }

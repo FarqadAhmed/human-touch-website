@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import 'app_settings_store.dart';
+
 class CallEngineService {
   static final instance = CallEngineService._();
   CallEngineService._();
@@ -26,12 +28,19 @@ class CallEngineService {
 
   Future<String> getCurrentUserName() async {
     final user = _auth.currentUser;
-    if (user == null) return 'User';
+
+    if (user == null) {
+      return AppSettingsStore.instance.isArabic ? 'مستخدم' : 'User';
+    }
 
     final doc = await _firestore.collection('users').doc(user.uid).get();
+
     final data = doc.data() ?? {};
 
-    return data['name'] ?? data['fullName'] ?? data['username'] ?? 'User';
+    return data['name'] ??
+        data['fullName'] ??
+        data['username'] ??
+        (AppSettingsStore.instance.isArabic ? 'مستخدم' : 'User');
   }
 
   Future<String?> createCall({
@@ -39,6 +48,7 @@ class CallEngineService {
     required String receiverName,
   }) async {
     final user = _auth.currentUser;
+
     if (user == null) return null;
 
     final callerName = await getCurrentUserName();
@@ -57,6 +67,7 @@ class CallEngineService {
     });
 
     listenToCall(doc.id);
+
     return doc.id;
   }
 
@@ -69,9 +80,11 @@ class CallEngineService {
       if (!doc.exists) return;
 
       final data = doc.data() ?? {};
+
       final status = data['status']?.toString() ?? 'idle';
 
       callStatus = status;
+
       _statusController.add(status);
     });
   }
@@ -87,27 +100,35 @@ class CallEngineService {
 
   Future<void> acceptCall(String callId) async {
     activeCallId = callId;
+
     listenToCall(callId);
+
     await updateStatus('accepted');
   }
 
   Future<void> rejectCall(String callId) async {
     activeCallId = callId;
+
     listenToCall(callId);
+
     await updateStatus('rejected');
+
     stopListening();
   }
 
   Future<void> endCall() async {
     await updateStatus('ended');
+
     stopListening();
   }
 
   Future<void> markMissed(String callId) async {
     activeCallId = callId;
+
     listenToCall(callId);
 
     final doc = await callRef(callId).get();
+
     final status = doc.data()?['status']?.toString();
 
     if (status == 'calling' || status == 'ringing') {
@@ -119,9 +140,13 @@ class CallEngineService {
 
   void stopListening() {
     _activeCallSub?.cancel();
+
     _activeCallSub = null;
+
     activeCallId = null;
+
     callStatus = 'idle';
+
     _statusController.add('idle');
   }
 }

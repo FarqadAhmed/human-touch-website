@@ -1,7 +1,10 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'Login_page.dart';
+import 'app_settings_store.dart';
 
 class ForgetPasswordPage extends StatefulWidget {
   const ForgetPasswordPage({super.key});
@@ -17,8 +20,28 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
   bool _isLoading = false;
   bool _emailSent = false;
 
+  bool get isArabic => AppSettingsStore.instance.isArabic;
+
+  String tr(String en, String ar) => isArabic ? ar : en;
+
+  @override
+  void initState() {
+    super.initState();
+    AppSettingsStore.instance.addListener(_onLanguageChanged);
+  }
+
+  void _onLanguageChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _toggleLanguage() {
+    AppSettingsStore.instance.toggleLanguage();
+    setState(() {});
+  }
+
   @override
   void dispose() {
+    AppSettingsStore.instance.removeListener(_onLanguageChanged);
     _emailController.dispose();
     super.dispose();
   }
@@ -89,15 +112,31 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password reset link sent to your email')),
+        SnackBar(
+          content: Text(
+            tr(
+              'Password reset link sent to your email',
+              'تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني',
+            ),
+          ),
+        ),
       );
     } on FirebaseAuthException catch (e) {
-      String message = 'Failed to send reset email.';
+      String message = tr(
+        'Failed to send reset email.',
+        'فشل إرسال بريد إعادة التعيين.',
+      );
 
       if (e.code == 'invalid-email') {
-        message = 'Please enter a valid email.';
+        message = tr(
+          'Please enter a valid email.',
+          'يرجى إدخال بريد إلكتروني صحيح.',
+        );
       } else if (e.code == 'user-not-found') {
-        message = 'No account found with this email.';
+        message = tr(
+          'No account found with this email.',
+          'لا يوجد حساب بهذا البريد الإلكتروني.',
+        );
       } else if (e.message != null && e.message!.trim().isNotEmpty) {
         message = e.message!;
       }
@@ -108,9 +147,9 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
         _isLoading = false;
       });
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
     } catch (e) {
       if (!mounted) return;
 
@@ -118,10 +157,50 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
         _isLoading = false;
       });
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            tr('Error: $e', 'حدث خطأ: $e'),
+          ),
+        ),
+      );
     }
+  }
+
+  Widget _languageButton() {
+    return Positioned(
+      top: 8,
+      right: isArabic ? null : 16,
+      left: isArabic ? 16 : null,
+      child: GestureDetector(
+        onTap: _toggleLanguage,
+        child: Container(
+          width: 52,
+          height: 52,
+          decoration: BoxDecoration(
+            color: const Color(0xFF87CEEB),
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.15),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Center(
+            child: Text(
+              isArabic ? 'EN' : 'AR',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildEmailForm() {
@@ -140,33 +219,32 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
               ),
             ),
           ),
-
-          const Text(
-            'Forgot Password',
+          Text(
+            tr('Forgot Password', 'نسيت كلمة المرور'),
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 30,
               fontWeight: FontWeight.w300,
               color: Colors.black,
             ),
           ),
-
           const SizedBox(height: 10),
-
-          const Text(
-            'Enter your email and we will send you a password reset link.',
+          Text(
+            tr(
+              'Enter your email and we will send you a password reset link.',
+              'أدخل بريدك الإلكتروني وسنرسل لك رابط إعادة تعيين كلمة المرور.',
+            ),
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 16, color: Colors.black87),
+            style: const TextStyle(fontSize: 16, color: Colors.black87),
           ),
-
           const SizedBox(height: 30),
-
           _buildFieldContainer(
             child: TextFormField(
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,
+              textAlign: isArabic ? TextAlign.right : TextAlign.left,
               decoration: _inputDecoration(
-                label: 'Enter your email',
+                label: tr('Enter your email', 'أدخل بريدك الإلكتروني'),
                 prefixIcon: Icons.mail_outline_rounded,
               ),
               style: const TextStyle(fontSize: 16),
@@ -174,20 +252,24 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
                 final text = (value ?? '').trim();
 
                 if (text.isEmpty) {
-                  return 'Please enter your email';
+                  return tr(
+                    'Please enter your email',
+                    'يرجى إدخال بريدك الإلكتروني',
+                  );
                 }
 
                 if (!text.contains('@') || !text.contains('.')) {
-                  return 'Please enter a valid email';
+                  return tr(
+                    'Please enter a valid email',
+                    'يرجى إدخال بريد إلكتروني صحيح',
+                  );
                 }
 
                 return null;
               },
             ),
           ),
-
           const SizedBox(height: 30),
-
           SizedBox(
             width: double.infinity,
             height: 49,
@@ -210,9 +292,9 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
                         color: Colors.white,
                       ),
                     )
-                  : const Text(
-                      'Send Reset Link',
-                      style: TextStyle(
+                  : Text(
+                      tr('Send Reset Link', 'إرسال رابط إعادة التعيين'),
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -226,34 +308,34 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
   }
 
   Widget _buildSuccessMessage() {
+    final email = _emailController.text.trim();
+
     return Column(
       children: [
         const SizedBox(height: 110),
-
         const Icon(
           Icons.mark_email_read_outlined,
           color: Color(0xFF46DE2D),
           size: 140,
         ),
-
         const SizedBox(height: 20),
-
-        const Text(
-          'Check your email',
+        Text(
+          tr('Check your email', 'تحقق من بريدك الإلكتروني'),
           textAlign: TextAlign.center,
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 26,
             fontWeight: FontWeight.w600,
             color: Colors.black,
           ),
         ),
-
         const SizedBox(height: 20),
-
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Text(
-            'We sent a password reset link to:\n${_emailController.text.trim()}\n\nOpen your email and follow the link to create a new password.',
+            tr(
+              'We sent a password reset link to:\n$email\n\nOpen your email and follow the link to create a new password.',
+              'أرسلنا رابط إعادة تعيين كلمة المرور إلى:\n$email\n\nافتح بريدك الإلكتروني واتبع الرابط لإنشاء كلمة مرور جديدة.',
+            ),
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontSize: 16,
@@ -262,9 +344,7 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
             ),
           ),
         ),
-
         const SizedBox(height: 30),
-
         SizedBox(
           width: double.infinity,
           height: 56,
@@ -277,9 +357,9 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
-            child: const Text(
-              'Back to Login',
-              style: TextStyle(
+            child: Text(
+              tr('Back to Login', 'الرجوع إلى تسجيل الدخول'),
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -287,14 +367,15 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
             ),
           ),
         ),
-
         const SizedBox(height: 12),
-
         TextButton(
           onPressed: _isLoading ? null : _sendResetEmail,
-          child: const Text(
-            'Resend Email',
-            style: TextStyle(color: Color(0xFF025590), fontSize: 14),
+          child: Text(
+            tr('Resend Email', 'إعادة إرسال البريد'),
+            style: const TextStyle(
+              color: Color(0xFF025590),
+              fontSize: 14,
+            ),
           ),
         ),
       ],
@@ -303,50 +384,60 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        FocusScope.of(context).unfocus();
-      },
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        body: SafeArea(
-          child: Column(
-            children: [
-              if (!_emailSent)
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 0, 0),
-                    child: IconButton(
-                      onPressed: _goToLogin,
-                      style: ButtonStyle(
-                        overlayColor: WidgetStateProperty.resolveWith<Color?>((
-                          states,
-                        ) {
-                          if (states.contains(WidgetState.pressed)) {
-                            return Colors.grey.withOpacity(0.30);
-                          }
-                          return null;
-                        }),
+    return Directionality(
+      textDirection: isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
+      child: GestureDetector(
+        onTap: () {
+          FocusScope.of(context).unfocus();
+        },
+        child: Scaffold(
+          backgroundColor: Colors.white,
+          body: SafeArea(
+            child: Stack(
+              children: [
+                Column(
+                  children: [
+                    if (!_emailSent)
+                      Align(
+                        alignment: isArabic
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+                          child: IconButton(
+                            onPressed: _goToLogin,
+                            style: ButtonStyle(
+                              overlayColor:
+                                  WidgetStateProperty.resolveWith<Color?>(
+                                (states) {
+                                  if (states.contains(WidgetState.pressed)) {
+                                    return Colors.grey.withOpacity(0.30);
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ),
+                            icon: Icon(
+                              isArabic ? Icons.arrow_forward : Icons.arrow_back,
+                              size: 30,
+                              color: Colors.black,
+                            ),
+                          ),
+                        ),
                       ),
-                      icon: const Icon(
-                        Icons.arrow_back,
-                        size: 30,
-                        color: Colors.black,
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(26, 0, 26, 24),
+                        child: _emailSent
+                            ? _buildSuccessMessage()
+                            : _buildEmailForm(),
                       ),
                     ),
-                  ),
+                  ],
                 ),
-
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(26, 0, 26, 24),
-                  child: _emailSent
-                      ? _buildSuccessMessage()
-                      : _buildEmailForm(),
-                ),
-              ),
-            ],
+                _languageButton(),
+              ],
+            ),
           ),
         ),
       ),

@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -6,6 +8,7 @@ import 'Dashboard_page.dart';
 import 'Profile_page.dart';
 import 'Settings_page.dart';
 import 'HealthSupportChat_page.dart';
+import 'app_settings_store.dart';
 
 class HealthAssessmentPage extends StatefulWidget {
   const HealthAssessmentPage({super.key});
@@ -21,16 +24,24 @@ class _HealthAssessmentPageState extends State<HealthAssessmentPage> {
 
   final Map<int, dynamic> _answers = {};
 
-  final List<AssessmentQuestion> _questions = [
+  bool get isArabic => AppSettingsStore.instance.isArabic;
+
+  String tr(String en, String ar) => isArabic ? ar : en;
+
+  final List<AssessmentQuestion> _questions = const [
     AssessmentQuestion(
       title: 'How is your mood?',
+      titleAr: 'كيف حال مزاجك؟',
       subtitle: 'On a scale of 1 - 3 how are you feeling today?',
+      subtitleAr: 'من 1 إلى 3، كيف تشعر اليوم؟',
       type: QuestionType.slider,
       options: ['Low', 'Medium', 'High'],
     ),
     AssessmentQuestion(
       title: 'How was your day?',
+      titleAr: 'كيف كان يومك؟',
       subtitle: 'Did you experience anything out of the ordinary?',
+      subtitleAr: 'هل حدث معك شيء غير معتاد اليوم؟',
       type: QuestionType.singleChoice,
       options: [
         'Incredible 😇',
@@ -42,26 +53,34 @@ class _HealthAssessmentPageState extends State<HealthAssessmentPage> {
     ),
     AssessmentQuestion(
       title: 'How is your energy level right now?',
+      titleAr: 'كيف مستوى طاقتك الآن؟',
       subtitle: 'Did you notice anything affecting your energy today?',
+      subtitleAr: 'هل لاحظت شيئاً أثر على طاقتك اليوم؟',
       type: QuestionType.singleChoice,
       options: ['High ⚡', 'Medium 🙂', 'Low 😴', 'Exhausted 🛌'],
     ),
     AssessmentQuestion(
       title: 'How are you feeling physically?',
+      titleAr: 'كيف تشعر جسدياً؟',
       subtitle: 'Did you experience any unusual physical symptoms?',
+      subtitleAr: 'هل شعرت بأي أعراض جسدية غير معتادة؟',
       type: QuestionType.singleChoice,
       options: ['Excellent 💪', 'Good 🙂', 'Okay 😐', 'Not well 🤕'],
     ),
     AssessmentQuestion(
       title: 'Did you sleep well last night?',
+      titleAr: 'هل نمت جيداً الليلة الماضية؟',
       subtitle:
           'Did anything disturb your sleep or make it different than usual?',
+      subtitleAr: 'هل أزعجك شيء أثناء النوم أو جعله مختلفاً عن المعتاد؟',
       type: QuestionType.singleChoice,
       options: ['Excellent 🌙', 'Good 🙂', 'Okay 😐', 'Poor 😴'],
     ),
     AssessmentQuestion(
       title: 'Do you need any help or support today?',
+      titleAr: 'هل تحتاج إلى مساعدة أو دعم اليوم؟',
       subtitle: 'Is there anything specific you need help with today?',
+      subtitleAr: 'هل يوجد شيء محدد تحتاج المساعدة فيه اليوم؟',
       type: QuestionType.singleChoice,
       options: ['Yes ✅', 'Maybe 🤔', 'No ❌'],
     ),
@@ -70,6 +89,22 @@ class _HealthAssessmentPageState extends State<HealthAssessmentPage> {
   AssessmentQuestion get _currentQuestion => _questions[_currentQuestionIndex];
 
   double get _progress => (_currentQuestionIndex + 1) / _questions.length;
+
+  @override
+  void initState() {
+    super.initState();
+    AppSettingsStore.instance.addListener(_onLanguageChanged);
+  }
+
+  void _onLanguageChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    AppSettingsStore.instance.removeListener(_onLanguageChanged);
+    super.dispose();
+  }
 
   void _saveCurrentAnswer() {
     if (_currentQuestion.type == QuestionType.slider) {
@@ -83,10 +118,65 @@ class _HealthAssessmentPageState extends State<HealthAssessmentPage> {
     return 'High';
   }
 
+  String _moodTextDisplay(double value) {
+    if (value <= 1) return tr('Low', 'منخفض');
+    if (value <= 2) return tr('Medium', 'متوسط');
+    return tr('High', 'مرتفع');
+  }
+
   String _moodEmojiFromValue(double value) {
     if (value <= 1) return '😞';
     if (value <= 2) return '🙂';
     return '😃';
+  }
+
+  String _optionText(String option) {
+    switch (option) {
+      case 'Low':
+        return tr('Low', 'منخفض');
+      case 'Medium':
+        return tr('Medium', 'متوسط');
+      case 'High':
+        return tr('High', 'مرتفع');
+      case 'Incredible 😇':
+        return tr('Incredible 😇', 'ممتاز جداً 😇');
+      case 'Great 😃':
+        return tr('Great 😃', 'رائع 😃');
+      case 'Good 🙂':
+        return tr('Good 🙂', 'جيد 🙂');
+      case 'Okay 😕':
+        return tr('Okay 😕', 'عادي 😕');
+      case 'Really Bad 😞':
+        return tr('Really Bad 😞', 'سيئ جداً 😞');
+      case 'High ⚡':
+        return tr('High ⚡', 'مرتفع ⚡');
+      case 'Medium 🙂':
+        return tr('Medium 🙂', 'متوسط 🙂');
+      case 'Low 😴':
+        return tr('Low 😴', 'منخفض 😴');
+      case 'Exhausted 🛌':
+        return tr('Exhausted 🛌', 'مرهق 🛌');
+      case 'Excellent 💪':
+        return tr('Excellent 💪', 'ممتاز 💪');
+      case 'Excellent 🌙':
+        return tr('Excellent 🌙', 'ممتاز 🌙');
+      case 'Good 🙂':
+        return tr('Good 🙂', 'جيد 🙂');
+      case 'Okay 😐':
+        return tr('Okay 😐', 'عادي 😐');
+      case 'Not well 🤕':
+        return tr('Not well 🤕', 'لست بخير 🤕');
+      case 'Poor 😴':
+        return tr('Poor 😴', 'سيئ 😴');
+      case 'Yes ✅':
+        return tr('Yes ✅', 'نعم ✅');
+      case 'Maybe 🤔':
+        return tr('Maybe 🤔', 'ربما 🤔');
+      case 'No ❌':
+        return tr('No ❌', 'لا ❌');
+      default:
+        return option;
+    }
   }
 
   bool _calculateNeedsHelp() {
@@ -105,9 +195,10 @@ class _HealthAssessmentPageState extends State<HealthAssessmentPage> {
     final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Please login first')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(tr('Please login first', 'يرجى تسجيل الدخول أولاً'))),
+      );
       return;
     }
 
@@ -193,32 +284,46 @@ class _HealthAssessmentPageState extends State<HealthAssessmentPage> {
       showDialog(
         context: context,
         builder: (context) {
-          return AlertDialog(
-            title: const Text('Assessment Result'),
-            content: Text(
-              needsHelp
-                  ? 'The patient may need support today.'
-                  : 'The patient seems okay today.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-
-                  if (needsHelp) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const HealthSupportChatPage(),
+          return Directionality(
+            textDirection:
+                isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
+            child: AlertDialog(
+              title: Text(tr('Assessment Result', 'نتيجة التقييم')),
+              content: Text(
+                needsHelp
+                    ? tr(
+                        'The patient may need support today.',
+                        'قد يحتاج المريض إلى دعم اليوم.',
+                      )
+                    : tr(
+                        'The patient seems okay today.',
+                        'يبدو أن المريض بخير اليوم.',
                       ),
-                    );
-                  } else {
-                    Navigator.pop(context);
-                  }
-                },
-                child: Text(needsHelp ? 'Open Help' : 'Done'),
               ),
-            ],
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+
+                    if (needsHelp) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const HealthSupportChatPage(),
+                        ),
+                      );
+                    } else {
+                      Navigator.pop(context);
+                    }
+                  },
+                  child: Text(
+                    needsHelp
+                        ? tr('Open Help', 'فتح المساعدة')
+                        : tr('Done', 'تم'),
+                  ),
+                ),
+              ],
+            ),
           );
         },
       );
@@ -229,15 +334,19 @@ class _HealthAssessmentPageState extends State<HealthAssessmentPage> {
         _isSaving = false;
       });
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error saving assessment: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            tr('Error saving assessment: $e', 'حدث خطأ أثناء حفظ التقييم: $e'),
+          ),
+        ),
+      );
     }
   }
 
   Widget _buildQuestionContent() {
     if (_currentQuestion.type == QuestionType.slider) {
-      final String moodText = _moodTextFromValue(_moodValue);
+      final String moodText = _moodTextDisplay(_moodValue);
       final String emoji = _moodEmojiFromValue(_moodValue);
 
       return Column(
@@ -304,7 +413,8 @@ class _HealthAssessmentPageState extends State<HealthAssessmentPage> {
                 children: [
                   Expanded(
                     child: Text(
-                      option,
+                      _optionText(option),
+                      textAlign: isArabic ? TextAlign.right : TextAlign.left,
                       style: const TextStyle(
                         fontSize: 16,
                         color: Color(0xFF57636C),
@@ -347,206 +457,221 @@ class _HealthAssessmentPageState extends State<HealthAssessmentPage> {
   Widget build(BuildContext context) {
     final int questionNumber = _currentQuestionIndex + 1;
 
-    return GestureDetector(
-      onTap: () => FocusScope.of(context).unfocus(),
-      child: Scaffold(
-        backgroundColor: const Color(0xFFF4F4F4),
-        body: SafeArea(
-          child: Column(
-            children: [
-              Stack(
-                alignment: Alignment.topCenter,
-                children: [
-                  Container(
-                    width: double.infinity,
-                    height: 130,
-                    color: const Color(0xFF87CEEB),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 100),
-                    child: Container(
+    return Directionality(
+      textDirection: isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
+      child: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Scaffold(
+          backgroundColor: const Color(0xFFF4F4F4),
+          body: SafeArea(
+            child: Column(
+              children: [
+                Stack(
+                  alignment: Alignment.topCenter,
+                  children: [
+                    Container(
                       width: double.infinity,
-                      height: 41.1,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFF4F4F4),
-                        borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(70),
-                          topRight: Radius.circular(70),
+                      height: 130,
+                      color: const Color(0xFF87CEEB),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 100),
+                      child: Container(
+                        width: double.infinity,
+                        height: 41.1,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFF4F4F4),
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(70),
+                            topRight: Radius.circular(70),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Question $questionNumber/6',
-                        style: const TextStyle(
-                          color: Color(0xFF57636C),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(24),
-                        child: LinearProgressIndicator(
-                          value: _progress,
-                          minHeight: 12,
-                          backgroundColor: const Color(0xFFE0E3E7),
-                          valueColor: const AlwaysStoppedAnimation(
-                            Color(0xFF87CEEB),
+                  ],
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                    child: Column(
+                      crossAxisAlignment: isArabic
+                          ? CrossAxisAlignment.end
+                          : CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          tr(
+                            'Question $questionNumber/6',
+                            'السؤال $questionNumber/6',
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 80),
-                      Center(
-                        child: Text(
-                          _currentQuestion.title,
-                          textAlign: TextAlign.center,
                           style: const TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF0F1113),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Center(
-                        child: Text(
-                          _currentQuestion.subtitle,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 15,
                             color: Color(0xFF57636C),
+                            fontSize: 14,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 30),
-                      _buildQuestionContent(),
-                      const SizedBox(height: 50),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: SizedBox(
-                              height: 50,
-                              child: ElevatedButton(
-                                onPressed: _isSaving
-                                    ? null
-                                    : () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) =>
-                                                const HealthSupportChatPage(),
+                        const SizedBox(height: 12),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(24),
+                          child: LinearProgressIndicator(
+                            value: _progress,
+                            minHeight: 12,
+                            backgroundColor: const Color(0xFFE0E3E7),
+                            valueColor: const AlwaysStoppedAnimation(
+                              Color(0xFF87CEEB),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 80),
+                        Center(
+                          child: Text(
+                            isArabic
+                                ? _currentQuestion.titleAr
+                                : _currentQuestion.title,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF0F1113),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Center(
+                          child: Text(
+                            isArabic
+                                ? _currentQuestion.subtitleAr
+                                : _currentQuestion.subtitle,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              color: Color(0xFF57636C),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 30),
+                        _buildQuestionContent(),
+                        const SizedBox(height: 50),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: SizedBox(
+                                height: 50,
+                                child: ElevatedButton(
+                                  onPressed: _isSaving
+                                      ? null
+                                      : () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  const HealthSupportChatPage(),
+                                            ),
+                                          );
+                                        },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF87CEEB),
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(40),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    tr('Need help?', 'تحتاج مساعدة؟'),
+                                    style: const TextStyle(fontSize: 16),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: SizedBox(
+                                height: 50,
+                                child: ElevatedButton(
+                                  onPressed: _canContinue && !_isSaving
+                                      ? _goNext
+                                      : null,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF87CEEB),
+                                    foregroundColor: Colors.white,
+                                    disabledBackgroundColor:
+                                        Colors.grey.shade300,
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(40),
+                                    ),
+                                  ),
+                                  child: _isSaving
+                                      ? const SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            color: Colors.white,
+                                            strokeWidth: 2,
                                           ),
-                                        );
-                                      },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF87CEEB),
-                                  foregroundColor: Colors.white,
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(40),
-                                  ),
-                                ),
-                                child: const Text(
-                                  'Need help?',
-                                  style: TextStyle(fontSize: 16),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: SizedBox(
-                              height: 50,
-                              child: ElevatedButton(
-                                onPressed:
-                                    _canContinue && !_isSaving ? _goNext : null,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF87CEEB),
-                                  foregroundColor: Colors.white,
-                                  disabledBackgroundColor: Colors.grey.shade300,
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(40),
-                                  ),
-                                ),
-                                child: _isSaving
-                                    ? const SizedBox(
-                                        width: 20,
-                                        height: 20,
-                                        child: CircularProgressIndicator(
-                                          color: Colors.white,
-                                          strokeWidth: 2,
+                                        )
+                                      : Text(
+                                          questionNumber == 6
+                                              ? tr('Finish', 'إنهاء')
+                                              : tr('Next Question',
+                                                  'السؤال التالي'),
+                                          style: const TextStyle(fontSize: 16),
                                         ),
-                                      )
-                                    : Text(
-                                        questionNumber == 6
-                                            ? 'Finish'
-                                            : 'Next Question',
-                                        style: const TextStyle(fontSize: 16),
-                                      ),
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                Container(
+                  width: double.infinity,
+                  height: 60,
+                  decoration: const BoxDecoration(color: Colors.white),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _buildBottomNavItem(
+                        icon: Icons.home_outlined,
+                        onTap: () {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const DashboardPage(),
+                            ),
+                          );
+                        },
+                      ),
+                      _buildBottomNavItem(
+                        icon: Icons.person_outlined,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const ProfilePage(),
+                            ),
+                          );
+                        },
+                      ),
+                      _buildBottomNavItem(
+                        icon: Icons.settings_outlined,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const SettingsPage(),
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
                 ),
-              ),
-              Container(
-                width: double.infinity,
-                height: 60,
-                decoration: const BoxDecoration(color: Colors.white),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _buildBottomNavItem(
-                      icon: Icons.home_outlined,
-                      onTap: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const DashboardPage(),
-                          ),
-                        );
-                      },
-                    ),
-                    _buildBottomNavItem(
-                      icon: Icons.person_outlined,
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const ProfilePage(),
-                          ),
-                        );
-                      },
-                    ),
-                    _buildBottomNavItem(
-                      icon: Icons.settings_outlined,
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const SettingsPage(),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -558,13 +683,17 @@ enum QuestionType { slider, singleChoice }
 
 class AssessmentQuestion {
   final String title;
+  final String titleAr;
   final String subtitle;
+  final String subtitleAr;
   final QuestionType type;
   final List<String> options;
 
   const AssessmentQuestion({
     required this.title,
+    required this.titleAr,
     required this.subtitle,
+    required this.subtitleAr,
     required this.type,
     required this.options,
   });

@@ -1,7 +1,10 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 
 import 'VolunteerHelpCall.dart';
 import 'call_engine_service.dart';
+import 'app_settings_store.dart';
 
 class IncomingCallPage extends StatefulWidget {
   final String callId;
@@ -26,6 +29,37 @@ class IncomingCallPage extends StatefulWidget {
 class _IncomingCallPageState extends State<IncomingCallPage> {
   bool _handled = false;
 
+  bool get isArabic => AppSettingsStore.instance.isArabic;
+
+  String tr(String en, String ar) {
+    return isArabic ? ar : en;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+
+    AppSettingsStore.instance.addListener(_languageListener);
+
+    CallEngineService.instance.listenToCall(widget.callId);
+    CallEngineService.instance.updateStatus('ringing');
+
+    _listenToCallChanges();
+    _autoMissed();
+  }
+
+  @override
+  void dispose() {
+    AppSettingsStore.instance.removeListener(_languageListener);
+    super.dispose();
+  }
+
+  void _languageListener() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
   void _listenToCallChanges() {
     CallEngineService.instance.listenToCall(widget.callId);
 
@@ -49,6 +83,7 @@ class _IncomingCallPageState extends State<IncomingCallPage> {
     await CallEngineService.instance.acceptCall(widget.callId);
 
     if (!mounted) return;
+
     Navigator.pop(context);
 
     Navigator.push(
@@ -72,6 +107,7 @@ class _IncomingCallPageState extends State<IncomingCallPage> {
     await CallEngineService.instance.rejectCall(widget.callId);
 
     if (!mounted) return;
+
     Navigator.pop(context);
   }
 
@@ -80,75 +116,78 @@ class _IncomingCallPageState extends State<IncomingCallPage> {
 
     if (!_handled) {
       _handled = true;
+
       await CallEngineService.instance.markMissed(widget.callId);
 
-      if (mounted) Navigator.pop(context);
+      if (mounted) {
+        Navigator.pop(context);
+      }
     }
-  }
-
-  @override
-  void initState() {
-    super.initState();
-
-    CallEngineService.instance.listenToCall(widget.callId);
-    CallEngineService.instance.updateStatus('ringing');
-
-    _listenToCallChanges();
-    _autoMissed();
   }
 
   @override
   Widget build(BuildContext context) {
     final hasPhoto = widget.photoUrl != null && widget.photoUrl!.isNotEmpty;
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Column(
-          children: [
-            const Spacer(),
-            CircleAvatar(
-              radius: 60,
-              backgroundColor: Colors.white,
-              backgroundImage: hasPhoto ? NetworkImage(widget.photoUrl!) : null,
-              child: !hasPhoto
-                  ? const Icon(Icons.person, size: 60, color: Colors.grey)
-                  : null,
-            ),
-            const SizedBox(height: 20),
-            Text(
-              widget.callerName,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
+    return Directionality(
+      textDirection: isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: SafeArea(
+          child: Column(
+            children: [
+              const Spacer(),
+              CircleAvatar(
+                radius: 60,
+                backgroundColor: Colors.white,
+                backgroundImage:
+                    hasPhoto ? NetworkImage(widget.photoUrl!) : null,
+                child: !hasPhoto
+                    ? const Icon(
+                        Icons.person,
+                        size: 60,
+                        color: Colors.grey,
+                      )
+                    : null,
               ),
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              "Incoming Call...",
-              style: TextStyle(color: Colors.white70),
-            ),
-            const Spacer(),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                FloatingActionButton(
-                  heroTag: "reject",
-                  backgroundColor: Colors.red,
-                  onPressed: () => _reject(context),
-                  child: const Icon(Icons.call_end),
+              const SizedBox(height: 20),
+              Text(
+                widget.callerName,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
                 ),
-                FloatingActionButton(
-                  heroTag: "accept",
-                  backgroundColor: Colors.green,
-                  onPressed: () => _accept(context),
-                  child: const Icon(Icons.call),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                tr("Incoming Call...", "مكالمة واردة..."),
+                style: const TextStyle(
+                  color: Colors.white70,
                 ),
-              ],
-            ),
-            const SizedBox(height: 50),
-          ],
+              ),
+              const Spacer(),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  FloatingActionButton(
+                    heroTag: "reject",
+                    backgroundColor: Colors.red,
+                    onPressed: () => _reject(context),
+                    child: const Icon(Icons.call_end),
+                  ),
+                  FloatingActionButton(
+                    heroTag: "accept",
+                    backgroundColor: Colors.green,
+                    onPressed: () => _accept(context),
+                    child: const Icon(Icons.call),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 50),
+            ],
+          ),
         ),
       ),
     );
