@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -7,6 +8,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'Profile_page.dart';
 import 'Settings_page.dart';
 import 'RemindersCompanion_page.dart';
+
+import 'package:humantouch/pages/app_settings_store.dart';
 
 class CompanionReminder {
   final String id;
@@ -105,16 +108,28 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
 
   String _selectedReport = 'Daily';
 
+  bool get isArabic => AppSettingsStore.instance.isArabic;
+
+  String tr(String en, String ar) {
+    return isArabic ? ar : en;
+  }
+
   @override
   void initState() {
     super.initState();
     _updateTime();
     _loadCompanionAndPatientData();
 
+    AppSettingsStore.instance.addListener(_onLanguageChanged);
+
     _timer = Timer.periodic(const Duration(seconds: 10), (_) {
       if (!mounted) return;
       setState(_updateTime);
     });
+  }
+
+  void _onLanguageChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _loadCompanionAndPatientData() async {
@@ -219,9 +234,7 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
   }
 
   Stream<List<CompanionReminder>> _patientRemindersStream() {
-    if (patientUid.isEmpty) {
-      return const Stream.empty();
-    }
+    if (patientUid.isEmpty) return const Stream.empty();
 
     return FirebaseFirestore.instance
         .collection('reminders')
@@ -232,15 +245,12 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
           snapshot.docs.map((doc) => CompanionReminder.fromDoc(doc)).toList();
 
       reminders.sort((a, b) => a.time.compareTo(b.time));
-
       return reminders;
     });
   }
 
   Stream<List<HealthAIReport>> _healthAIReportsStream() {
-    if (patientUid.isEmpty) {
-      return const Stream.empty();
-    }
+    if (patientUid.isEmpty) return const Stream.empty();
 
     return FirebaseFirestore.instance
         .collection('health_ai_reports')
@@ -261,41 +271,56 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
 
   @override
   void dispose() {
+    AppSettingsStore.instance.removeListener(_onLanguageChanged);
     _timer?.cancel();
     super.dispose();
   }
 
   String getGreeting() {
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good Morning';
-    if (hour < 17) return 'Good Afternoon';
-    return 'Good Evening';
+    if (hour < 12) return tr('Good Morning', 'صباح الخير');
+    if (hour < 17) return tr('Good Afternoon', 'مساء الخير');
+    return tr('Good Evening', 'مساء الخير');
+  }
+
+  String _statusText(String status) {
+    if (status == 'Stable') return tr('Stable', 'مستقر');
+    if (status == 'Needs Attention') {
+      return tr('Needs Attention', 'يحتاج إلى انتباه');
+    }
+    return isArabic ? 'غير مستقر' : status;
   }
 
   String _reminderStatusText(dynamic status) {
     final text = status.toString().toLowerCase();
 
     if (text.contains('done') || text.contains('accepted')) {
-      return 'Done';
+      return tr('Done', 'تم');
     }
 
     if (text.contains('missed') || text.contains('none')) {
-      return 'Missed';
+      return tr('Missed', 'فائت');
     }
 
-    return 'Pending';
+    return tr('Pending', 'قيد الانتظار');
+  }
+
+  bool _isDoneStatus(dynamic status) {
+    final text = status.toString().toLowerCase();
+    return text.contains('done') || text.contains('accepted');
+  }
+
+  bool _isMissedStatus(dynamic status) {
+    final text = status.toString().toLowerCase();
+    return text.contains('missed') || text.contains('none');
   }
 
   int _doneCount(List<CompanionReminder> reminders) {
-    return reminders
-        .where((item) => _reminderStatusText(item.status) == 'Done')
-        .length;
+    return reminders.where((item) => _isDoneStatus(item.status)).length;
   }
 
   int _missedCount(List<CompanionReminder> reminders) {
-    return reminders
-        .where((item) => _reminderStatusText(item.status) == 'Missed')
-        .length;
+    return reminders.where((item) => _isMissedStatus(item.status)).length;
   }
 
   double _careProgress(List<CompanionReminder> reminders) {
@@ -318,10 +343,8 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
   }
 
   Color _reminderStatusColor(dynamic status) {
-    final text = _reminderStatusText(status);
-
-    if (text == 'Done') return Colors.green;
-    if (text == 'Missed') return Colors.red;
+    if (_isDoneStatus(status)) return Colors.green;
+    if (_isMissedStatus(status)) return Colors.red;
     return Colors.orange;
   }
 
@@ -336,9 +359,11 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
         {
           'icon': Icons.warning_amber_rounded,
           'color': Colors.red,
-          'title': 'High Attention Needed',
-          'message':
-              '$patientName missed multiple reminders today. Please check in with the patient.',
+          'title': tr('High Attention Needed', 'يحتاج إلى انتباه عالي'),
+          'message': tr(
+            '$patientName missed multiple reminders today. Please check in with the patient.',
+            'المريض $patientName فوّت عدة تذكيرات اليوم. يرجى الاطمئنان عليه.',
+          ),
         },
       ];
     }
@@ -348,9 +373,11 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
         {
           'icon': Icons.favorite,
           'color': Colors.red,
-          'title': 'Health Risk Detected',
-          'message':
-              'Heart rate is higher than normal. Monitor $patientName closely.',
+          'title': tr('Health Risk Detected', 'تم اكتشاف خطر صحي'),
+          'message': tr(
+            'Heart rate is higher than normal. Monitor $patientName closely.',
+            'معدل ضربات القلب أعلى من الطبيعي. راقب $patientName بعناية.',
+          ),
         },
       ];
     }
@@ -360,9 +387,11 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
         {
           'icon': Icons.bedtime,
           'color': Colors.orange,
-          'title': 'Low Sleep',
-          'message':
-              '$patientName may feel tired today because sleep hours are low.',
+          'title': tr('Low Sleep', 'قلة النوم'),
+          'message': tr(
+            '$patientName may feel tired today because sleep hours are low.',
+            'قد يشعر $patientName بالتعب اليوم بسبب قلة ساعات النوم.',
+          ),
         },
       ];
     }
@@ -372,9 +401,11 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
         {
           'icon': Icons.trending_down,
           'color': Colors.orange,
-          'title': 'Low Daily Progress',
-          'message':
-              'Daily care progress is low. The patient may need extra support today.',
+          'title': tr('Low Daily Progress', 'انخفاض التقدم اليومي'),
+          'message': tr(
+            'Daily care progress is low. The patient may need extra support today.',
+            'تقدم الرعاية اليومية منخفض. قد يحتاج المريض إلى دعم إضافي اليوم.',
+          ),
         },
       ];
     }
@@ -383,9 +414,11 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
       {
         'icon': Icons.check_circle,
         'color': Colors.green,
-        'title': 'Stable Condition',
-        'message':
-            '$patientName looks stable today. Continue monitoring reminders and health updates.',
+        'title': tr('Stable Condition', 'الحالة مستقرة'),
+        'message': tr(
+          '$patientName looks stable today. Continue monitoring reminders and health updates.',
+          'يبدو أن حالة $patientName مستقرة اليوم. استمر في متابعة التذكيرات والتحديثات الصحية.',
+        ),
       },
     ];
   }
@@ -470,9 +503,9 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _bottomItem(Icons.home_rounded, 'Home', 0),
-          _bottomItem(Icons.person_rounded, 'Profile', 1),
-          _bottomItem(Icons.settings_rounded, 'Settings', 2),
+          _bottomItem(Icons.home_rounded, tr('Home', 'الرئيسية'), 0),
+          _bottomItem(Icons.person_rounded, tr('Profile', 'الملف'), 1),
+          _bottomItem(Icons.settings_rounded, tr('Settings', 'الإعدادات'), 2),
         ],
       ),
     );
@@ -480,9 +513,10 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
 
   Widget _sectionTitle(String title) {
     return Align(
-      alignment: Alignment.centerLeft,
+      alignment: isArabic ? Alignment.centerRight : Alignment.centerLeft,
       child: Text(
         title,
+        textAlign: isArabic ? TextAlign.right : TextAlign.left,
         style: const TextStyle(
           fontSize: 19,
           fontWeight: FontWeight.bold,
@@ -528,19 +562,22 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
                   color: Color(0xFF87CEEB),
                 ),
                 const SizedBox(height: 16),
-                const Text(
-                  'No Patient Linked',
-                  style: TextStyle(
+                Text(
+                  tr('No Patient Linked', 'لا يوجد مريض مرتبط'),
+                  style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                     color: Colors.black87,
                   ),
                 ),
                 const SizedBox(height: 10),
-                const Text(
-                  'You need to link your account with a patient first to view health updates, reminders, alerts, location, reports, and quick actions.',
+                Text(
+                  tr(
+                    'You need to link your account with a patient first to view health updates, reminders, alerts, location, reports, and quick actions.',
+                    'يجب ربط حسابك بالمريض أولاً لعرض التحديثات الصحية، التذكيرات، التنبيهات، الموقع، التقارير، والإجراءات السريعة.',
+                  ),
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 15,
                     color: Colors.black54,
                     height: 1.4,
@@ -558,9 +595,9 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
                       );
                     },
                     icon: const Icon(Icons.person, color: Colors.white),
-                    label: const Text(
-                      'Go to Profile',
-                      style: TextStyle(
+                    label: Text(
+                      tr('Go to Profile', 'الانتقال إلى الملف'),
+                      style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                       ),
@@ -613,14 +650,18 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
           children: [
             Icon(icon, color: const Color(0xFF2D9CDB), size: 30),
             const SizedBox(height: 6),
-            Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildReportTab(String title) {
+  Widget _buildReportTab(String title, String label) {
     final selected = _selectedReport == title;
 
     return Expanded(
@@ -638,7 +679,7 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
           ),
           child: Center(
             child: Text(
-              title,
+              label,
               style: TextStyle(
                 color: selected ? Colors.white : Colors.black87,
                 fontWeight: FontWeight.bold,
@@ -690,29 +731,31 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
 
   Widget _aiReportSummary(HealthAIReport? report) {
     if (report == null) {
-      return const Text(
-        'No AI Health Check report yet.',
-        style: TextStyle(color: Colors.grey),
+      return Text(
+        tr('No AI Health Check report yet.', 'لا يوجد تقرير فحص صحي ذكي بعد.'),
+        style: const TextStyle(color: Colors.grey),
       );
     }
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+          isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
       children: [
-        const Text(
-          'AI Health Check Summary',
-          style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+        Text(
+          tr('AI Health Check Summary', 'ملخص الفحص الصحي الذكي'),
+          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 10),
-        Text('Mood: ${report.moodAnswer}'),
-        Text('Day: ${report.dayAnswer}'),
-        Text('Energy: ${report.energyAnswer}'),
-        Text('Physical: ${report.physicalAnswer}'),
-        Text('Sleep: ${report.sleepAnswer}'),
-        Text('Help Needed: ${report.helpAnswer}'),
+        Text('${tr('Mood', 'المزاج')}: ${report.moodAnswer}'),
+        Text('${tr('Day', 'اليوم')}: ${report.dayAnswer}'),
+        Text('${tr('Energy', 'الطاقة')}: ${report.energyAnswer}'),
+        Text('${tr('Physical', 'الحالة الجسدية')}: ${report.physicalAnswer}'),
+        Text('${tr('Sleep', 'النوم')}: ${report.sleepAnswer}'),
+        Text('${tr('Help Needed', 'هل يحتاج مساعدة')}: ${report.helpAnswer}'),
         const SizedBox(height: 10),
         Text(
           report.resultMessage,
+          textAlign: isArabic ? TextAlign.right : TextAlign.left,
           style: const TextStyle(
             fontWeight: FontWeight.w600,
             color: Colors.black87,
@@ -734,18 +777,21 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
     final latestAIReport = aiReports.isNotEmpty ? aiReports.first : null;
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+          isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Today Summary',
-          style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+        Text(
+          tr('Today Summary', 'ملخص اليوم'),
+          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 10),
-        Text('Total Reminders: ${reminders.length}'),
-        Text('Completed Reminders: $done'),
-        Text('Pending Reminders: $pending'),
-        Text('Missed Reminders: $missed'),
-        Text('Daily Progress: ${(progress * 100).round()}%'),
+        Text(
+            '${tr('Total Reminders', 'إجمالي التذكيرات')}: ${reminders.length}'),
+        Text('${tr('Completed Reminders', 'التذكيرات المكتملة')}: $done'),
+        Text('${tr('Pending Reminders', 'التذكيرات المعلقة')}: $pending'),
+        Text('${tr('Missed Reminders', 'التذكيرات الفائتة')}: $missed'),
+        Text(
+            '${tr('Daily Progress', 'التقدم اليومي')}: ${(progress * 100).round()}%'),
         const SizedBox(height: 18),
         _aiReportSummary(latestAIReport),
       ],
@@ -775,29 +821,47 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
     final latestAIReport = aiReports.isNotEmpty ? aiReports.first : null;
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+          isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Weekly Summary',
-          style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+        Text(
+          tr('Weekly Summary', 'ملخص الأسبوع'),
+          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 10),
-        const Text('This chart shows care progress during the week.'),
+        Text(tr(
+          'This chart shows care progress during the week.',
+          'يوضح هذا المخطط تقدم الرعاية خلال الأسبوع.',
+        )),
         const SizedBox(height: 16),
         _buildSimpleBarChart(
           [70, 65, 80, 75, 90, 60, today],
-          ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Today'],
+          isArabic
+              ? [
+                  'الأحد',
+                  'الاثنين',
+                  'الثلاثاء',
+                  'الأربعاء',
+                  'الخميس',
+                  'الجمعة',
+                  'اليوم'
+                ]
+              : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Today'],
         ),
         const SizedBox(height: 18),
-        const Text(
-          'AI Weekly Health Summary',
-          style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+        Text(
+          tr('AI Weekly Health Summary', 'ملخص الصحة الذكي الأسبوعي'),
+          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 10),
-        Text('Total AI reports this week: $totalReports'),
-        Text('Help needed reports: $helpNeededCount'),
-        Text('Low energy reports: $lowEnergyCount'),
-        Text('Poor sleep reports: $poorSleepCount'),
+        Text(
+            '${tr('Total AI reports this week', 'إجمالي تقارير الذكاء لهذا الأسبوع')}: $totalReports'),
+        Text(
+            '${tr('Help needed reports', 'تقارير تحتاج مساعدة')}: $helpNeededCount'),
+        Text(
+            '${tr('Low energy reports', 'تقارير انخفاض الطاقة')}: $lowEnergyCount'),
+        Text(
+            '${tr('Poor sleep reports', 'تقارير النوم الضعيف')}: $poorSleepCount'),
         const SizedBox(height: 12),
         _aiReportSummary(latestAIReport),
       ],
@@ -827,26 +891,39 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
     final latestAIReport = aiReports.isNotEmpty ? aiReports.first : null;
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+          isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Monthly Summary',
-          style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+        Text(
+          tr('Monthly Summary', 'ملخص الشهر'),
+          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 10),
-        const Text('This chart shows monthly care progress overview.'),
+        Text(tr(
+          'This chart shows monthly care progress overview.',
+          'يوضح هذا المخطط نظرة عامة على تقدم الرعاية الشهري.',
+        )),
         const SizedBox(height: 16),
-        _buildSimpleBarChart([62, 74, 81, current], ['W1', 'W2', 'W3', 'Now']),
+        _buildSimpleBarChart(
+          [62, 74, 81, current],
+          isArabic
+              ? ['أسبوع 1', 'أسبوع 2', 'أسبوع 3', 'الآن']
+              : ['W1', 'W2', 'W3', 'Now'],
+        ),
         const SizedBox(height: 18),
-        const Text(
-          'AI Monthly Health Summary',
-          style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+        Text(
+          tr('AI Monthly Health Summary', 'ملخص الصحة الذكي الشهري'),
+          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 10),
-        Text('Total AI reports this month: $totalReports'),
-        Text('Help needed reports: $helpNeededCount'),
-        Text('Physical concern reports: $notWellCount'),
-        Text('Difficult/okay day reports: $badDayCount'),
+        Text(
+            '${tr('Total AI reports this month', 'إجمالي تقارير الذكاء لهذا الشهر')}: $totalReports'),
+        Text(
+            '${tr('Help needed reports', 'تقارير تحتاج مساعدة')}: $helpNeededCount'),
+        Text(
+            '${tr('Physical concern reports', 'تقارير القلق الجسدي')}: $notWellCount'),
+        Text(
+            '${tr('Difficult/okay day reports', 'تقارير الأيام الصعبة أو العادية')}: $badDayCount'),
         const SizedBox(height: 12),
         _aiReportSummary(latestAIReport),
       ],
@@ -875,7 +952,7 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
     List<HealthAIReport> aiReports,
   ) {
     final missedReminders = reminders.where((item) {
-      return _reminderStatusText(item.status) == 'Missed';
+      return _isMissedStatus(item.status);
     }).toList();
 
     final progress = _careProgress(reminders);
@@ -887,10 +964,12 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment:
+              isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
             Text(
               '${getGreeting()}, $companionName 👋',
+              textAlign: isArabic ? TextAlign.right : TextAlign.left,
               style: const TextStyle(
                 fontSize: 25,
                 fontWeight: FontWeight.bold,
@@ -899,7 +978,10 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
             ),
             const SizedBox(height: 6),
             Text(
-              'Here is $patientName\'s latest update',
+              tr(
+                'Here is $patientName\'s latest update',
+                'هذه آخر تحديثات $patientName',
+              ),
               style: const TextStyle(fontSize: 16, color: Colors.black54),
             ),
             _card(
@@ -917,7 +999,9 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
                   const SizedBox(width: 15),
                   Expanded(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: isArabic
+                          ? CrossAxisAlignment.end
+                          : CrossAxisAlignment.start,
                       children: [
                         Text(
                           patientName,
@@ -928,6 +1012,9 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
                         ),
                         const SizedBox(height: 4),
                         Row(
+                          mainAxisAlignment: isArabic
+                              ? MainAxisAlignment.end
+                              : MainAxisAlignment.start,
                           children: [
                             Icon(
                               Icons.circle,
@@ -935,12 +1022,12 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
                               color: _statusColor(patientStatus),
                             ),
                             const SizedBox(width: 6),
-                            Text(patientStatus),
+                            Text(_statusText(patientStatus)),
                           ],
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Last update: $_lastUpdated',
+                          '${tr('Last update', 'آخر تحديث')}: $_lastUpdated',
                           style: const TextStyle(
                             color: Colors.grey,
                             fontSize: 13,
@@ -953,17 +1040,20 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
               ),
             ),
             const SizedBox(height: 18),
-            _sectionTitle('Alerts'),
+            _sectionTitle(tr('Alerts', 'التنبيهات')),
             if (missedReminders.isEmpty)
               _card(
-                child: const Row(
+                child: Row(
                   children: [
-                    Icon(Icons.check_circle, color: Colors.green),
-                    SizedBox(width: 10),
+                    const Icon(Icons.check_circle, color: Colors.green),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'No urgent alerts. Patient is doing well today.',
-                        style: TextStyle(fontSize: 15),
+                        tr(
+                          'No urgent alerts. Patient is doing well today.',
+                          'لا توجد تنبيهات عاجلة. المريض بحالة جيدة اليوم.',
+                        ),
+                        style: const TextStyle(fontSize: 15),
                       ),
                     ),
                   ],
@@ -972,7 +1062,9 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
             else
               _card(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: isArabic
+                      ? CrossAxisAlignment.end
+                      : CrossAxisAlignment.start,
                   children: missedReminders.map((item) {
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 8),
@@ -985,7 +1077,10 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              '${item.title} was missed at ${item.time}',
+                              tr(
+                                '${item.title} was missed at ${item.time}',
+                                'تم تفويت ${item.title} في ${item.time}',
+                              ),
                               style: const TextStyle(
                                 fontWeight: FontWeight.w600,
                               ),
@@ -998,25 +1093,32 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
                 ),
               ),
             const SizedBox(height: 18),
-            _sectionTitle('Health Summary'),
+            _sectionTitle(tr('Health Summary', 'ملخص الصحة')),
             _card(
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _healthItem(Icons.favorite, 'Heart Rate', '$heartRate BPM'),
-                  _healthItem(Icons.mood, 'Mood', mood),
-                  _healthItem(Icons.bedtime, 'Sleep', '$sleepHours Hours'),
+                  _healthItem(Icons.favorite, tr('Heart Rate', 'نبض القلب'),
+                      '$heartRate BPM'),
+                  _healthItem(Icons.mood, tr('Mood', 'المزاج'), mood),
+                  _healthItem(Icons.bedtime, tr('Sleep', 'النوم'),
+                      '$sleepHours ${tr('Hours', 'ساعات')}'),
                 ],
               ),
             ),
             const SizedBox(height: 18),
-            _sectionTitle('Daily Care Progress'),
+            _sectionTitle(tr('Daily Care Progress', 'تقدم الرعاية اليومية')),
             _card(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: isArabic
+                    ? CrossAxisAlignment.end
+                    : CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '$progressPercent% completed today',
+                    tr(
+                      '$progressPercent% completed today',
+                      'تم إنجاز $progressPercent% اليوم',
+                    ),
                     style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.bold,
@@ -1035,12 +1137,12 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
               ),
             ),
             const SizedBox(height: 18),
-            _sectionTitle('Today Reminders'),
+            _sectionTitle(tr('Today Reminders', 'تذكيرات اليوم')),
             if (reminders.isEmpty)
               _card(
-                child: const Text(
-                  'No reminders added yet.',
-                  style: TextStyle(color: Colors.grey),
+                child: Text(
+                  tr('No reminders added yet.', 'لا توجد تذكيرات مضافة بعد.'),
+                  style: const TextStyle(color: Colors.grey),
                 ),
               )
             else
@@ -1053,7 +1155,9 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            crossAxisAlignment: isArabic
+                                ? CrossAxisAlignment.end
+                                : CrossAxisAlignment.start,
                             children: [
                               Text(
                                 item.title,
@@ -1094,7 +1198,8 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
               ),
             const SizedBox(height: 10),
             Align(
-              alignment: Alignment.centerRight,
+              alignment:
+                  isArabic ? Alignment.centerLeft : Alignment.centerRight,
               child: TextButton.icon(
                 onPressed: () {
                   Navigator.push(
@@ -1105,11 +1210,11 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
                   );
                 },
                 icon: const Icon(Icons.edit_calendar),
-                label: const Text('Manage Reminders'),
+                label: Text(tr('Manage Reminders', 'إدارة التذكيرات')),
               ),
             ),
             const SizedBox(height: 18),
-            _sectionTitle('Location'),
+            _sectionTitle(tr('Location', 'الموقع')),
             _card(
               child: Row(
                 children: [
@@ -1117,7 +1222,10 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      '$patientName is currently near $location',
+                      tr(
+                        '$patientName is currently near $location',
+                        '$patientName حالياً بالقرب من $location',
+                      ),
                       style: const TextStyle(fontSize: 16),
                     ),
                   ),
@@ -1125,7 +1233,7 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
               ),
             ),
             const SizedBox(height: 18),
-            _sectionTitle('AI Insights'),
+            _sectionTitle(tr('AI Insights', 'تحليلات الذكاء الاصطناعي')),
             Column(
               children: aiInsights.map((insight) {
                 return _card(
@@ -1135,7 +1243,9 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment: isArabic
+                              ? CrossAxisAlignment.end
+                              : CrossAxisAlignment.start,
                           children: [
                             Text(
                               insight['title'],
@@ -1148,6 +1258,8 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
                             const SizedBox(height: 5),
                             Text(
                               insight['message'],
+                              textAlign:
+                                  isArabic ? TextAlign.right : TextAlign.left,
                               style: const TextStyle(fontSize: 14),
                             ),
                           ],
@@ -1159,7 +1271,7 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
               }).toList(),
             ),
             const SizedBox(height: 18),
-            _sectionTitle('Quick Actions'),
+            _sectionTitle(tr('Quick Actions', 'إجراءات سريعة')),
             const SizedBox(height: 12),
             GridView.count(
               shrinkWrap: true,
@@ -1171,22 +1283,22 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
               children: [
                 _quickAction(
                   icon: Icons.phone,
-                  title: 'Call Patient',
+                  title: tr('Call Patient', 'الاتصال بالمريض'),
                   onTap: () {},
                 ),
                 _quickAction(
                   icon: Icons.message,
-                  title: 'Message',
+                  title: tr('Message', 'رسالة'),
                   onTap: () {},
                 ),
                 _quickAction(
                   icon: Icons.warning_rounded,
-                  title: 'Emergency',
+                  title: tr('Emergency', 'الطوارئ'),
                   onTap: () {},
                 ),
                 _quickAction(
                   icon: Icons.add_alert,
-                  title: 'Add Reminder',
+                  title: tr('Add Reminder', 'إضافة تذكير'),
                   onTap: () {
                     Navigator.push(
                       context,
@@ -1199,17 +1311,17 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
               ],
             ),
             const SizedBox(height: 18),
-            _sectionTitle('Daily Report'),
+            _sectionTitle(tr('Daily Report', 'التقرير اليومي')),
             _card(
               child: Column(
                 children: [
                   Row(
                     children: [
-                      _buildReportTab('Daily'),
+                      _buildReportTab('Daily', tr('Daily', 'يومي')),
                       const SizedBox(width: 8),
-                      _buildReportTab('Weekly'),
+                      _buildReportTab('Weekly', tr('Weekly', 'أسبوعي')),
                       const SizedBox(width: 8),
-                      _buildReportTab('Monthly'),
+                      _buildReportTab('Monthly', tr('Monthly', 'شهري')),
                     ],
                   ),
                   const SizedBox(height: 18),
@@ -1252,26 +1364,29 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF4F4F4),
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildTopHeader(),
-            if (_isLoading)
-              const Expanded(
-                child: Center(
-                  child: CircularProgressIndicator(color: Color(0xFF87CEEB)),
-                ),
-              )
-            else if (!_isLinkedToPatient)
-              _buildNotLinkedView()
-            else
-              _buildLinkedDashboardWithStream(),
-          ],
+    return Directionality(
+      textDirection: isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF4F4F4),
+        body: SafeArea(
+          child: Column(
+            children: [
+              _buildTopHeader(),
+              if (_isLoading)
+                const Expanded(
+                  child: Center(
+                    child: CircularProgressIndicator(color: Color(0xFF87CEEB)),
+                  ),
+                )
+              else if (!_isLinkedToPatient)
+                _buildNotLinkedView()
+              else
+                _buildLinkedDashboardWithStream(),
+            ],
+          ),
         ),
+        bottomNavigationBar: _buildBottomNavigation(),
       ),
-      bottomNavigationBar: _buildBottomNavigation(),
     );
   }
 }

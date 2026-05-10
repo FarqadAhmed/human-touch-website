@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -13,6 +14,8 @@ import 'Login_page.dart';
 import 'Profile_page.dart';
 import 'Settings_page.dart';
 import 'ForgetPassword_page.dart';
+
+import 'package:humantouch/pages/app_settings_store.dart';
 
 class Profile2Page extends StatefulWidget {
   const Profile2Page({super.key});
@@ -49,6 +52,25 @@ class _Profile2PageState extends State<Profile2Page> {
     'Other',
   ];
 
+  bool get isArabic => AppSettingsStore.instance.isArabic;
+
+  String tr(String en, String ar) => isArabic ? ar : en;
+
+  String volunteerTypeText(String type) {
+    switch (type) {
+      case 'Medical':
+        return tr('Medical', 'طبي');
+      case 'Shopping':
+        return tr('Shopping', 'تسوق');
+      case 'Transportation':
+        return tr('Transportation', 'مواصلات');
+      case 'Other':
+        return tr('Other', 'أخرى');
+      default:
+        return type;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -62,11 +84,18 @@ class _Profile2PageState extends State<Profile2Page> {
     _volunteerBioController = TextEditingController();
     _volunteerWorkController = TextEditingController();
 
+    AppSettingsStore.instance.addListener(_onLanguageChanged);
     _loadProfileFromFirebase();
+  }
+
+  void _onLanguageChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    AppSettingsStore.instance.removeListener(_onLanguageChanged);
+
     _nameController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
@@ -153,9 +182,13 @@ class _Profile2PageState extends State<Profile2Page> {
         _isLoading = false;
       });
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error loading profile: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            tr('Error loading profile: $e', 'حدث خطأ أثناء تحميل الملف: $e'),
+          ),
+        ),
+      );
     }
   }
 
@@ -221,9 +254,9 @@ class _Profile2PageState extends State<Profile2Page> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _bottomItem(Icons.home_rounded, 'Home', 0),
-          _bottomItem(Icons.person_rounded, 'Profile', 1),
-          _bottomItem(Icons.settings_rounded, 'Settings', 2),
+          _bottomItem(Icons.home_rounded, tr('Home', 'الرئيسية'), 0),
+          _bottomItem(Icons.person_rounded, tr('Profile', 'الملف'), 1),
+          _bottomItem(Icons.settings_rounded, tr('Settings', 'الإعدادات'), 2),
         ],
       ),
     );
@@ -251,9 +284,10 @@ class _Profile2PageState extends State<Profile2Page> {
     final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Please login first')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(tr('Please login first', 'يرجى تسجيل الدخول أولاً'))),
+      );
       return;
     }
 
@@ -296,26 +330,37 @@ class _Profile2PageState extends State<Profile2Page> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile updated successfully')),
+        SnackBar(
+          content: Text(
+            tr('Profile updated successfully', 'تم تحديث الملف بنجاح'),
+          ),
+        ),
       );
     } on FirebaseAuthException catch (e) {
-      String message = e.message ?? 'Authentication error';
+      String message =
+          e.message ?? tr('Authentication error', 'خطأ في المصادقة');
 
       if (e.code == 'requires-recent-login') {
-        message = 'Please log out and log in again before changing email.';
+        message = tr(
+          'Please log out and log in again before changing email.',
+          'يرجى تسجيل الخروج ثم الدخول مرة أخرى قبل تغيير البريد الإلكتروني.',
+        );
       }
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error saving profile: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            tr('Error saving profile: $e', 'حدث خطأ أثناء حفظ الملف: $e'),
+          ),
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -329,24 +374,30 @@ class _Profile2PageState extends State<Profile2Page> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text('Delete Account'),
-          content: const Text(
-            'Are you sure you want to delete your account? This action cannot be undone.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text(
-                'Delete',
-                style: TextStyle(color: Colors.red),
+        return Directionality(
+          textDirection: isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
+          child: AlertDialog(
+            title: Text(tr('Delete Account', 'حذف الحساب')),
+            content: Text(
+              tr(
+                'Are you sure you want to delete your account? This action cannot be undone.',
+                'هل أنت متأكد أنك تريد حذف حسابك؟ لا يمكن التراجع عن هذا الإجراء.',
               ),
             ),
-          ],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text(tr('Cancel', 'إلغاء')),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: Text(
+                  tr('Delete', 'حذف'),
+                  style: const TextStyle(color: Colors.red),
+                ),
+              ),
+            ],
+          ),
         );
       },
     );
@@ -377,17 +428,20 @@ class _Profile2PageState extends State<Profile2Page> {
         (route) => false,
       );
     } on FirebaseAuthException catch (e) {
-      String message = e.message ?? 'Could not delete account';
+      String message =
+          e.message ?? tr('Could not delete account', 'تعذر حذف الحساب');
 
       if (e.code == 'requires-recent-login') {
-        message = 'Please log out and log in again before deleting account.';
+        message = tr(
+          'Please log out and log in again before deleting account.',
+          'يرجى تسجيل الخروج ثم الدخول مرة أخرى قبل حذف الحساب.',
+        );
       }
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
@@ -427,7 +481,11 @@ class _Profile2PageState extends State<Profile2Page> {
               if (!mounted) return;
 
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Invalid patient QR code')),
+                SnackBar(
+                  content: Text(
+                    tr('Invalid patient QR code', 'رمز QR للمريض غير صحيح'),
+                  ),
+                ),
               );
               return;
             }
@@ -448,7 +506,14 @@ class _Profile2PageState extends State<Profile2Page> {
             if (!mounted) return;
 
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Patient linked successfully: $code')),
+              SnackBar(
+                content: Text(
+                  tr(
+                    'Patient linked successfully: $code',
+                    'تم ربط المريض بنجاح: $code',
+                  ),
+                ),
+              ),
             );
           },
         ),
@@ -528,9 +593,9 @@ class _Profile2PageState extends State<Profile2Page> {
                       child: _profileImageWidget(),
                     ),
                   ),
-                  Positioned(
+                  PositionedDirectional(
                     bottom: 0,
-                    right: 0,
+                    end: 0,
                     child: Container(
                       width: 24,
                       height: 24,
@@ -551,12 +616,15 @@ class _Profile2PageState extends State<Profile2Page> {
             const SizedBox(width: 16),
             Expanded(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: isArabic
+                    ? CrossAxisAlignment.end
+                    : CrossAxisAlignment.start,
                 children: [
                   Text(
                     _nameController.text.isEmpty
-                        ? 'No Name'
+                        ? tr('No Name', 'لا يوجد اسم')
                         : _nameController.text,
+                    textAlign: isArabic ? TextAlign.right : TextAlign.left,
                     style: const TextStyle(
                       color: Color(0xFF14181B),
                       fontSize: 24,
@@ -566,8 +634,9 @@ class _Profile2PageState extends State<Profile2Page> {
                   const SizedBox(height: 4),
                   Text(
                     _emailController.text.isEmpty
-                        ? 'No Email'
+                        ? tr('No Email', 'لا يوجد بريد إلكتروني')
                         : _emailController.text,
+                    textAlign: isArabic ? TextAlign.right : TextAlign.left,
                     style: const TextStyle(
                       color: Color(0xFF87CEEB),
                       fontSize: 14,
@@ -598,13 +667,13 @@ class _Profile2PageState extends State<Profile2Page> {
             ),
           ],
         ),
-        child: const Padding(
-          padding: EdgeInsets.fromLTRB(15, 12, 15, 12),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(15, 12, 15, 12),
           child: Align(
-            alignment: Alignment.centerLeft,
+            alignment: isArabic ? Alignment.centerRight : Alignment.centerLeft,
             child: Text(
-              'Edit Profile',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              tr('Edit Profile', 'تعديل الملف الشخصي'),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
           ),
         ),
@@ -639,6 +708,7 @@ class _Profile2PageState extends State<Profile2Page> {
           controller: controller,
           keyboardType: keyboardType,
           maxLines: maxLines,
+          textAlign: isArabic ? TextAlign.right : TextAlign.left,
           onChanged: (_) => setState(() {}),
           decoration: InputDecoration(
             icon: Icon(icon, color: const Color(0xFF57636C)),
@@ -659,11 +729,12 @@ class _Profile2PageState extends State<Profile2Page> {
             child: ElevatedButton.icon(
               onPressed: () => _pickProfileImage(ImageSource.gallery),
               icon: const Icon(Icons.photo_library),
-              label: const Text('Gallery'),
+              label: Text(tr('Gallery', 'المعرض')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF87CEEB),
                 foregroundColor: Colors.white,
                 elevation: 1,
+                minimumSize: const Size(0, 48),
               ),
             ),
           ),
@@ -672,11 +743,12 @@ class _Profile2PageState extends State<Profile2Page> {
             child: ElevatedButton.icon(
               onPressed: () => _pickProfileImage(ImageSource.camera),
               icon: const Icon(Icons.camera_alt),
-              label: const Text('Camera'),
+              label: Text(tr('Camera', 'الكاميرا')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF87CEEB),
                 foregroundColor: Colors.white,
                 elevation: 1,
+                minimumSize: const Size(0, 48),
               ),
             ),
           ),
@@ -705,6 +777,7 @@ class _Profile2PageState extends State<Profile2Page> {
             backgroundColor: backgroundColor,
             foregroundColor: foregroundColor,
             elevation: 1,
+            minimumSize: const Size(0, 44),
           ),
         ),
       ),
@@ -729,44 +802,56 @@ class _Profile2PageState extends State<Profile2Page> {
           ],
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment:
+              isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Volunteer Information',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            Text(
+              tr('Volunteer Information', 'معلومات المتطوع'),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 14),
             TextField(
               controller: _volunteerSpecialtyController,
+              textAlign: isArabic ? TextAlign.right : TextAlign.left,
               onChanged: (_) => setState(() {}),
-              decoration: const InputDecoration(
-                labelText: 'Specialty',
-                hintText: 'Example: Nursing, First Aid, Physical Therapy',
-                prefixIcon: Icon(Icons.work_outline),
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: tr('Specialty', 'التخصص'),
+                hintText: tr(
+                  'Example: Nursing, First Aid, Physical Therapy',
+                  'مثال: تمريض، إسعافات أولية، علاج طبيعي',
+                ),
+                prefixIcon: const Icon(Icons.work_outline),
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _volunteerSkillController,
+              textAlign: isArabic ? TextAlign.right : TextAlign.left,
               onChanged: (_) => setState(() {}),
-              decoration: const InputDecoration(
-                labelText: 'Skill',
-                hintText: 'Example: Communication, Driving, Patient Care',
-                prefixIcon: Icon(Icons.star_outline),
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: tr('Skill', 'المهارة'),
+                hintText: tr(
+                  'Example: Communication, Driving, Patient Care',
+                  'مثال: التواصل، القيادة، رعاية المرضى',
+                ),
+                prefixIcon: const Icon(Icons.star_outline),
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               value: _selectedVolunteerType,
-              decoration: const InputDecoration(
-                labelText: 'Volunteer Type',
-                prefixIcon: Icon(Icons.volunteer_activism_outlined),
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: tr('Volunteer Type', 'نوع التطوع'),
+                prefixIcon: const Icon(Icons.volunteer_activism_outlined),
+                border: const OutlineInputBorder(),
               ),
               items: _volunteerTypes.map((type) {
-                return DropdownMenuItem(value: type, child: Text(type));
+                return DropdownMenuItem(
+                  value: type,
+                  child: Text(volunteerTypeText(type)),
+                );
               }).toList(),
               onChanged: (value) {
                 if (value == null) return;
@@ -780,25 +865,35 @@ class _Profile2PageState extends State<Profile2Page> {
             TextField(
               controller: _volunteerBioController,
               maxLines: 3,
+              textAlign: isArabic ? TextAlign.right : TextAlign.left,
               onChanged: (_) => setState(() {}),
-              decoration: const InputDecoration(
-                labelText: 'About Me',
-                hintText: 'Write a short bio about yourself',
-                prefixIcon: Icon(Icons.info_outline),
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: tr('About Me', 'نبذة عني'),
+                hintText: tr(
+                  'Write a short bio about yourself',
+                  'اكتب نبذة قصيرة عن نفسك',
+                ),
+                prefixIcon: const Icon(Icons.info_outline),
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _volunteerWorkController,
               maxLines: 3,
+              textAlign: isArabic ? TextAlign.right : TextAlign.left,
               onChanged: (_) => setState(() {}),
-              decoration: const InputDecoration(
-                labelText: 'What do you volunteer in?',
-                hintText:
-                    'Example: Helping patients with shopping or transport',
-                prefixIcon: Icon(Icons.favorite_outline),
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: tr(
+                  'What do you volunteer in?',
+                  'في ماذا تتطوع؟',
+                ),
+                hintText: tr(
+                  'Example: Helping patients with shopping or transport',
+                  'مثال: مساعدة المرضى في التسوق أو المواصلات',
+                ),
+                prefixIcon: const Icon(Icons.favorite_outline),
+                border: const OutlineInputBorder(),
               ),
             ),
           ],
@@ -826,11 +921,13 @@ class _Profile2PageState extends State<Profile2Page> {
         ),
         child: Column(
           children: [
-            const Align(
-              alignment: Alignment.centerLeft,
+            Align(
+              alignment:
+                  isArabic ? Alignment.centerRight : Alignment.centerLeft,
               child: Text(
-                'Patient QR Code',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                tr('Patient QR Code', 'رمز QR للمريض'),
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
             ),
             const SizedBox(height: 14),
@@ -845,10 +942,13 @@ class _Profile2PageState extends State<Profile2Page> {
               style: const TextStyle(fontSize: 14, color: Colors.black54),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Let your companion scan this code to link the accounts.',
+            Text(
+              tr(
+                'Let your companion scan this code to link the accounts.',
+                'اجعل المرافق يمسح هذا الرمز لربط الحسابات.',
+              ),
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13),
+              style: const TextStyle(fontSize: 13),
             ),
           ],
         ),
@@ -875,16 +975,20 @@ class _Profile2PageState extends State<Profile2Page> {
         ),
         child: Column(
           children: [
-            const Align(
-              alignment: Alignment.centerLeft,
+            Align(
+              alignment:
+                  isArabic ? Alignment.centerRight : Alignment.centerLeft,
               child: Text(
-                'Patient Linking',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                tr('Patient Linking', 'ربط المريض'),
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
             ),
             const SizedBox(height: 14),
             _buildActionButton(
-              text: _isScanning ? 'Opening Camera...' : 'Scan Patient QR',
+              text: _isScanning
+                  ? tr('Opening Camera...', 'جاري فتح الكاميرا...')
+                  : tr('Scan Patient QR', 'مسح رمز QR للمريض'),
               icon: Icons.qr_code_scanner,
               onPressed: _isScanning ? () {} : _openScanner,
               backgroundColor: const Color(0xFF87CEEB),
@@ -900,7 +1004,8 @@ class _Profile2PageState extends State<Profile2Page> {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
-                  'Linked Patient Code: $_linkedPatientCode',
+                  '${tr('Linked Patient Code', 'رمز المريض المرتبط')}: $_linkedPatientCode',
+                  textAlign: isArabic ? TextAlign.right : TextAlign.left,
                   style: const TextStyle(fontSize: 14),
                 ),
               ),
@@ -922,77 +1027,89 @@ class _Profile2PageState extends State<Profile2Page> {
       );
     }
 
-    return GestureDetector(
-      onTap: () => FocusScope.of(context).unfocus(),
-      child: Scaffold(
-        backgroundColor: const Color(0xFFF4F4F4),
-        body: SafeArea(
-          child: Column(
-            children: [
-              _buildHeader(),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      _buildTopProfileInfo(),
-                      _buildSectionTitleCard(),
-                      _buildUploadImageButton(),
-                      _buildField(
-                        icon: Icons.person_outlined,
-                        label: 'Name',
-                        controller: _nameController,
-                      ),
-                      _buildField(
-                        icon: Icons.phone_in_talk,
-                        label: 'Phone Number',
-                        controller: _phoneController,
-                        keyboardType: TextInputType.phone,
-                      ),
-                      _buildField(
-                        icon: Icons.mail_outline_rounded,
-                        label: 'Email',
-                        controller: _emailController,
-                        keyboardType: TextInputType.emailAddress,
-                      ),
-                      _buildActionButton(
-                        text: 'Change / Forgot Password',
-                        icon: Icons.lock_reset,
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const ForgetPasswordPage(),
-                            ),
-                          );
-                        },
-                      ),
-                      if (_userRole == 'volunteer')
-                        _buildVolunteerInfoSection(),
-                      if (_userRole == 'patient') _buildPatientQrSection(),
-                      if (_userRole == 'companion')
-                        _buildCompanionScanSection(),
-                      _buildActionButton(
-                        text: _isSaving ? 'Saving...' : 'Save Changes',
-                        icon: Icons.save_outlined,
-                        onPressed: _isSaving ? () {} : _saveProfile,
-                        backgroundColor: const Color(0xFF87CEEB),
-                        foregroundColor: Colors.white,
-                      ),
-                      _buildActionButton(
-                        text: 'Delete Account',
-                        icon: Icons.delete_outlined,
-                        onPressed: _confirmDeleteAccount,
-                      ),
-                      _buildActionButton(text: 'Log Out', onPressed: _logout),
-                      const SizedBox(height: 20),
-                    ],
+    return Directionality(
+      textDirection: isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
+      child: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Scaffold(
+          backgroundColor: const Color(0xFFF4F4F4),
+          body: SafeArea(
+            child: Column(
+              children: [
+                _buildHeader(),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        _buildTopProfileInfo(),
+                        _buildSectionTitleCard(),
+                        _buildUploadImageButton(),
+                        _buildField(
+                          icon: Icons.person_outlined,
+                          label: tr('Name', 'الاسم'),
+                          controller: _nameController,
+                        ),
+                        _buildField(
+                          icon: Icons.phone_in_talk,
+                          label: tr('Phone Number', 'رقم الهاتف'),
+                          controller: _phoneController,
+                          keyboardType: TextInputType.phone,
+                        ),
+                        _buildField(
+                          icon: Icons.mail_outline_rounded,
+                          label: tr('Email', 'البريد الإلكتروني'),
+                          controller: _emailController,
+                          keyboardType: TextInputType.emailAddress,
+                        ),
+                        _buildActionButton(
+                          text: tr(
+                            'Change / Forgot Password',
+                            'تغيير / نسيت كلمة المرور',
+                          ),
+                          icon: Icons.lock_reset,
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const ForgetPasswordPage(),
+                              ),
+                            );
+                          },
+                        ),
+                        if (_userRole == 'volunteer')
+                          _buildVolunteerInfoSection(),
+                        if (_userRole == 'patient') _buildPatientQrSection(),
+                        if (_userRole == 'companion')
+                          _buildCompanionScanSection(),
+                        _buildActionButton(
+                          text: _isSaving
+                              ? tr('Saving...', 'جاري الحفظ...')
+                              : tr('Save Changes', 'حفظ التغييرات'),
+                          icon: Icons.save_outlined,
+                          onPressed: _isSaving ? () {} : _saveProfile,
+                          backgroundColor: const Color(0xFF87CEEB),
+                          foregroundColor: Colors.white,
+                        ),
+                        _buildActionButton(
+                          text: tr('Delete Account', 'حذف الحساب'),
+                          icon: Icons.delete_outlined,
+                          onPressed: _confirmDeleteAccount,
+                        ),
+                        _buildActionButton(
+                          text: tr('Log Out', 'تسجيل الخروج'),
+                          onPressed: _logout,
+                        ),
+                        const SizedBox(height: 20),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
+          bottomNavigationBar: _buildBottomNavigation(),
         ),
-        bottomNavigationBar: _buildBottomNavigation(),
       ),
     );
   }
@@ -1003,32 +1120,39 @@ class _ScanPatientQrPage extends StatelessWidget {
 
   const _ScanPatientQrPage({required this.onScanned});
 
+  bool get isArabic => AppSettingsStore.instance.isArabic;
+
+  String tr(String en, String ar) => isArabic ? ar : en;
+
   @override
   Widget build(BuildContext context) {
     bool scanned = false;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Scan Patient QR'),
-        backgroundColor: const Color(0xFF87CEEB),
-      ),
-      body: MobileScanner(
-        onDetect: (capture) {
-          if (scanned) return;
+    return Directionality(
+      textDirection: isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(tr('Scan Patient QR', 'مسح رمز QR للمريض')),
+          backgroundColor: const Color(0xFF87CEEB),
+        ),
+        body: MobileScanner(
+          onDetect: (capture) {
+            if (scanned) return;
 
-          final barcodes = capture.barcodes;
+            final barcodes = capture.barcodes;
 
-          for (final barcode in barcodes) {
-            final code = barcode.rawValue;
+            for (final barcode in barcodes) {
+              final code = barcode.rawValue;
 
-            if (code != null && code.isNotEmpty) {
-              scanned = true;
-              onScanned(code);
-              Navigator.pop(context);
-              break;
+              if (code != null && code.isNotEmpty) {
+                scanned = true;
+                onScanned(code);
+                Navigator.pop(context);
+                break;
+              }
             }
-          }
-        },
+          },
+        ),
       ),
     );
   }

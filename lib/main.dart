@@ -28,8 +28,11 @@ import 'firebase_options.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
-/// 🔥 NEW IMPORT (FCM SERVICE)
+/// 🔥 FCM SERVICE
 import 'package:humantouch/pages/services/fcm_service.dart';
+
+/// 🔥 LANGUAGE STORE
+import 'package:humantouch/pages/app_settings_store.dart';
 
 /// 🔥 Navigator Key for Notifications → Navigation
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -60,14 +63,28 @@ Future<void> main() async {
 
   await notificationsPlugin.initialize(initSettings);
 
-  /// 🔥 INIT FCM SYSTEM (IMPORTANT)
+  /// 🔥 INIT FCM SYSTEM
   await FCMService.init(navigatorKey);
 
   runApp(const HumanTouchApp());
 }
 
-class HumanTouchApp extends StatelessWidget {
+class HumanTouchApp extends StatefulWidget {
   const HumanTouchApp({super.key});
+
+  @override
+  State<HumanTouchApp> createState() => _HumanTouchAppState();
+}
+
+class _HumanTouchAppState extends State<HumanTouchApp> {
+  @override
+  void initState() {
+    super.initState();
+
+    AppSettingsStore.instance.addListener(() {
+      setState(() {});
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -77,17 +94,27 @@ class HumanTouchApp extends StatelessWidget {
 
       debugShowCheckedModeBanner: false,
       title: 'Human Touch',
-      locale: const Locale('en'),
-      supportedLocales: const [Locale('en'), Locale('ar')],
+
+      /// 🌍 LANGUAGE
+      locale: AppSettingsStore.instance.locale,
+
+      supportedLocales: const [
+        Locale('en'),
+        Locale('ar'),
+      ],
+
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
+
       theme: ThemeData(
         useMaterial3: true,
         scaffoldBackgroundColor: const Color(0xFFF4F4F4),
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF87CEEB)),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF87CEEB),
+        ),
         appBarTheme: const AppBarTheme(
           backgroundColor: Color(0xFF87CEEB),
           elevation: 0,
@@ -134,7 +161,9 @@ class HumanTouchApp extends StatelessWidget {
           ),
         ),
       ),
+
       initialRoute: '/splash',
+
       routes: {
         '/splash': (context) => const SplashPage(),
         '/welcome': (context) => const WelcomePage(),
@@ -156,6 +185,7 @@ class HumanTouchApp extends StatelessWidget {
         '/profile2': (context) => const Profile2Page(),
         '/settings': (context) => const SettingsPage(),
       },
+
       onUnknownRoute: (settings) {
         return MaterialPageRoute(
           builder: (_) => const Scaffold(

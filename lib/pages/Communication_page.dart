@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_tts/flutter_tts.dart';
@@ -7,6 +9,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'Dashboard_page.dart';
 import 'Profile_page.dart';
 import 'Settings_page.dart';
+
+import 'package:humantouch/pages/app_settings_store.dart';
 
 class CommunicationPage extends StatefulWidget {
   const CommunicationPage({super.key});
@@ -28,6 +32,48 @@ class _CommunicationPageState extends State<CommunicationPage> {
   bool _isEmergency = false;
   bool _isSaving = false;
 
+  bool get isArabic => AppSettingsStore.instance.isArabic;
+
+  String tr(String en, String ar) {
+    return isArabic ? ar : en;
+  }
+
+  String placeName(String place) {
+    switch (place) {
+      case 'Hospital':
+        return tr('Hospital', 'المستشفى');
+      case 'Restaurant':
+        return tr('Restaurant', 'المطعم');
+      case 'Street':
+        return tr('Street', 'الشارع');
+      case 'Transport':
+        return tr('Transport', 'المواصلات');
+      case 'Shopping':
+        return tr('Shopping', 'التسوق');
+      default:
+        return place;
+    }
+  }
+
+  String moodName(String mood) {
+    switch (mood) {
+      case 'Calm':
+        return tr('Calm', 'هادئ');
+      case 'Happy':
+        return tr('Happy', 'سعيد');
+      case 'Sad':
+        return tr('Sad', 'حزين');
+      case 'Anxious':
+        return tr('Anxious', 'متوتر');
+      case 'Tired':
+        return tr('Tired', 'متعب');
+      case 'Angry':
+        return tr('Angry', 'غاضب');
+      default:
+        return mood;
+    }
+  }
+
   final List<Map<String, String>> _aiMessages = [
     {
       'sender': 'ai',
@@ -40,51 +86,81 @@ class _CommunicationPageState extends State<CommunicationPage> {
     {
       'name': 'Hospital',
       'emoji': '🏥',
-      'phrases': [
+      'phrasesEn': [
         'I am not feeling well.',
         'I need medical assistance.',
         'Please call a nurse.',
         'I feel dizzy.',
       ],
+      'phrasesAr': [
+        'أنا لا أشعر أنني بخير.',
+        'أحتاج إلى مساعدة طبية.',
+        'يرجى استدعاء الممرضة.',
+        'أشعر بالدوار.',
+      ],
     },
     {
       'name': 'Restaurant',
       'emoji': '🍽️',
-      'phrases': [
+      'phrasesEn': [
         'I need water please.',
         'I want to order food.',
         'Can you help me read the menu?',
         'I have food allergies.',
       ],
+      'phrasesAr': [
+        'أحتاج ماء من فضلك.',
+        'أريد طلب الطعام.',
+        'هل يمكنك مساعدتي في قراءة القائمة؟',
+        'لدي حساسية من بعض الأطعمة.',
+      ],
     },
     {
       'name': 'Street',
       'emoji': '🚶',
-      'phrases': [
+      'phrasesEn': [
         'Can you help me cross the street?',
         'I need directions.',
         'I am lost.',
         'Please help me find a safe place.',
       ],
+      'phrasesAr': [
+        'هل يمكنك مساعدتي في عبور الشارع؟',
+        'أحتاج إلى الاتجاهات.',
+        'أنا تائه.',
+        'يرجى مساعدتي في العثور على مكان آمن.',
+      ],
     },
     {
       'name': 'Transport',
       'emoji': '🚌',
-      'phrases': [
+      'phrasesEn': [
         'Is this the right bus?',
         'Please tell me when we arrive.',
         'I need help getting in.',
         'Can you help me find my seat?',
       ],
+      'phrasesAr': [
+        'هل هذه الحافلة الصحيحة؟',
+        'يرجى إخباري عند الوصول.',
+        'أحتاج مساعدة في الصعود.',
+        'هل يمكنك مساعدتي في العثور على مقعدي؟',
+      ],
     },
     {
       'name': 'Shopping',
       'emoji': '🛒',
-      'phrases': [
+      'phrasesEn': [
         'I need help finding this item.',
         'How much does this cost?',
         'Can you help me carry this?',
         'I want to pay.',
+      ],
+      'phrasesAr': [
+        'أحتاج مساعدة في العثور على هذا المنتج.',
+        'كم سعر هذا؟',
+        'هل يمكنك مساعدتي في حمل هذا؟',
+        'أريد الدفع.',
       ],
     },
   ];
@@ -98,7 +174,7 @@ class _CommunicationPageState extends State<CommunicationPage> {
     {'label': 'Angry', 'emoji': '😡'},
   ];
 
-  final Map<String, List<String>> _moodActivities = const {
+  final Map<String, List<String>> _moodActivitiesEn = const {
     'Calm': [
       'Take a short walk for 5 minutes.',
       'Listen to soft music.',
@@ -131,8 +207,51 @@ class _CommunicationPageState extends State<CommunicationPage> {
     ],
   };
 
+  final Map<String, List<String>> _moodActivitiesAr = const {
+    'Calm': [
+      'خذ نزهة قصيرة لمدة 5 دقائق.',
+      'استمع إلى موسيقى هادئة.',
+      'اشرب الماء واسترخِ.',
+    ],
+    'Happy': [
+      'شارك شعورك مع شخص قريب.',
+      'قم بنشاط إبداعي بسيط.',
+      'اكتب شيئاً جميلاً حدث اليوم.',
+    ],
+    'Sad': [
+      'تحدث مع المرافق أو المساعد الذكي.',
+      'خذ نفساً عميقاً ببطء.',
+      'شاهد شيئاً يريحك.',
+    ],
+    'Anxious': [
+      'خذ 4 أنفاس عميقة ببطء.',
+      'امسك شيئاً ناعماً أو مريحاً.',
+      'اجلس في مكان هادئ لمدة دقيقتين.',
+    ],
+    'Tired': [
+      'استرح لبضع دقائق.',
+      'اشرب الماء.',
+      'قم بتمارين تمدد خفيفة.',
+    ],
+    'Angry': [
+      'توقف وعد إلى 10.',
+      'انتقل إلى مكان هادئ.',
+      'قل لشخص: أحتاج لحظة.',
+    ],
+  };
+
   Map<String, dynamic> get selectedPlaceData {
     return _places.firstWhere((place) => place['name'] == _selectedPlace);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    AppSettingsStore.instance.addListener(_onLanguageChanged);
+  }
+
+  void _onLanguageChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _saveCommunicationLog({
@@ -175,7 +294,9 @@ class _CommunicationPageState extends State<CommunicationPage> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    final activities = _moodActivities[_selectedMood] ?? [];
+    final activities = isArabic
+        ? (_moodActivitiesAr[_selectedMood] ?? [])
+        : (_moodActivitiesEn[_selectedMood] ?? []);
 
     await FirebaseFirestore.instance.collection('communication_mood_logs').add({
       'userId': user.uid,
@@ -190,7 +311,7 @@ class _CommunicationPageState extends State<CommunicationPage> {
     if (_generatedMessage.isEmpty) return;
 
     await _flutterTts.stop();
-    await _flutterTts.setLanguage('en-US');
+    await _flutterTts.setLanguage(isArabic ? 'ar-SA' : 'en-US');
     await _flutterTts.setSpeechRate(0.45);
     await _flutterTts.setPitch(1.0);
     await _flutterTts.speak(_generatedMessage);
@@ -224,8 +345,10 @@ class _CommunicationPageState extends State<CommunicationPage> {
         text.contains('pain') ||
         text.contains('tired')) {
       situation = 'Medical';
-      result =
-          'Hello, I am at the $_selectedPlace. I am not feeling well and I need medical assistance please.';
+      result = tr(
+        'Hello, I am at the ${placeName(_selectedPlace)}. I am not feeling well and I need medical assistance please.',
+        'مرحباً، أنا في ${placeName(_selectedPlace)}. لا أشعر أنني بخير وأحتاج إلى مساعدة طبية من فضلك.',
+      );
     } else if (text.contains('طوارئ') ||
         text.contains('ساعدوني') ||
         text.contains('اختنق') ||
@@ -234,36 +357,56 @@ class _CommunicationPageState extends State<CommunicationPage> {
         text.contains('can’t breathe')) {
       situation = 'Emergency';
       emergency = true;
-      result =
-          'This is an emergency. I need help immediately. Please call my companion or emergency services.';
+      result = tr(
+        'This is an emergency. I need help immediately. Please call my companion or emergency services.',
+        'هذه حالة طوارئ. أحتاج إلى مساعدة فوراً. يرجى الاتصال بالمرافق أو خدمات الطوارئ.',
+      );
     } else if (text.contains('ضايع') ||
         text.contains('lost') ||
         text.contains('direction') ||
         text.contains('مكان')) {
       situation = 'Lost / Direction';
-      result =
-          'Hello, I am at the $_selectedPlace and I need help with directions. Can you guide me please?';
+      result = tr(
+        'Hello, I am at the ${placeName(_selectedPlace)} and I need help with directions. Can you guide me please?',
+        'مرحباً، أنا في ${placeName(_selectedPlace)} وأحتاج مساعدة في الاتجاهات. هل يمكنك إرشادي من فضلك؟',
+      );
     } else if (text.contains('اكل') ||
         text.contains('ماي') ||
         text.contains('hungry') ||
         text.contains('water') ||
         text.contains('food')) {
       situation = 'Daily Need';
-      result =
-          'Hello, I am at the $_selectedPlace. I need help with food or water please.';
+      result = tr(
+        'Hello, I am at the ${placeName(_selectedPlace)}. I need help with food or water please.',
+        'مرحباً، أنا في ${placeName(_selectedPlace)}. أحتاج مساعدة في الطعام أو الماء من فضلك.',
+      );
     } else {
-      result =
-          'Hello, I am at the $_selectedPlace. ${_messageController.text.trim().isEmpty ? 'I need assistance' : _messageController.text.trim()}. Can you help me please?';
+      result = tr(
+        'Hello, I am at the ${placeName(_selectedPlace)}. ${_messageController.text.trim().isEmpty ? 'I need assistance' : _messageController.text.trim()}. Can you help me please?',
+        'مرحباً، أنا في ${placeName(_selectedPlace)}. ${_messageController.text.trim().isEmpty ? 'أحتاج إلى مساعدة' : _messageController.text.trim()}. هل يمكنك مساعدتي من فضلك؟',
+      );
     }
 
     if (_selectedMood == 'Anxious') {
-      result += ' I feel anxious, so please speak slowly and calmly.';
+      result += tr(
+        ' I feel anxious, so please speak slowly and calmly.',
+        ' أشعر بالتوتر، لذلك يرجى التحدث ببطء وهدوء.',
+      );
     } else if (_selectedMood == 'Sad') {
-      result += ' I feel sad and I may need extra support.';
+      result += tr(
+        ' I feel sad and I may need extra support.',
+        ' أشعر بالحزن وقد أحتاج إلى دعم إضافي.',
+      );
     } else if (_selectedMood == 'Tired') {
-      result += ' I feel tired and I may need time to respond.';
+      result += tr(
+        ' I feel tired and I may need time to respond.',
+        ' أشعر بالتعب وقد أحتاج إلى وقت للرد.',
+      );
     } else if (_selectedMood == 'Angry') {
-      result += ' I feel upset, please give me a moment.';
+      result += tr(
+        ' I feel upset, please give me a moment.',
+        ' أشعر بالانزعاج، يرجى إعطائي لحظة.',
+      );
     }
 
     setState(() {
@@ -281,17 +424,15 @@ class _CommunicationPageState extends State<CommunicationPage> {
         isEmergency: emergency,
       );
     } finally {
-      if (mounted) {
-        setState(() {
-          _isSaving = false;
-        });
-      }
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
   Future<void> _talkForMe() async {
-    const result =
-        'Hello, I need assistance. I may not be able to speak clearly. Please be patient and help me communicate.';
+    final result = tr(
+      'Hello, I need assistance. I may not be able to speak clearly. Please be patient and help me communicate.',
+      'مرحباً، أحتاج إلى مساعدة. قد لا أستطيع التحدث بوضوح. يرجى التحلي بالصبر ومساعدتي على التواصل.',
+    );
 
     setState(() {
       _detectedSituation = 'Talk For Me';
@@ -308,17 +449,15 @@ class _CommunicationPageState extends State<CommunicationPage> {
         isEmergency: false,
       );
     } finally {
-      if (mounted) {
-        setState(() {
-          _isSaving = false;
-        });
-      }
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
   Future<void> _emergencyMessage() async {
-    const result =
-        'This is an emergency. I need help immediately. Please call my companion or emergency services.';
+    final result = tr(
+      'This is an emergency. I need help immediately. Please call my companion or emergency services.',
+      'هذه حالة طوارئ. أحتاج إلى مساعدة فوراً. يرجى الاتصال بالمرافق أو خدمات الطوارئ.',
+    );
 
     setState(() {
       _detectedSituation = 'Emergency';
@@ -335,11 +474,7 @@ class _CommunicationPageState extends State<CommunicationPage> {
         isEmergency: true,
       );
     } finally {
-      if (mounted) {
-        setState(() {
-          _isSaving = false;
-        });
-      }
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
@@ -349,9 +484,9 @@ class _CommunicationPageState extends State<CommunicationPage> {
     Clipboard.setData(ClipboardData(text: _generatedMessage));
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Message copied'),
-        backgroundColor: Color(0xFF87CEEB),
+      SnackBar(
+        content: Text(tr('Message copied', 'تم نسخ الرسالة')),
+        backgroundColor: const Color(0xFF87CEEB),
       ),
     );
   }
@@ -362,42 +497,49 @@ class _CommunicationPageState extends State<CommunicationPage> {
     showDialog(
       context: context,
       builder: (context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(28),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'Show Message',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 18),
-                Text(
-                  _generatedMessage,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w700,
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF87CEEB),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
+        return Directionality(
+          textDirection: isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
+          child: Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(28),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    tr('Show Message', 'عرض الرسالة'),
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                  child: const Text('Close'),
-                ),
-              ],
+                  const SizedBox(height: 18),
+                  Text(
+                    _generatedMessage,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w700,
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF87CEEB),
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(120, 48),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                    ),
+                    child: Text(tr('Close', 'إغلاق')),
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -411,138 +553,151 @@ class _CommunicationPageState extends State<CommunicationPage> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            Future<void> sendMessage() async {
-              final text = _aiChatController.text.trim();
-              if (text.isEmpty) return;
+        return Directionality(
+          textDirection: isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
+          child: StatefulBuilder(
+            builder: (context, setModalState) {
+              Future<void> sendMessage() async {
+                final text = _aiChatController.text.trim();
+                if (text.isEmpty) return;
 
-              final reply = _getAiReply(text);
+                final reply = _getAiReply(text);
 
-              setModalState(() {
-                _aiMessages.add({'sender': 'user', 'text': text});
-                _aiMessages.add({'sender': 'ai', 'text': reply});
-                _aiChatController.clear();
-              });
+                setModalState(() {
+                  _aiMessages.add({'sender': 'user', 'text': text});
+                  _aiMessages.add({'sender': 'ai', 'text': reply});
+                  _aiChatController.clear();
+                });
 
-              await _saveAiChatMessage(sender: 'user', text: text);
-              await _saveAiChatMessage(sender: 'ai', text: reply);
-            }
+                await _saveAiChatMessage(sender: 'user', text: text);
+                await _saveAiChatMessage(sender: 'ai', text: reply);
+              }
 
-            return Container(
-              height: MediaQuery.of(context).size.height * 0.78,
-              padding: EdgeInsets.only(
-                left: 18,
-                right: 18,
-                top: 18,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 18,
-              ),
-              decoration: const BoxDecoration(
-                color: Color(0xFFF7FBFD),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(35)),
-              ),
-              child: Column(
-                children: [
-                  Container(
-                    width: 55,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(20),
+              return Container(
+                height: MediaQuery.of(context).size.height * 0.78,
+                padding: EdgeInsets.only(
+                  left: 18,
+                  right: 18,
+                  top: 18,
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 18,
+                ),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFF7FBFD),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(35)),
+                ),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 55,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    '🤖 AI Companion',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF333333),
+                    const SizedBox(height: 16),
+                    Text(
+                      tr('🤖 AI Companion', '🤖 المساعد الذكي'),
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF333333),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    'Talk to me anytime you feel lonely or need help',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 13, color: Color(0xFF777777)),
-                  ),
-                  const SizedBox(height: 18),
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: _aiMessages.length,
-                      itemBuilder: (context, index) {
-                        final msg = _aiMessages[index];
-                        final isUser = msg['sender'] == 'user';
+                    const SizedBox(height: 6),
+                    Text(
+                      tr(
+                        'Talk to me anytime you feel lonely or need help',
+                        'تحدث معي في أي وقت تشعر فيه بالوحدة أو تحتاج للمساعدة',
+                      ),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF777777),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: _aiMessages.length,
+                        itemBuilder: (context, index) {
+                          final msg = _aiMessages[index];
+                          final isUser = msg['sender'] == 'user';
 
-                        return Align(
-                          alignment: isUser
-                              ? Alignment.centerRight
-                              : Alignment.centerLeft,
-                          child: Container(
-                            margin: const EdgeInsets.only(bottom: 10),
-                            padding: const EdgeInsets.all(14),
-                            constraints: BoxConstraints(
-                              maxWidth:
-                                  MediaQuery.of(context).size.width * 0.72,
-                            ),
-                            decoration: BoxDecoration(
-                              color: isUser
-                                  ? const Color(0xFF87CEEB)
-                                  : Colors.white,
-                              borderRadius: BorderRadius.circular(20),
-                              boxShadow: _shadow(),
-                            ),
-                            child: Text(
-                              msg['text']!,
-                              style: TextStyle(
-                                fontSize: 14.5,
-                                height: 1.4,
+                          return Align(
+                            alignment: isUser
+                                ? Alignment.centerRight
+                                : Alignment.centerLeft,
+                            child: Container(
+                              margin: const EdgeInsets.only(bottom: 10),
+                              padding: const EdgeInsets.all(14),
+                              constraints: BoxConstraints(
+                                maxWidth:
+                                    MediaQuery.of(context).size.width * 0.72,
+                              ),
+                              decoration: BoxDecoration(
                                 color: isUser
-                                    ? Colors.white
-                                    : const Color(0xFF333333),
-                                fontWeight: FontWeight.w600,
+                                    ? const Color(0xFF87CEEB)
+                                    : Colors.white,
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: _shadow(),
+                              ),
+                              child: Text(
+                                msg['text']!,
+                                textAlign:
+                                    isArabic ? TextAlign.right : TextAlign.left,
+                                style: TextStyle(
+                                  fontSize: 14.5,
+                                  height: 1.4,
+                                  color: isUser
+                                      ? Colors.white
+                                      : const Color(0xFF333333),
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
-                  ),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _aiChatController,
-                          decoration: InputDecoration(
-                            hintText: 'Type here...',
-                            filled: true,
-                            fillColor: Colors.white,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(22),
-                              borderSide: BorderSide.none,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _aiChatController,
+                            textAlign:
+                                isArabic ? TextAlign.right : TextAlign.left,
+                            decoration: InputDecoration(
+                              hintText: tr('Type here...', 'اكتب هنا...'),
+                              filled: true,
+                              fillColor: Colors.white,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(22),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
+                            onSubmitted: (_) => sendMessage(),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        CircleAvatar(
+                          radius: 27,
+                          backgroundColor: const Color(0xFF87CEEB),
+                          child: IconButton(
+                            onPressed: sendMessage,
+                            icon: const Icon(
+                              Icons.send_rounded,
+                              color: Colors.white,
                             ),
                           ),
-                          onSubmitted: (_) => sendMessage(),
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                      CircleAvatar(
-                        radius: 27,
-                        backgroundColor: const Color(0xFF87CEEB),
-                        child: IconButton(
-                          onPressed: sendMessage,
-                          icon: const Icon(
-                            Icons.send_rounded,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            );
-          },
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
         );
       },
     );
@@ -555,33 +710,51 @@ class _CommunicationPageState extends State<CommunicationPage> {
         msg.contains('lonely') ||
         msg.contains('وحيد') ||
         msg.contains('وحدي')) {
-      return 'I am here with you. You are not alone. Do you want to talk about how you feel?';
+      return tr(
+        'I am here with you. You are not alone. Do you want to talk about how you feel?',
+        'أنا هنا معك. أنت لست وحدك. هل تريد التحدث عن شعورك؟',
+      );
     }
 
     if (msg.contains('sad') || msg.contains('حزين') || msg.contains('زعلان')) {
-      return 'I am sorry you feel sad. Try taking a deep breath. I can stay with you and listen.';
+      return tr(
+        'I am sorry you feel sad. Try taking a deep breath. I can stay with you and listen.',
+        'أنا آسف لأنك تشعر بالحزن. حاول أخذ نفس عميق. يمكنني البقاء معك والاستماع لك.',
+      );
     }
 
     if (msg.contains('help') ||
         msg.contains('مساعدة') ||
         msg.contains('ساعدني')) {
-      return 'Of course. Tell me what you need, and I will help you prepare a clear message.';
+      return tr(
+        'Of course. Tell me what you need, and I will help you prepare a clear message.',
+        'بالطبع. أخبرني بما تحتاجه، وسأساعدك في تجهيز رسالة واضحة.',
+      );
     }
 
     if (msg.contains('pain') ||
         msg.contains('تعب') ||
         msg.contains('الم') ||
         msg.contains('تعبان')) {
-      return 'It sounds like you may need medical support. Do you want me to prepare a medical assistance message?';
+      return tr(
+        'It sounds like you may need medical support. Do you want me to prepare a medical assistance message?',
+        'يبدو أنك قد تحتاج إلى دعم طبي. هل تريد أن أجهز لك رسالة طلب مساعدة طبية؟',
+      );
     }
 
     if (msg.contains('emergency') ||
         msg.contains('طوارئ') ||
         msg.contains('خطر')) {
-      return 'This sounds urgent. Please press the Emergency button or call your companion immediately.';
+      return tr(
+        'This sounds urgent. Please press the Emergency button or call your companion immediately.',
+        'يبدو أن الأمر طارئ. يرجى الضغط على زر الطوارئ أو الاتصال بالمرافق فوراً.',
+      );
     }
 
-    return 'I understand. Tell me more, I am listening and I will try to support you.';
+    return tr(
+      'I understand. Tell me more, I am listening and I will try to support you.',
+      'أفهمك. أخبرني أكثر، أنا أستمع لك وسأحاول دعمك.',
+    );
   }
 
   void _goBack() {
@@ -616,6 +789,7 @@ class _CommunicationPageState extends State<CommunicationPage> {
 
   @override
   void dispose() {
+    AppSettingsStore.instance.removeListener(_onLanguageChanged);
     _messageController.dispose();
     _aiChatController.dispose();
     _flutterTts.stop();
@@ -624,486 +798,535 @@ class _CommunicationPageState extends State<CommunicationPage> {
 
   @override
   Widget build(BuildContext context) {
-    final phrases = selectedPlaceData['phrases'] as List<String>;
-    final activities = _moodActivities[_selectedMood] ?? [];
+    final phrases = isArabic
+        ? selectedPlaceData['phrasesAr'] as List<String>
+        : selectedPlaceData['phrasesEn'] as List<String>;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF7FBFD),
-      floatingActionButton: FloatingActionButton.large(
-        backgroundColor: const Color(0xFF87CEEB),
-        elevation: 8,
-        onPressed: _openAiCompanion,
-        child: const Text('🤖', style: TextStyle(fontSize: 38)),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Stack(
-              alignment: Alignment.bottomCenter,
-              children: [
-                Container(
-                  height: 130,
-                  width: double.infinity,
-                  color: const Color(0xFF87CEEB),
-                ),
-                Container(
-                  height: 40,
-                  width: double.infinity,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFF7FBFD),
-                    borderRadius: BorderRadius.vertical(
-                      top: Radius.circular(40),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-              child: Row(
+    final activities = isArabic
+        ? (_moodActivitiesAr[_selectedMood] ?? [])
+        : (_moodActivitiesEn[_selectedMood] ?? []);
+
+    return Directionality(
+      textDirection: isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF7FBFD),
+        floatingActionButton: FloatingActionButton.large(
+          backgroundColor: const Color(0xFF87CEEB),
+          elevation: 8,
+          onPressed: _openAiCompanion,
+          child: const Text('🤖', style: TextStyle(fontSize: 38)),
+        ),
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+        body: SafeArea(
+          child: Column(
+            children: [
+              Stack(
+                alignment: Alignment.bottomCenter,
                 children: [
-                  IconButton(
-                    onPressed: _goBack,
-                    icon: const Icon(
-                      Icons.arrow_back,
-                      size: 28,
-                      color: Color(0xFF263238),
-                    ),
+                  Container(
+                    height: 130,
+                    width: double.infinity,
+                    color: const Color(0xFF87CEEB),
                   ),
-                  const Expanded(
-                    child: Center(
-                      child: Text(
-                        'Communication',
-                        style: TextStyle(
-                          fontSize: 25,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1A1A1A),
-                        ),
+                  Container(
+                    height: 40,
+                    width: double.infinity,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFF7FBFD),
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(40),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 48),
                 ],
               ),
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(18),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+                child: Row(
                   children: [
-                    _sectionTitle('Where are you now?'),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      height: 115,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _places.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 12),
-                        itemBuilder: (context, index) {
-                          final place = _places[index];
-                          final isSelected = place['name'] == _selectedPlace;
+                    IconButton(
+                      onPressed: _goBack,
+                      icon: Icon(
+                        isArabic ? Icons.arrow_forward : Icons.arrow_back,
+                        size: 28,
+                        color: const Color(0xFF263238),
+                      ),
+                    ),
+                    Expanded(
+                      child: Center(
+                        child: Text(
+                          tr('Communication', 'التواصل'),
+                          style: const TextStyle(
+                            fontSize: 25,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1A1A1A),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 48),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(18),
+                  child: Column(
+                    crossAxisAlignment: isArabic
+                        ? CrossAxisAlignment.end
+                        : CrossAxisAlignment.start,
+                    children: [
+                      _sectionTitle(tr('Where are you now?', 'أين أنت الآن؟')),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 115,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _places.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(width: 12),
+                          itemBuilder: (context, index) {
+                            final place = _places[index];
+                            final isSelected = place['name'] == _selectedPlace;
 
+                            return GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _selectedPlace = place['name'];
+                                  _generatedMessage = '';
+                                  _detectedSituation = 'General';
+                                  _isEmergency = false;
+                                });
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 250),
+                                width: 105,
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? const Color(0xFF87CEEB)
+                                      : Colors.white,
+                                  borderRadius: BorderRadius.circular(24),
+                                  boxShadow: _shadow(),
+                                ),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      place['emoji'],
+                                      style: const TextStyle(fontSize: 34),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      placeName(place['name']),
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                        color: isSelected
+                                            ? Colors.white
+                                            : const Color(0xFF333333),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      _sectionTitle(
+                        tr(
+                          'Suggested phrases for ${placeName(_selectedPlace)}',
+                          'عبارات مقترحة لـ ${placeName(_selectedPlace)}',
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: phrases.length,
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          mainAxisSpacing: 12,
+                          crossAxisSpacing: 12,
+                          childAspectRatio: 1.65,
+                        ),
+                        itemBuilder: (context, index) {
                           return GestureDetector(
                             onTap: () {
                               setState(() {
-                                _selectedPlace = place['name'];
-                                _generatedMessage = '';
-                                _detectedSituation = 'General';
+                                _messageController.text = phrases[index];
+                                _generatedMessage = phrases[index];
+                                _detectedSituation = 'Quick Phrase';
                                 _isEmergency = false;
                               });
                             },
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 250),
-                              width: 105,
-                              padding: const EdgeInsets.all(12),
+                            child: Container(
+                              padding: const EdgeInsets.all(14),
                               decoration: BoxDecoration(
-                                color: isSelected
-                                    ? const Color(0xFF87CEEB)
-                                    : Colors.white,
-                                borderRadius: BorderRadius.circular(24),
-                                boxShadow: _shadow(),
-                              ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    place['emoji'],
-                                    style: const TextStyle(fontSize: 34),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    place['name'],
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      color: isSelected
-                                          ? Colors.white
-                                          : const Color(0xFF333333),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    _sectionTitle('Suggested phrases for $_selectedPlace'),
-                    const SizedBox(height: 12),
-                    GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: phrases.length,
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        mainAxisSpacing: 12,
-                        crossAxisSpacing: 12,
-                        childAspectRatio: 1.65,
-                      ),
-                      itemBuilder: (context, index) {
-                        return GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _messageController.text = phrases[index];
-                              _generatedMessage = phrases[index];
-                              _detectedSituation = 'Quick Phrase';
-                              _isEmergency = false;
-                            });
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(22),
-                              boxShadow: _shadow(),
-                            ),
-                            child: Center(
-                              child: Text(
-                                phrases[index],
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  fontSize: 14.5,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF333333),
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 24),
-                    _sectionTitle('How do you feel?'),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      height: 82,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _moods.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 10),
-                        itemBuilder: (context, index) {
-                          final mood = _moods[index];
-                          final selected = mood['label'] == _selectedMood;
-
-                          return GestureDetector(
-                            onTap: () async {
-                              setState(() {
-                                _selectedMood = mood['label']!;
-                              });
-
-                              await _saveMoodActivityLog();
-                            },
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 220),
-                              width: 82,
-                              decoration: BoxDecoration(
-                                color: selected
-                                    ? const Color(0xFF87CEEB)
-                                    : Colors.white,
+                                color: Colors.white,
                                 borderRadius: BorderRadius.circular(22),
                                 boxShadow: _shadow(),
                               ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    mood['emoji']!,
-                                    style: const TextStyle(fontSize: 27),
+                              child: Center(
+                                child: Text(
+                                  phrases[index],
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    fontSize: 14.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF333333),
                                   ),
-                                  const SizedBox(height: 5),
-                                  Text(
-                                    mood['label']!,
-                                    style: TextStyle(
-                                      color: selected
-                                          ? Colors.white
-                                          : const Color(0xFF333333),
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
+                                ),
                               ),
                             ),
                           );
                         },
                       ),
-                    ),
-                    const SizedBox(height: 14),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: _shadow(),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Activities for $_selectedMood mood',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF333333),
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          ...activities.map(
-                            (activity) => Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text('✨ '),
-                                  Expanded(
-                                    child: Text(
-                                      activity,
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        height: 1.4,
-                                        color: Color(0xFF555555),
+                      const SizedBox(height: 24),
+                      _sectionTitle(tr('How do you feel?', 'كيف تشعر؟')),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 82,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _moods.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(width: 10),
+                          itemBuilder: (context, index) {
+                            final mood = _moods[index];
+                            final selected = mood['label'] == _selectedMood;
+
+                            return GestureDetector(
+                              onTap: () async {
+                                setState(() {
+                                  _selectedMood = mood['label']!;
+                                });
+
+                                await _saveMoodActivityLog();
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 220),
+                                width: 82,
+                                decoration: BoxDecoration(
+                                  color: selected
+                                      ? const Color(0xFF87CEEB)
+                                      : Colors.white,
+                                  borderRadius: BorderRadius.circular(22),
+                                  boxShadow: _shadow(),
+                                ),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      mood['emoji']!,
+                                      style: const TextStyle(fontSize: 27),
+                                    ),
+                                    const SizedBox(height: 5),
+                                    Text(
+                                      moodName(mood['label']!),
+                                      style: TextStyle(
+                                        color: selected
+                                            ? Colors.white
+                                            : const Color(0xFF333333),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
                                       ),
                                     ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    _sectionTitle('Quick Talk For Me'),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _quickModeCard(
-                            emoji: '👤',
-                            title: 'Talk For Me',
-                            subtitle: 'One tap help',
-                            color: const Color(0xFFE8F6FF),
-                            onTap: _talkForMe,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _quickModeCard(
-                            emoji: '🚨',
-                            title: 'Emergency',
-                            subtitle: 'Need help now',
-                            color: const Color(0xFFFFE7E7),
-                            onTap: _emergencyMessage,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    _sectionTitle('Smart Situation Mode'),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(26),
-                        boxShadow: _shadow(),
-                      ),
-                      child: Column(
-                        children: [
-                          TextField(
-                            controller: _messageController,
-                            minLines: 3,
-                            maxLines: 5,
-                            decoration: InputDecoration(
-                              hintText:
-                                  'Example: I feel dizzy / تعبان / I need water...',
-                              filled: true,
-                              fillColor: const Color(0xFFF3F7FA),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(20),
-                                borderSide: BorderSide.none,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          SizedBox(
-                            width: double.infinity,
-                            height: 55,
-                            child: ElevatedButton.icon(
-                              onPressed: _isSaving ? null : _analyzeSituation,
-                              icon: const Text(
-                                '🧠',
-                                style: TextStyle(fontSize: 22),
-                              ),
-                              label: Text(
-                                _isSaving
-                                    ? 'Saving...'
-                                    : 'Analyze & Generate Message',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
+                                  ],
                                 ),
                               ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF87CEEB),
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(22),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+                            );
+                          },
+                        ),
                       ),
-                    ),
-                    if (_generatedMessage.isNotEmpty) ...[
-                      const SizedBox(height: 24),
-                      _sectionTitle('AI Message Result'),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 14),
                       Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.all(18),
+                        padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: _isEmergency
-                              ? const Color(0xFFFFF0F0)
-                              : Colors.white,
-                          borderRadius: BorderRadius.circular(26),
-                          border: Border.all(
-                            color: _isEmergency
-                                ? Colors.redAccent
-                                : Colors.transparent,
-                            width: 1.5,
-                          ),
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(24),
                           boxShadow: _shadow(),
                         ),
                         child: Column(
+                          crossAxisAlignment: isArabic
+                              ? CrossAxisAlignment.end
+                              : CrossAxisAlignment.start,
                           children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 8,
-                              ),
-                              decoration: BoxDecoration(
-                                color: _isEmergency
-                                    ? Colors.redAccent
-                                    : const Color(0xFFE8F6FF),
-                                borderRadius: BorderRadius.circular(18),
-                              ),
-                              child: Text(
-                                'Detected: $_detectedSituation',
-                                style: TextStyle(
-                                  color: _isEmergency
-                                      ? Colors.white
-                                      : const Color(0xFF2B8DBD),
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
                             Text(
-                              _generatedMessage,
-                              textAlign: TextAlign.center,
+                              tr(
+                                'Activities for ${moodName(_selectedMood)} mood',
+                                'أنشطة لحالة ${moodName(_selectedMood)}',
+                              ),
                               style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                height: 1.5,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
                                 color: Color(0xFF333333),
                               ),
                             ),
-                            const SizedBox(height: 18),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _actionButton(
-                                    icon: Icons.volume_up_rounded,
-                                    text: 'Read',
-                                    onTap: _speakMessage,
-                                  ),
+                            const SizedBox(height: 10),
+                            ...activities.map(
+                              (activity) => Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('✨ '),
+                                    Expanded(
+                                      child: Text(
+                                        activity,
+                                        textAlign: isArabic
+                                            ? TextAlign.right
+                                            : TextAlign.left,
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          height: 1.4,
+                                          color: Color(0xFF555555),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: _actionButton(
-                                    icon: Icons.copy_rounded,
-                                    text: 'Copy',
-                                    onTap: _copyMessage,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: _actionButton(
-                                    icon: Icons.open_in_full_rounded,
-                                    text: 'Large',
-                                    onTap: _showLargeText,
-                                  ),
-                                ),
-                              ],
+                              ),
                             ),
                           ],
                         ),
                       ),
+                      const SizedBox(height: 24),
+                      _sectionTitle(
+                        tr('Quick Talk For Me', 'التحدث السريع'),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _quickModeCard(
+                              emoji: '👤',
+                              title: tr('Talk For Me', 'تحدث بدلاً عني'),
+                              subtitle: tr('One tap help', 'مساعدة بضغطة'),
+                              color: const Color(0xFFE8F6FF),
+                              onTap: _talkForMe,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _quickModeCard(
+                              emoji: '🚨',
+                              title: tr('Emergency', 'طوارئ'),
+                              subtitle: tr('Need help now', 'أحتاج مساعدة'),
+                              color: const Color(0xFFFFE7E7),
+                              onTap: _emergencyMessage,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      _sectionTitle(
+                        tr('Smart Situation Mode', 'وضع تحليل الموقف الذكي'),
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(26),
+                          boxShadow: _shadow(),
+                        ),
+                        child: Column(
+                          children: [
+                            TextField(
+                              controller: _messageController,
+                              minLines: 3,
+                              maxLines: 5,
+                              textAlign:
+                                  isArabic ? TextAlign.right : TextAlign.left,
+                              decoration: InputDecoration(
+                                hintText: tr(
+                                  'Example: I feel dizzy / تعبان / I need water...',
+                                  'مثال: أشعر بالدوار / تعبان / أحتاج ماء...',
+                                ),
+                                filled: true,
+                                fillColor: const Color(0xFFF3F7FA),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                  borderSide: BorderSide.none,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 55,
+                              child: ElevatedButton.icon(
+                                onPressed: _isSaving ? null : _analyzeSituation,
+                                icon: const Text(
+                                  '🧠',
+                                  style: TextStyle(fontSize: 22),
+                                ),
+                                label: Text(
+                                  _isSaving
+                                      ? tr('Saving...', 'جاري الحفظ...')
+                                      : tr(
+                                          'Analyze & Generate Message',
+                                          'تحليل وإنشاء رسالة',
+                                        ),
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF87CEEB),
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(22),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (_generatedMessage.isNotEmpty) ...[
+                        const SizedBox(height: 24),
+                        _sectionTitle(
+                          tr('AI Message Result', 'نتيجة الرسالة الذكية'),
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(18),
+                          decoration: BoxDecoration(
+                            color: _isEmergency
+                                ? const Color(0xFFFFF0F0)
+                                : Colors.white,
+                            borderRadius: BorderRadius.circular(26),
+                            border: Border.all(
+                              color: _isEmergency
+                                  ? Colors.redAccent
+                                  : Colors.transparent,
+                              width: 1.5,
+                            ),
+                            boxShadow: _shadow(),
+                          ),
+                          child: Column(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _isEmergency
+                                      ? Colors.redAccent
+                                      : const Color(0xFFE8F6FF),
+                                  borderRadius: BorderRadius.circular(18),
+                                ),
+                                child: Text(
+                                  tr(
+                                    'Detected: $_detectedSituation',
+                                    'تم التعرف على الحالة: $_detectedSituation',
+                                  ),
+                                  style: TextStyle(
+                                    color: _isEmergency
+                                        ? Colors.white
+                                        : const Color(0xFF2B8DBD),
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                _generatedMessage,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                  height: 1.5,
+                                  color: Color(0xFF333333),
+                                ),
+                              ),
+                              const SizedBox(height: 18),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _actionButton(
+                                      icon: Icons.volume_up_rounded,
+                                      text: tr('Read', 'قراءة'),
+                                      onTap: _speakMessage,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: _actionButton(
+                                      icon: Icons.copy_rounded,
+                                      text: tr('Copy', 'نسخ'),
+                                      onTap: _copyMessage,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: _actionButton(
+                                      icon: Icons.open_in_full_rounded,
+                                      text: tr('Large', 'تكبير'),
+                                      onTap: _showLargeText,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 100),
                     ],
-                    const SizedBox(height: 100),
-                  ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-      bottomNavigationBar: Container(
-        margin: const EdgeInsets.all(16),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-        decoration: BoxDecoration(
-          color: const Color(0xFF87CEEB),
-          borderRadius: BorderRadius.circular(30),
-          boxShadow: _shadow(),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _bottomItem(Icons.home_rounded, 'Home', 0),
-            _bottomItem(Icons.person_rounded, 'Profile', 1),
-            _bottomItem(Icons.settings_rounded, 'Settings', 2),
-          ],
+        bottomNavigationBar: Container(
+          margin: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFF87CEEB),
+            borderRadius: BorderRadius.circular(30),
+            boxShadow: _shadow(),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _bottomItem(Icons.home_rounded, tr('Home', 'الرئيسية'), 0),
+              _bottomItem(Icons.person_rounded, tr('Profile', 'الملف'), 1),
+              _bottomItem(
+                Icons.settings_rounded,
+                tr('Settings', 'الإعدادات'),
+                2,
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _sectionTitle(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        fontSize: 19,
-        fontWeight: FontWeight.bold,
-        color: Color(0xFF333333),
+    return Align(
+      alignment: isArabic ? Alignment.centerRight : Alignment.centerLeft,
+      child: Text(
+        title,
+        textAlign: isArabic ? TextAlign.right : TextAlign.left,
+        style: const TextStyle(
+          fontSize: 19,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFF333333),
+        ),
       ),
     );
   }
@@ -1168,6 +1391,7 @@ class _CommunicationPageState extends State<CommunicationPage> {
         foregroundColor: const Color(0xFF2B8DBD),
         elevation: 0,
         padding: const EdgeInsets.symmetric(vertical: 13),
+        minimumSize: const Size(0, 45),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       ),
     );

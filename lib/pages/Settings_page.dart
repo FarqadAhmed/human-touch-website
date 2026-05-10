@@ -8,6 +8,8 @@ import 'Dashboard_page.dart';
 import 'Profile_page.dart';
 import 'Login_page.dart';
 
+import 'package:humantouch/pages/app_settings_store.dart';
+
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
 
@@ -35,6 +37,12 @@ class _SettingsPageState extends State<SettingsPage> {
   String _language = 'en';
   double _textScale = 1.0;
   bool _isLoading = true;
+
+  bool get isArabic => AppSettingsStore.instance.isArabic;
+
+  String tr(String en, String ar) {
+    return isArabic ? ar : en;
+  }
 
   @override
   void initState() {
@@ -66,6 +74,10 @@ class _SettingsPageState extends State<SettingsPage> {
 
       if (!mounted) return;
 
+      final savedLanguage = (data['language'] ?? 'en').toString();
+
+      AppSettingsStore.instance.changeLanguage(savedLanguage);
+
       setState(() {
         _name = (data['name'] ?? data['fullName'] ?? data['username'] ?? '')
             .toString();
@@ -80,7 +92,7 @@ class _SettingsPageState extends State<SettingsPage> {
         _sendSmsToCompanion = data['sendSmsToCompanion'] ?? true;
         _alertNearbyVolunteers = data['alertNearbyVolunteers'] ?? true;
 
-        _language = (data['language'] ?? 'en').toString();
+        _language = savedLanguage;
 
         final textScaleValue = data['textScale'];
         if (textScaleValue is num) {
@@ -165,63 +177,66 @@ class _SettingsPageState extends State<SettingsPage> {
     showDialog(
       context: context,
       builder: (context) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.all(20),
-          child: Container(
-            constraints: const BoxConstraints(maxHeight: 650, minHeight: 120),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(20, 18, 12, 18),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF87CEEB),
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(24),
-                      topRight: Radius.circular(24),
+        return Directionality(
+          textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+          child: Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: const EdgeInsets.all(20),
+            child: Container(
+              constraints: const BoxConstraints(maxHeight: 650, minHeight: 120),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(20, 18, 12, 18),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF87CEEB),
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(24),
+                        topRight: Radius.circular(24),
+                      ),
                     ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(icon, color: Colors.white, size: 28),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          title,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
+                    child: Row(
+                      children: [
+                        Icon(icon, color: Colors.white, size: 28),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            title,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.close, color: Colors.white),
-                      ),
-                    ],
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.close, color: Colors.white),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                Flexible(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(20),
-                    child: Text(
-                      content,
-                      style: const TextStyle(
-                        color: Color(0xFF14181B),
-                        fontSize: 14,
-                        height: 1.55,
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(20),
+                      child: Text(
+                        content,
+                        style: const TextStyle(
+                          color: Color(0xFF14181B),
+                          fontSize: 14,
+                          height: 1.55,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );
@@ -231,33 +246,48 @@ class _SettingsPageState extends State<SettingsPage> {
 
   void _showAboutHumanTouch() {
     _showInfoCard(
-      title: 'About Human Touch',
+      title: tr('About Human Touch', 'عن Human Touch'),
       icon: Icons.supervisor_account,
-      content:
-          '''Human Touch is a smart companion designed to improve daily life and independence for people with disabilities.''',
+      content: tr(
+        'Human Touch is a smart companion designed to improve daily life and independence for people with disabilities.',
+        'Human Touch هو تطبيق ذكي مصمم لتحسين الحياة اليومية وزيادة الاستقلالية للأشخاص ذوي الإعاقة.',
+      ),
     );
   }
 
   void _showContactUs() {
     _showInfoCard(
-      title: 'Contact Us',
+      title: tr('Contact Us', 'تواصل معنا'),
       icon: Icons.phone_paused_rounded,
-      content: '''We are here to support you.
+      content: tr(
+        '''We are here to support you.
 
 Email: humantouchapp@gmail.com
 
 Service Provider: Human Touch Team''',
+        '''نحن هنا لدعمك.
+
+البريد الإلكتروني: humantouchapp@gmail.com
+
+مزود الخدمة: فريق Human Touch''',
+      ),
     );
   }
 
   void _showPrivacyPolicy() {
     _showInfoCard(
-      title: 'Privacy Policy',
+      title: tr('Privacy Policy', 'سياسة الخصوصية'),
       icon: Icons.privacy_tip_outlined,
-      content: '''Privacy Policy
+      content: tr(
+        '''Privacy Policy
 Effective Date: April 27, 2026
 
 This Privacy Policy applies to the Human Touch app.''',
+        '''سياسة الخصوصية
+تاريخ السريان: 27 أبريل 2026
+
+تنطبق سياسة الخصوصية هذه على تطبيق Human Touch.''',
+      ),
     );
   }
 
@@ -304,9 +334,9 @@ This Privacy Policy applies to the Human Touch app.''',
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _bottomItem(Icons.home_rounded, 'Home', 0),
-          _bottomItem(Icons.person_rounded, 'Profile', 1),
-          _bottomItem(Icons.settings_rounded, 'Settings', 2),
+          _bottomItem(Icons.home_rounded, tr('Home', 'الرئيسية'), 0),
+          _bottomItem(Icons.person_rounded, tr('Profile', 'الملف'), 1),
+          _bottomItem(Icons.settings_rounded, tr('Settings', 'الإعدادات'), 2),
         ],
       ),
     );
@@ -377,10 +407,12 @@ This Privacy Policy applies to the Human Touch app.''',
             const SizedBox(width: 16),
             Expanded(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: isArabic
+                    ? CrossAxisAlignment.end
+                    : CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _name.isEmpty ? 'No Name' : _name,
+                    _name.isEmpty ? tr('No Name', 'لا يوجد اسم') : _name,
                     style: const TextStyle(
                       color: Color(0xFF14181B),
                       fontSize: 24,
@@ -389,7 +421,9 @@ This Privacy Policy applies to the Human Touch app.''',
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    _email.isEmpty ? 'No Email' : _email,
+                    _email.isEmpty
+                        ? tr('No Email', 'لا يوجد بريد إلكتروني')
+                        : _email,
                     style: const TextStyle(
                       color: Color(0xFF87CEEB),
                       fontSize: 14,
@@ -406,9 +440,9 @@ This Privacy Policy applies to the Human Touch app.''',
 
   Widget _buildSectionTitle(String title) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(15, 10, 0, 0),
+      padding: EdgeInsets.fromLTRB(isArabic ? 0 : 15, 10, isArabic ? 15 : 0, 0),
       child: Align(
-        alignment: Alignment.centerLeft,
+        alignment: isArabic ? Alignment.centerRight : Alignment.centerLeft,
         child: Text(
           title,
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
@@ -464,6 +498,7 @@ This Privacy Policy applies to the Human Touch app.''',
           Expanded(
             child: Text(
               title,
+              textAlign: isArabic ? TextAlign.right : TextAlign.left,
               style: const TextStyle(color: Color(0xFF14181B), fontSize: 14),
             ),
           ),
@@ -494,6 +529,7 @@ This Privacy Policy applies to the Human Touch app.''',
             Expanded(
               child: Text(
                 title,
+                textAlign: isArabic ? TextAlign.right : TextAlign.left,
                 style: const TextStyle(color: Color(0xFF14181B), fontSize: 14),
               ),
             ),
@@ -520,11 +556,12 @@ This Privacy Policy applies to the Human Touch app.''',
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 10, 24, 10),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Companion Phone Number',
-            style: TextStyle(
+          Text(
+            tr('Companion Phone Number', 'رقم هاتف المرافق'),
+            style: const TextStyle(
               color: Color(0xFF14181B),
               fontSize: 14,
             ),
@@ -543,15 +580,20 @@ This Privacy Policy applies to the Human Touch app.''',
                   child: TextField(
                     controller: _companionPhoneController,
                     keyboardType: TextInputType.phone,
-                    decoration: const InputDecoration(
+                    textAlign: isArabic ? TextAlign.right : TextAlign.left,
+                    decoration: InputDecoration(
                       border: InputBorder.none,
-                      hintText: 'Enter companion phone number',
+                      hintText: tr(
+                        'Enter companion phone number',
+                        'أدخل رقم هاتف المرافق',
+                      ),
                     ),
                   ),
                 ),
               ),
               const SizedBox(width: 10),
               SizedBox(
+                width: 80,
                 height: 52,
                 child: ElevatedButton(
                   onPressed: () async {
@@ -562,8 +604,13 @@ This Privacy Policy applies to the Human Touch app.''',
                     if (!mounted) return;
 
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Companion phone saved successfully'),
+                      SnackBar(
+                        content: Text(
+                          tr(
+                            'Companion phone saved successfully',
+                            'تم حفظ رقم المرافق بنجاح',
+                          ),
+                        ),
                       ),
                     );
                   },
@@ -571,11 +618,14 @@ This Privacy Policy applies to the Human Touch app.''',
                     backgroundColor: const Color(0xFF87CEEB),
                     foregroundColor: Colors.white,
                     elevation: 1,
+                    minimumSize: const Size(80, 52),
+                    fixedSize: const Size(80, 52),
+                    padding: EdgeInsets.zero,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  child: const Text('Save'),
+                  child: Text(tr('Save', 'حفظ')),
                 ),
               ),
             ],
@@ -597,7 +647,10 @@ This Privacy Policy applies to the Human Touch app.''',
             foregroundColor: const Color(0xFF14181B),
             minimumSize: const Size(90, 40),
           ),
-          child: const Text('Log Out', style: TextStyle(fontSize: 14)),
+          child: Text(
+            tr('Log Out', 'تسجيل الخروج'),
+            style: const TextStyle(fontSize: 14),
+          ),
         ),
       ),
     );
@@ -614,144 +667,181 @@ This Privacy Policy applies to the Human Touch app.''',
       );
     }
 
-    return GestureDetector(
-      onTap: () {
-        FocusScope.of(context).unfocus();
-      },
-      child: Scaffold(
-        backgroundColor: const Color(0xFFF4F4F4),
-        body: SafeArea(
-          child: Column(
-            children: [
-              _buildHeader(),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      _buildProfileCard(),
-                      _buildCard(
-                        children: [
-                          _buildSectionTitle('Account Settings'),
-                          _buildDivider(),
-                          _buildSwitchRow(
-                            title: 'Switch to Dark Mode',
-                            value: _darkMode,
-                            onChanged: (value) async {
-                              setState(() => _darkMode = value);
-                              await _updateSetting('darkMode', value);
-                            },
-                          ),
-                          _buildDivider(),
-                          _buildSwitchRow(
-                            title: 'Notifications',
-                            value: _notifications,
-                            onChanged: (value) async {
-                              setState(() => _notifications = value);
-                              await _updateSetting('notifications', value);
-                            },
-                          ),
-                          _buildDivider(),
-                          _buildSwitchRow(
-                            title: 'Location Sharing',
-                            value: _locationSharing,
-                            onChanged: (value) async {
-                              setState(() => _locationSharing = value);
-                              await _updateSetting('locationSharing', value);
-                            },
-                          ),
-                          _buildDivider(),
-                          _buildSimpleRow(
-                            icon: Icons.g_translate_sharp,
-                            title: 'Language',
-                            trailingText:
-                                _language == 'ar' ? 'Arabic' : 'English',
-                            onTap: () async {
-                              final newLang = _language == 'ar' ? 'en' : 'ar';
-                              setState(() => _language = newLang);
-                              await _updateSetting('language', newLang);
-                            },
-                          ),
-                          _buildDivider(),
-                          _buildSwitchRow(
-                            title: 'Increase font size',
-                            value: _textScale > 1.0,
-                            onChanged: (value) async {
-                              final newScale = value ? 1.15 : 1.0;
-                              setState(() => _textScale = newScale);
-                              await _updateSetting('textScale', newScale);
-                            },
-                            icon: Icons.format_size_rounded,
-                          ),
-                          _buildDivider(),
-                          _buildCompanionPhoneRow(),
-                          _buildDivider(),
-                          _buildSwitchRow(
-                            title: 'Call Companion in Emergency',
-                            value: _callCompanion,
-                            onChanged: (value) async {
-                              setState(() => _callCompanion = value);
-                              await _updateSetting('callCompanion', value);
-                            },
-                            icon: Icons.phone_rounded,
-                          ),
-                          _buildDivider(),
-                          _buildSwitchRow(
-                            title: 'Send SMS to Companion',
-                            value: _sendSmsToCompanion,
-                            onChanged: (value) async {
-                              setState(() => _sendSmsToCompanion = value);
-                              await _updateSetting('sendSmsToCompanion', value);
-                            },
-                            icon: Icons.sms_outlined,
-                          ),
-                          _buildDivider(),
-                          _buildSwitchRow(
-                            title: 'Alert Nearby Volunteers',
-                            value: _alertNearbyVolunteers,
-                            onChanged: (value) async {
-                              setState(() => _alertNearbyVolunteers = value);
-                              await _updateSetting(
-                                'alertNearbyVolunteers',
-                                value,
-                              );
-                            },
-                            icon: Icons.location_on_outlined,
-                          ),
-                        ],
-                      ),
-                      _buildCard(
-                        children: [
-                          _buildSectionTitle('Human Touch'),
-                          _buildDivider(),
-                          _buildSimpleRow(
-                            icon: Icons.supervisor_account,
-                            title: 'About Human Touch',
-                            onTap: _showAboutHumanTouch,
-                          ),
-                          _buildDivider(),
-                          _buildSimpleRow(
-                            icon: Icons.phone_paused_rounded,
-                            title: 'Contact Us',
-                            onTap: _showContactUs,
-                          ),
-                          _buildDivider(),
-                          _buildSimpleRow(
-                            icon: Icons.privacy_tip_outlined,
-                            title: 'Privacy Policy',
-                            onTap: _showPrivacyPolicy,
-                          ),
-                        ],
-                      ),
-                      _buildLogoutButton(),
-                      const SizedBox(height: 20),
-                    ],
+    return Directionality(
+      textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+      child: GestureDetector(
+        onTap: () {
+          FocusScope.of(context).unfocus();
+        },
+        child: Scaffold(
+          backgroundColor: const Color(0xFFF4F4F4),
+          body: SafeArea(
+            child: Column(
+              children: [
+                _buildHeader(),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        _buildProfileCard(),
+                        _buildCard(
+                          children: [
+                            _buildSectionTitle(
+                              tr('Account Settings', 'إعدادات الحساب'),
+                            ),
+                            _buildDivider(),
+                            _buildSwitchRow(
+                              title: tr(
+                                'Switch to Dark Mode',
+                                'تفعيل الوضع الداكن',
+                              ),
+                              value: _darkMode,
+                              onChanged: (value) async {
+                                setState(() => _darkMode = value);
+                                await _updateSetting('darkMode', value);
+                              },
+                            ),
+                            _buildDivider(),
+                            _buildSwitchRow(
+                              title: tr('Notifications', 'الإشعارات'),
+                              value: _notifications,
+                              onChanged: (value) async {
+                                setState(() => _notifications = value);
+                                await _updateSetting('notifications', value);
+                              },
+                            ),
+                            _buildDivider(),
+                            _buildSwitchRow(
+                              title: tr('Location Sharing', 'مشاركة الموقع'),
+                              value: _locationSharing,
+                              onChanged: (value) async {
+                                setState(() => _locationSharing = value);
+                                await _updateSetting('locationSharing', value);
+                              },
+                            ),
+                            _buildDivider(),
+                            _buildSimpleRow(
+                              icon: Icons.g_translate_sharp,
+                              title: tr('Language', 'اللغة'),
+                              trailingText: _language == 'ar'
+                                  ? tr('Arabic', 'العربية')
+                                  : tr('English', 'الإنجليزية'),
+                              onTap: () async {
+                                final newLang = _language == 'ar' ? 'en' : 'ar';
+
+                                setState(() => _language = newLang);
+
+                                AppSettingsStore.instance.changeLanguage(
+                                  newLang,
+                                );
+
+                                await _updateSetting('language', newLang);
+                              },
+                            ),
+                            _buildDivider(),
+                            _buildSwitchRow(
+                              title: tr(
+                                'Increase font size',
+                                'تكبير حجم الخط',
+                              ),
+                              value: _textScale > 1.0,
+                              onChanged: (value) async {
+                                final newScale = value ? 1.15 : 1.0;
+                                setState(() => _textScale = newScale);
+                                await _updateSetting('textScale', newScale);
+                              },
+                              icon: Icons.format_size_rounded,
+                            ),
+                            _buildDivider(),
+                            _buildCompanionPhoneRow(),
+                            _buildDivider(),
+                            _buildSwitchRow(
+                              title: tr(
+                                'Call Companion in Emergency',
+                                'الاتصال بالمرافق في الطوارئ',
+                              ),
+                              value: _callCompanion,
+                              onChanged: (value) async {
+                                setState(() => _callCompanion = value);
+                                await _updateSetting('callCompanion', value);
+                              },
+                              icon: Icons.phone_rounded,
+                            ),
+                            _buildDivider(),
+                            _buildSwitchRow(
+                              title: tr(
+                                'Send SMS to Companion',
+                                'إرسال رسالة SMS للمرافق',
+                              ),
+                              value: _sendSmsToCompanion,
+                              onChanged: (value) async {
+                                setState(() => _sendSmsToCompanion = value);
+                                await _updateSetting(
+                                  'sendSmsToCompanion',
+                                  value,
+                                );
+                              },
+                              icon: Icons.sms_outlined,
+                            ),
+                            _buildDivider(),
+                            _buildSwitchRow(
+                              title: tr(
+                                'Alert Nearby Volunteers',
+                                'تنبيه المتطوعين القريبين',
+                              ),
+                              value: _alertNearbyVolunteers,
+                              onChanged: (value) async {
+                                setState(
+                                  () => _alertNearbyVolunteers = value,
+                                );
+                                await _updateSetting(
+                                  'alertNearbyVolunteers',
+                                  value,
+                                );
+                              },
+                              icon: Icons.location_on_outlined,
+                            ),
+                          ],
+                        ),
+                        _buildCard(
+                          children: [
+                            _buildSectionTitle(
+                              tr('Human Touch', 'Human Touch'),
+                            ),
+                            _buildDivider(),
+                            _buildSimpleRow(
+                              icon: Icons.supervisor_account,
+                              title: tr(
+                                'About Human Touch',
+                                'عن Human Touch',
+                              ),
+                              onTap: _showAboutHumanTouch,
+                            ),
+                            _buildDivider(),
+                            _buildSimpleRow(
+                              icon: Icons.phone_paused_rounded,
+                              title: tr('Contact Us', 'تواصل معنا'),
+                              onTap: _showContactUs,
+                            ),
+                            _buildDivider(),
+                            _buildSimpleRow(
+                              icon: Icons.privacy_tip_outlined,
+                              title: tr('Privacy Policy', 'سياسة الخصوصية'),
+                              onTap: _showPrivacyPolicy,
+                            ),
+                          ],
+                        ),
+                        _buildLogoutButton(),
+                        const SizedBox(height: 20),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
+          bottomNavigationBar: _buildBottomNavigation(),
         ),
-        bottomNavigationBar: _buildBottomNavigation(),
       ),
     );
   }

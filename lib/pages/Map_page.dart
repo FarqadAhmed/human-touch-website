@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
@@ -10,6 +12,8 @@ import 'accessible_places_service.dart';
 import 'Dashboard_page.dart';
 import 'Profile_page.dart';
 import 'Settings_page.dart';
+
+import 'package:humantouch/pages/app_settings_store.dart';
 
 class AiMessage {
   final String text;
@@ -37,13 +41,7 @@ class _MapPageState extends State<MapPage> {
 
   AccessiblePlace? _selectedPlace;
 
-  final List<AiMessage> _messages = [
-    AiMessage(
-      text:
-          'Hello 👋 Tell me where you want to go, and I will suggest accessible places near you.',
-      isAi: true,
-    ),
-  ];
+  final List<AiMessage> _messages = [];
 
   List<AccessiblePlace> _results = [];
   Set<Marker> _markers = {};
@@ -51,17 +49,70 @@ class _MapPageState extends State<MapPage> {
   static const Color _mainBlue = Color(0xFF87CEEB);
   static const Color _pageBg = Color(0xFFF4F4F4);
 
+  bool get isArabic => AppSettingsStore.instance.isArabic;
+
+  String tr(String en, String ar) => isArabic ? ar : en;
+
   @override
   void initState() {
     super.initState();
+
+    _messages.add(
+      AiMessage(
+        text: tr(
+          'Hello 👋 Tell me where you want to go, and I will suggest accessible places near you.',
+          'مرحباً 👋 أخبرني إلى أين تريد الذهاب، وسأقترح لك أماكن مناسبة قريبة منك.',
+        ),
+        isAi: true,
+      ),
+    );
+
+    AppSettingsStore.instance.addListener(_onLanguageChanged);
     _getCurrentLocation();
+  }
+
+  void _onLanguageChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    AppSettingsStore.instance.removeListener(_onLanguageChanged);
     _searchController.dispose();
     _mapController?.dispose();
     super.dispose();
+  }
+
+  String quickChipLabel(String label) {
+    switch (label) {
+      case 'Restaurant':
+        return tr('Restaurant', 'مطعم');
+      case 'Cafe':
+        return tr('Cafe', 'مقهى');
+      case 'Hospital':
+        return tr('Hospital', 'مستشفى');
+      case 'Mall':
+        return tr('Mall', 'مجمع');
+      case 'Park':
+        return tr('Park', 'حديقة');
+      default:
+        return label;
+    }
+  }
+
+  String tagText(String text) {
+    switch (text) {
+      case 'Entrance':
+        return tr('Entrance', 'مدخل');
+      case 'Parking':
+        return tr('Parking', 'مواقف');
+      case 'Restroom':
+        return tr('Restroom', 'دورة مياه');
+      case 'Seating':
+        return tr('Seating', 'جلسات');
+      default:
+        return text;
+    }
   }
 
   Future<void> _saveSearchLog({
@@ -182,9 +233,9 @@ class _MapPageState extends State<MapPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _bottomItem(Icons.home_rounded, 'Home', 0),
-          _bottomItem(Icons.person_rounded, 'Profile', 1),
-          _bottomItem(Icons.settings_rounded, 'Settings', 2),
+          _bottomItem(Icons.home_rounded, tr('Home', 'الرئيسية'), 0),
+          _bottomItem(Icons.person_rounded, tr('Profile', 'الملف'), 1),
+          _bottomItem(Icons.settings_rounded, tr('Settings', 'الإعدادات'), 2),
         ],
       ),
     );
@@ -213,17 +264,17 @@ class _MapPageState extends State<MapPage> {
             children: [
               IconButton(
                 onPressed: _goBack,
-                icon: const Icon(
-                  Icons.arrow_back,
+                icon: Icon(
+                  isArabic ? Icons.arrow_forward : Icons.arrow_back,
                   size: 28,
-                  color: Color(0xFF263238),
+                  color: const Color(0xFF263238),
                 ),
               ),
-              const Expanded(
+              Expanded(
                 child: Center(
                   child: Text(
-                    'Accessible Map',
-                    style: TextStyle(
+                    tr('Accessible Map', 'الخريطة الميسّرة'),
+                    style: const TextStyle(
                       fontSize: 25,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF1A1A1A),
@@ -244,7 +295,12 @@ class _MapPageState extends State<MapPage> {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         setState(() => _isLoadingLocation = false);
-        _addAiMessage('Please turn on location services first.');
+        _addAiMessage(
+          tr(
+            'Please turn on location services first.',
+            'يرجى تشغيل خدمات الموقع أولاً.',
+          ),
+        );
         return;
       }
 
@@ -258,7 +314,10 @@ class _MapPageState extends State<MapPage> {
           permission == LocationPermission.deniedForever) {
         setState(() => _isLoadingLocation = false);
         _addAiMessage(
-          'Location permission is required to suggest nearby places.',
+          tr(
+            'Location permission is required to suggest nearby places.',
+            'إذن الموقع مطلوب لاقتراح أماكن قريبة.',
+          ),
         );
         return;
       }
@@ -272,7 +331,7 @@ class _MapPageState extends State<MapPage> {
           Marker(
             markerId: const MarkerId('my_location'),
             position: LatLng(position.latitude, position.longitude),
-            infoWindow: const InfoWindow(title: 'My Location'),
+            infoWindow: InfoWindow(title: tr('My Location', 'موقعي')),
             icon: BitmapDescriptor.defaultMarkerWithHue(
               BitmapDescriptor.hueAzure,
             ),
@@ -283,7 +342,12 @@ class _MapPageState extends State<MapPage> {
       _moveCamera(LatLng(position.latitude, position.longitude), zoom: 14);
     } catch (_) {
       setState(() => _isLoadingLocation = false);
-      _addAiMessage('Failed to get your location.');
+      _addAiMessage(
+        tr(
+          'Failed to get your location.',
+          'فشل الحصول على موقعك.',
+        ),
+      );
     }
   }
 
@@ -301,7 +365,12 @@ class _MapPageState extends State<MapPage> {
 
   Future<void> _searchByPrompt(String prompt) async {
     if (_currentPosition == null) {
-      _addAiMessage('I still need your current location first.');
+      _addAiMessage(
+        tr(
+          'I still need your current location first.',
+          'ما زلت أحتاج إلى موقعك الحالي أولاً.',
+        ),
+      );
       return;
     }
 
@@ -333,7 +402,7 @@ class _MapPageState extends State<MapPage> {
             _currentPosition!.latitude,
             _currentPosition!.longitude,
           ),
-          infoWindow: const InfoWindow(title: 'My Location'),
+          infoWindow: InfoWindow(title: tr('My Location', 'موقعي')),
           icon: BitmapDescriptor.defaultMarkerWithHue(
             BitmapDescriptor.hueAzure,
           ),
@@ -364,12 +433,20 @@ class _MapPageState extends State<MapPage> {
       });
 
       if (places.isEmpty) {
-        _addAiMessage('I could not find accessible places for that request.');
+        _addAiMessage(
+          tr(
+            'I could not find accessible places for that request.',
+            'لم أتمكن من العثور على أماكن ميسّرة لهذا الطلب.',
+          ),
+        );
         return;
       }
 
       _addAiMessage(
-        'I found ${places.length} accessible options near you. Choose one and I will open its location.',
+        tr(
+          'I found ${places.length} accessible options near you. Choose one and I will open its location.',
+          'وجدت ${places.length} خيارات ميسّرة بالقرب منك. اختر واحداً وسأفتح موقعه.',
+        ),
       );
 
       final first = places.first;
@@ -378,7 +455,12 @@ class _MapPageState extends State<MapPage> {
       setState(() {
         _isSearching = false;
       });
-      _addAiMessage('Search failed. Please try again.');
+      _addAiMessage(
+        tr(
+          'Search failed. Please try again.',
+          'فشل البحث. يرجى المحاولة مرة أخرى.',
+        ),
+      );
     }
   }
 
@@ -404,7 +486,7 @@ class _MapPageState extends State<MapPage> {
     return ActionChip(
       backgroundColor: Colors.white,
       side: const BorderSide(color: Color(0xFFE5E5E5)),
-      label: Text(label),
+      label: Text(quickChipLabel(label)),
       onPressed: () => _searchByPrompt(label),
     );
   }
@@ -422,6 +504,7 @@ class _MapPageState extends State<MapPage> {
         ),
         child: Text(
           message.text,
+          textAlign: isArabic ? TextAlign.right : TextAlign.left,
           style: TextStyle(
             color: message.isAi ? Colors.black87 : Colors.white,
             fontSize: 13,
@@ -440,7 +523,7 @@ class _MapPageState extends State<MapPage> {
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
-        text,
+        tagText(text),
         style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
       ),
     );
@@ -461,10 +544,12 @@ class _MapPageState extends State<MapPage> {
         ),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
           Text(
             place.name,
+            textAlign: isArabic ? TextAlign.right : TextAlign.left,
             style: const TextStyle(
               fontWeight: FontWeight.w700,
               fontSize: 15,
@@ -473,7 +558,11 @@ class _MapPageState extends State<MapPage> {
           ),
           const SizedBox(height: 4),
           Text(
-            '${place.category} • ${place.distanceKm.toStringAsFixed(1)} km away',
+            tr(
+              '${place.category} • ${place.distanceKm.toStringAsFixed(1)} km away',
+              '${place.category} • يبعد ${place.distanceKm.toStringAsFixed(1)} كم',
+            ),
+            textAlign: isArabic ? TextAlign.right : TextAlign.left,
             style: const TextStyle(fontSize: 12, color: Colors.black54),
           ),
           const SizedBox(height: 8),
@@ -490,6 +579,7 @@ class _MapPageState extends State<MapPage> {
           const SizedBox(height: 8),
           Text(
             place.note,
+            textAlign: isArabic ? TextAlign.right : TextAlign.left,
             style: const TextStyle(fontSize: 12, color: Colors.black87),
           ),
           const SizedBox(height: 10),
@@ -511,13 +601,14 @@ class _MapPageState extends State<MapPage> {
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _mainBlue,
+                    minimumSize: const Size(0, 44),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  child: const Text(
-                    'Select',
-                    style: TextStyle(color: Colors.white),
+                  child: Text(
+                    tr('Select', 'اختيار'),
+                    style: const TextStyle(color: Colors.white),
                   ),
                 ),
               ),
@@ -526,11 +617,12 @@ class _MapPageState extends State<MapPage> {
                 child: OutlinedButton(
                   onPressed: () => _openPlaceInMaps(place),
                   style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 44),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  child: const Text('Open Map'),
+                  child: Text(tr('Open Map', 'فتح الخريطة')),
                 ),
               ),
             ],
@@ -546,164 +638,174 @@ class _MapPageState extends State<MapPage> {
         ? const LatLng(26.2235, 50.5876)
         : LatLng(_currentPosition!.latitude, _currentPosition!.longitude);
 
-    return GestureDetector(
-      onTap: () => FocusScope.of(context).unfocus(),
-      child: Scaffold(
-        backgroundColor: _pageBg,
-        body: SafeArea(
-          child: Column(
-            children: [
-              _buildHeader(),
-              Expanded(
-                child: Stack(
-                  children: [
-                    ClipRRect(
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(24),
-                        topRight: Radius.circular(24),
-                      ),
-                      child: _isLoadingLocation
-                          ? const Center(child: CircularProgressIndicator())
-                          : GoogleMap(
-                              initialCameraPosition: CameraPosition(
-                                target: initialTarget,
-                                zoom: 14,
-                              ),
-                              myLocationEnabled: true,
-                              myLocationButtonEnabled: true,
-                              zoomControlsEnabled: false,
-                              markers: _markers,
-                              onMapCreated: (controller) {
-                                _mapController = controller;
-                              },
-                            ),
-                    ),
-                    Positioned(
-                      left: 14,
-                      right: 14,
-                      bottom: 12,
-                      child: Container(
-                        padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
-                        decoration: BoxDecoration(
-                          color: _pageBg,
-                          borderRadius: BorderRadius.circular(22),
-                          boxShadow: [
-                            BoxShadow(
-                              blurRadius: 14,
-                              color: Colors.black.withOpacity(0.08),
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
+    return Directionality(
+      textDirection: isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
+      child: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Scaffold(
+          backgroundColor: _pageBg,
+          body: SafeArea(
+            child: Column(
+              children: [
+                _buildHeader(),
+                Expanded(
+                  child: Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(24),
+                          topRight: Radius.circular(24),
                         ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 50,
-                              height: 4,
-                              decoration: BoxDecoration(
-                                color: Colors.grey.shade400,
-                                borderRadius: BorderRadius.circular(10),
+                        child: _isLoadingLocation
+                            ? const Center(child: CircularProgressIndicator())
+                            : GoogleMap(
+                                initialCameraPosition: CameraPosition(
+                                  target: initialTarget,
+                                  zoom: 14,
+                                ),
+                                myLocationEnabled: true,
+                                myLocationButtonEnabled: true,
+                                zoomControlsEnabled: false,
+                                markers: _markers,
+                                onMapCreated: (controller) {
+                                  _mapController = controller;
+                                },
                               ),
-                            ),
-                            const SizedBox(height: 12),
-                            SizedBox(
-                              height: 95,
-                              child: ListView(
-                                children: _messages
-                                    .take(
-                                      _messages.length > 3
-                                          ? 3
-                                          : _messages.length,
-                                    )
-                                    .map(_buildMessageBubble)
-                                    .toList(),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: [
-                                _buildQuickChip('Restaurant'),
-                                _buildQuickChip('Cafe'),
-                                _buildQuickChip('Hospital'),
-                                _buildQuickChip('Mall'),
-                                _buildQuickChip('Park'),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: TextField(
-                                    controller: _searchController,
-                                    decoration: InputDecoration(
-                                      hintText: 'Tell AI where you want to go',
-                                      filled: true,
-                                      fillColor: Colors.white,
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(14),
-                                        borderSide: BorderSide.none,
-                                      ),
-                                    ),
-                                    onSubmitted: _searchByPrompt,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                InkWell(
-                                  onTap: _isSearching
-                                      ? null
-                                      : () => _searchByPrompt(
-                                            _searchController.text,
-                                          ),
-                                  borderRadius: BorderRadius.circular(14),
-                                  child: Container(
-                                    width: 52,
-                                    height: 52,
-                                    decoration: BoxDecoration(
-                                      color: _mainBlue,
-                                      borderRadius: BorderRadius.circular(14),
-                                    ),
-                                    child: _isSearching
-                                        ? const Padding(
-                                            padding: EdgeInsets.all(12),
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              color: Colors.white,
-                                            ),
-                                          )
-                                        : const Icon(
-                                            Icons.send_rounded,
-                                            color: Colors.white,
-                                          ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            if (_results.isNotEmpty) ...[
-                              const SizedBox(height: 12),
-                              SizedBox(
-                                height: 220,
-                                child: ListView.builder(
-                                  itemCount: _results.length,
-                                  itemBuilder: (context, index) {
-                                    return _buildPlaceCard(_results[index]);
-                                  },
-                                ),
+                      ),
+                      Positioned(
+                        left: 14,
+                        right: 14,
+                        bottom: 12,
+                        child: Container(
+                          padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+                          decoration: BoxDecoration(
+                            color: _pageBg,
+                            borderRadius: BorderRadius.circular(22),
+                            boxShadow: [
+                              BoxShadow(
+                                blurRadius: 14,
+                                color: Colors.black.withOpacity(0.08),
+                                offset: const Offset(0, 4),
                               ),
                             ],
-                          ],
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 50,
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade400,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                height: 95,
+                                child: ListView(
+                                  children: _messages
+                                      .take(
+                                        _messages.length > 3
+                                            ? 3
+                                            : _messages.length,
+                                      )
+                                      .map(_buildMessageBubble)
+                                      .toList(),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  _buildQuickChip('Restaurant'),
+                                  _buildQuickChip('Cafe'),
+                                  _buildQuickChip('Hospital'),
+                                  _buildQuickChip('Mall'),
+                                  _buildQuickChip('Park'),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: TextField(
+                                      controller: _searchController,
+                                      textAlign: isArabic
+                                          ? TextAlign.right
+                                          : TextAlign.left,
+                                      decoration: InputDecoration(
+                                        hintText: tr(
+                                          'Tell AI where you want to go',
+                                          'أخبر الذكاء الاصطناعي أين تريد الذهاب',
+                                        ),
+                                        filled: true,
+                                        fillColor: Colors.white,
+                                        border: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(14),
+                                          borderSide: BorderSide.none,
+                                        ),
+                                      ),
+                                      onSubmitted: _searchByPrompt,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  InkWell(
+                                    onTap: _isSearching
+                                        ? null
+                                        : () => _searchByPrompt(
+                                              _searchController.text,
+                                            ),
+                                    borderRadius: BorderRadius.circular(14),
+                                    child: Container(
+                                      width: 52,
+                                      height: 52,
+                                      decoration: BoxDecoration(
+                                        color: _mainBlue,
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                      child: _isSearching
+                                          ? const Padding(
+                                              padding: EdgeInsets.all(12),
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: Colors.white,
+                                              ),
+                                            )
+                                          : const Icon(
+                                              Icons.send_rounded,
+                                              color: Colors.white,
+                                            ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (_results.isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                SizedBox(
+                                  height: 220,
+                                  child: ListView.builder(
+                                    itemCount: _results.length,
+                                    itemBuilder: (context, index) {
+                                      return _buildPlaceCard(_results[index]);
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
+          bottomNavigationBar: _buildBottomNavigation(),
         ),
-        bottomNavigationBar: _buildBottomNavigation(),
       ),
     );
   }

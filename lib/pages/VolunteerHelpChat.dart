@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -8,6 +9,8 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:record/record.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:path_provider/path_provider.dart';
+
+import 'package:humantouch/pages/app_settings_store.dart';
 
 class VolunteerHelpChatPage extends StatefulWidget {
   final String volunteerId;
@@ -39,7 +42,21 @@ class _VolunteerHelpChatPageState extends State<VolunteerHelpChatPage> {
   bool _isSendingVoice = false;
   String? _playingUrl;
 
+  bool get isArabic => AppSettingsStore.instance.isArabic;
+
+  String tr(String en, String ar) => isArabic ? ar : en;
+
   String get _currentUserId => _auth.currentUser!.uid;
+
+  @override
+  void initState() {
+    super.initState();
+    AppSettingsStore.instance.addListener(_onLanguageChanged);
+  }
+
+  void _onLanguageChanged() {
+    if (mounted) setState(() {});
+  }
 
   String _buildChatId(String userA, String userB) {
     final ids = [userA, userB]..sort();
@@ -117,7 +134,14 @@ class _VolunteerHelpChatPageState extends State<VolunteerHelpChatPage> {
 
     if (!hasPermission) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Microphone permission is required')),
+        SnackBar(
+          content: Text(
+            tr(
+              'Microphone permission is required',
+              'إذن الميكروفون مطلوب',
+            ),
+          ),
+        ),
       );
       return;
     }
@@ -208,7 +232,11 @@ class _VolunteerHelpChatPageState extends State<VolunteerHelpChatPage> {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Voice message failed: $e')),
+        SnackBar(
+          content: Text(
+            tr('Voice message failed: $e', 'فشل إرسال الرسالة الصوتية: $e'),
+          ),
+        ),
       );
     } finally {
       if (mounted) {
@@ -246,7 +274,11 @@ class _VolunteerHelpChatPageState extends State<VolunteerHelpChatPage> {
       });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not play voice: $e')),
+        SnackBar(
+          content: Text(
+            tr('Could not play voice: $e', 'تعذر تشغيل الصوت: $e'),
+          ),
+        ),
       );
     }
   }
@@ -283,7 +315,7 @@ class _VolunteerHelpChatPageState extends State<VolunteerHelpChatPage> {
     final date = timestamp.toDate();
     final hour = date.hour % 12 == 0 ? 12 : date.hour % 12;
     final minute = date.minute.toString().padLeft(2, '0');
-    final period = date.hour >= 12 ? 'pm' : 'am';
+    final period = date.hour >= 12 ? tr('pm', 'م') : tr('am', 'ص');
 
     return '$hour:$minute $period';
   }
@@ -292,11 +324,24 @@ class _VolunteerHelpChatPageState extends State<VolunteerHelpChatPage> {
     if (timestamp == null) return '';
 
     final date = timestamp.toDate();
-    final weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    final dayName = weekDays[date.weekday - 1];
+
+    final weekDaysEn = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    final weekDaysAr = [
+      'الاثنين',
+      'الثلاثاء',
+      'الأربعاء',
+      'الخميس',
+      'الجمعة',
+      'السبت',
+      'الأحد',
+    ];
+
+    final dayName =
+        isArabic ? weekDaysAr[date.weekday - 1] : weekDaysEn[date.weekday - 1];
+
     final hour = date.hour % 12 == 0 ? 12 : date.hour % 12;
     final minute = date.minute.toString().padLeft(2, '0');
-    final period = date.hour >= 12 ? 'PM' : 'AM';
+    final period = date.hour >= 12 ? tr('PM', 'م') : tr('AM', 'ص');
 
     return '$dayName $hour:$minute $period';
   }
@@ -307,10 +352,13 @@ class _VolunteerHelpChatPageState extends State<VolunteerHelpChatPage> {
     required String time,
   }) {
     return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: isMe
+          ? (isArabic ? Alignment.centerLeft : Alignment.centerRight)
+          : (isArabic ? Alignment.centerRight : Alignment.centerLeft),
       child: Column(
-        crossAxisAlignment:
-            isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        crossAxisAlignment: isMe
+            ? (isArabic ? CrossAxisAlignment.start : CrossAxisAlignment.end)
+            : (isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start),
         children: [
           Container(
             constraints: const BoxConstraints(maxWidth: 240),
@@ -326,6 +374,7 @@ class _VolunteerHelpChatPageState extends State<VolunteerHelpChatPage> {
             ),
             child: Text(
               text,
+              textAlign: isArabic ? TextAlign.right : TextAlign.left,
               style: TextStyle(
                 fontSize: 14,
                 color: isMe ? Colors.black87 : Colors.white,
@@ -348,10 +397,13 @@ class _VolunteerHelpChatPageState extends State<VolunteerHelpChatPage> {
     final bool isPlaying = _playingUrl == audioUrl;
 
     return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: isMe
+          ? (isArabic ? Alignment.centerLeft : Alignment.centerRight)
+          : (isArabic ? Alignment.centerRight : Alignment.centerLeft),
       child: Column(
-        crossAxisAlignment:
-            isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        crossAxisAlignment: isMe
+            ? (isArabic ? CrossAxisAlignment.start : CrossAxisAlignment.end)
+            : (isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start),
         children: [
           Container(
             constraints: const BoxConstraints(maxWidth: 240),
@@ -390,7 +442,7 @@ class _VolunteerHelpChatPageState extends State<VolunteerHelpChatPage> {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  'Voice',
+                  tr('Voice', 'صوت'),
                   style: TextStyle(
                     color: isMe ? Colors.black87 : Colors.white,
                     fontWeight: FontWeight.w600,
@@ -432,11 +484,12 @@ class _VolunteerHelpChatPageState extends State<VolunteerHelpChatPage> {
                       controller: _messageController,
                       focusNode: _messageFocusNode,
                       textInputAction: TextInputAction.send,
+                      textAlign: isArabic ? TextAlign.right : TextAlign.left,
                       onFieldSubmitted: (_) => _sendMessage(volunteerData),
                       decoration: InputDecoration(
                         hintText: _isRecording
-                            ? 'Recording voice...'
-                            : 'Type a message',
+                            ? tr('Recording voice...', 'جاري تسجيل الصوت...')
+                            : tr('Type a message', 'اكتب رسالة'),
                         border: InputBorder.none,
                         isDense: true,
                       ),
@@ -531,7 +584,11 @@ class _VolunteerHelpChatPageState extends State<VolunteerHelpChatPage> {
         children: [
           IconButton(
             onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.arrow_back, color: Colors.black, size: 24),
+            icon: Icon(
+              isArabic ? Icons.arrow_forward : Icons.arrow_back,
+              color: Colors.black,
+              size: 24,
+            ),
           ),
           const SizedBox(width: 4),
           Stack(
@@ -545,8 +602,8 @@ class _VolunteerHelpChatPageState extends State<VolunteerHelpChatPage> {
                     ? const Icon(Icons.person_outline, color: Colors.black)
                     : null,
               ),
-              Positioned(
-                right: 1,
+              PositionedDirectional(
+                end: 1,
                 top: 1,
                 child: Container(
                   width: 12,
@@ -565,6 +622,7 @@ class _VolunteerHelpChatPageState extends State<VolunteerHelpChatPage> {
             child: Text(
               name,
               overflow: TextOverflow.ellipsis,
+              textAlign: isArabic ? TextAlign.right : TextAlign.left,
               style: const TextStyle(
                 fontSize: 19,
                 fontWeight: FontWeight.bold,
@@ -579,6 +637,7 @@ class _VolunteerHelpChatPageState extends State<VolunteerHelpChatPage> {
 
   @override
   void dispose() {
+    AppSettingsStore.instance.removeListener(_onLanguageChanged);
     _messageController.dispose();
     _messageFocusNode.dispose();
     _scrollController.dispose();
@@ -592,136 +651,149 @@ class _VolunteerHelpChatPageState extends State<VolunteerHelpChatPage> {
     final currentUser = _auth.currentUser;
 
     if (currentUser == null) {
-      return const Scaffold(body: Center(child: Text('Please login first')));
+      return Directionality(
+        textDirection: isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
+        child: Scaffold(
+          body: Center(
+            child: Text(tr('Please login first', 'يرجى تسجيل الدخول أولاً')),
+          ),
+        ),
+      );
     }
 
     final volunteerRef = _firestore.collection('users').doc(widget.volunteerId);
 
-    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: volunteerRef.snapshots(),
-      builder: (context, volunteerSnapshot) {
-        if (volunteerSnapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
+    return Directionality(
+      textDirection: isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
+      child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+        stream: volunteerRef.snapshots(),
+        builder: (context, volunteerSnapshot) {
+          if (volunteerSnapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
 
-        if (!volunteerSnapshot.hasData || !volunteerSnapshot.data!.exists) {
-          return const Scaffold(
-            body: Center(child: Text('Volunteer not found')),
-          );
-        }
+          if (!volunteerSnapshot.hasData || !volunteerSnapshot.data!.exists) {
+            return Scaffold(
+              body: Center(
+                child: Text(
+                    tr('Volunteer not found', 'لم يتم العثور على المتطوع')),
+              ),
+            );
+          }
 
-        final volunteerData = volunteerSnapshot.data!.data()!;
-        final chatId = _buildChatId(_currentUserId, widget.volunteerId);
-        final chatRef = _firestore.collection('chats').doc(chatId);
+          final volunteerData = volunteerSnapshot.data!.data()!;
+          final chatId = _buildChatId(_currentUserId, widget.volunteerId);
+          final chatRef = _firestore.collection('chats').doc(chatId);
 
-        return GestureDetector(
-          onTap: () {
-            FocusScope.of(context).unfocus();
-          },
-          child: Scaffold(
-            backgroundColor: Colors.white,
-            body: SafeArea(
-              child: Column(
-                children: [
-                  const SizedBox(height: 14),
-                  _buildHeader(volunteerData),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                      stream: chatRef
-                          .collection('messages')
-                          .orderBy('createdAt')
-                          .snapshots(),
-                      builder: (context, messageSnapshot) {
-                        if (messageSnapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return const Center(
-                            child: CircularProgressIndicator(),
-                          );
-                        }
+          return GestureDetector(
+            onTap: () {
+              FocusScope.of(context).unfocus();
+            },
+            child: Scaffold(
+              backgroundColor: Colors.white,
+              body: SafeArea(
+                child: Column(
+                  children: [
+                    const SizedBox(height: 14),
+                    _buildHeader(volunteerData),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                        stream: chatRef
+                            .collection('messages')
+                            .orderBy('createdAt')
+                            .snapshots(),
+                        builder: (context, messageSnapshot) {
+                          if (messageSnapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                              child: CircularProgressIndicator(),
+                            );
+                          }
 
-                        final messages = messageSnapshot.data?.docs ?? [];
+                          final messages = messageSnapshot.data?.docs ?? [];
 
-                        if (messages.isNotEmpty) {
-                          WidgetsBinding.instance.addPostFrameCallback((_) {
-                            _markMessagesAsSeen(chatId);
+                          if (messages.isNotEmpty) {
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              _markMessagesAsSeen(chatId);
 
-                            if (_scrollController.hasClients) {
-                              _scrollController.jumpTo(
-                                _scrollController.position.maxScrollExtent,
-                              );
-                            }
-                          });
-                        }
-
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: ListView.separated(
-                            controller: _scrollController,
-                            itemCount: messages.length + 1,
-                            separatorBuilder: (context, index) =>
-                                const SizedBox(height: 12),
-                            itemBuilder: (context, index) {
-                              if (index == 0) {
-                                final firstTimestamp = messages.isNotEmpty
-                                    ? messages.first.data()['createdAt']
-                                        as Timestamp?
-                                    : null;
-
-                                return Center(
-                                  child: Text(
-                                    firstTimestamp != null
-                                        ? _formatHeaderDate(firstTimestamp)
-                                        : '',
-                                    style: const TextStyle(
-                                      color: Colors.grey,
-                                      fontSize: 13,
-                                    ),
-                                  ),
+                              if (_scrollController.hasClients) {
+                                _scrollController.jumpTo(
+                                  _scrollController.position.maxScrollExtent,
                                 );
                               }
+                            });
+                          }
 
-                              final message = messages[index - 1].data();
-                              final bool isMe =
-                                  message['senderId'] == _currentUserId;
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: ListView.separated(
+                              controller: _scrollController,
+                              itemCount: messages.length + 1,
+                              separatorBuilder: (context, index) =>
+                                  const SizedBox(height: 12),
+                              itemBuilder: (context, index) {
+                                if (index == 0) {
+                                  final firstTimestamp = messages.isNotEmpty
+                                      ? messages.first.data()['createdAt']
+                                          as Timestamp?
+                                      : null;
 
-                              final String type =
-                                  (message['type'] ?? 'text').toString();
+                                  return Center(
+                                    child: Text(
+                                      firstTimestamp != null
+                                          ? _formatHeaderDate(firstTimestamp)
+                                          : '',
+                                      style: const TextStyle(
+                                        color: Colors.grey,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  );
+                                }
 
-                              if (type == 'voice') {
-                                return _buildVoiceBubble(
-                                  audioUrl:
-                                      (message['audioUrl'] ?? '').toString(),
+                                final message = messages[index - 1].data();
+                                final bool isMe =
+                                    message['senderId'] == _currentUserId;
+
+                                final String type =
+                                    (message['type'] ?? 'text').toString();
+
+                                if (type == 'voice') {
+                                  return _buildVoiceBubble(
+                                    audioUrl:
+                                        (message['audioUrl'] ?? '').toString(),
+                                    isMe: isMe,
+                                    time: _formatTime(
+                                      message['createdAt'] as Timestamp?,
+                                    ),
+                                  );
+                                }
+
+                                return _buildTextBubble(
+                                  text: message['text'] ?? '',
                                   isMe: isMe,
                                   time: _formatTime(
                                     message['createdAt'] as Timestamp?,
                                   ),
                                 );
-                              }
-
-                              return _buildTextBubble(
-                                text: message['text'] ?? '',
-                                isMe: isMe,
-                                time: _formatTime(
-                                  message['createdAt'] as Timestamp?,
-                                ),
-                              );
-                            },
-                          ),
-                        );
-                      },
+                              },
+                            ),
+                          );
+                        },
+                      ),
                     ),
-                  ),
-                  _buildInputBar(volunteerData),
-                  const SizedBox(height: 8),
-                ],
+                    _buildInputBar(volunteerData),
+                    const SizedBox(height: 8),
+                  ],
+                ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }

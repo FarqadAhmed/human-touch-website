@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -5,6 +7,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'Dashboard_page.dart';
 import 'SignUpVolunteer_page.dart';
 import 'VolunteerHelpInfo_page.dart';
+
+import 'package:humantouch/pages/app_settings_store.dart';
 
 class VolunteerHelpPage extends StatefulWidget {
   const VolunteerHelpPage({super.key});
@@ -37,9 +41,41 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
     'Other',
   ];
 
+  bool get isArabic => AppSettingsStore.instance.isArabic;
+
+  String tr(String en, String ar) => isArabic ? ar : en;
+
+  String optionText(String value) {
+    switch (value) {
+      case 'All':
+        return tr('All', 'الكل');
+      case 'Available':
+        return tr('Available', 'متاح');
+      case 'Busy':
+        return tr('Busy', 'مشغول');
+      case 'Medical':
+        return tr('Medical', 'طبي');
+      case 'Shopping':
+        return tr('Shopping', 'تسوق');
+      case 'Transportation':
+        return tr('Transportation', 'مواصلات');
+      case 'Daily Support':
+        return tr('Daily Support', 'دعم يومي');
+      case 'Other':
+        return tr('Other', 'أخرى');
+      default:
+        return value;
+    }
+  }
+
+  String availabilityText(bool isAvailable) {
+    return isAvailable ? tr('Available', 'متاح') : tr('Busy', 'مشغول');
+  }
+
   @override
   void initState() {
     super.initState();
+    AppSettingsStore.instance.addListener(_onLanguageChanged);
     _loadFavoritesFromFirebase();
 
     _searchController.addListener(() {
@@ -49,8 +85,13 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
     });
   }
 
+  void _onLanguageChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
+    AppSettingsStore.instance.removeListener(_onLanguageChanged);
     _searchController.dispose();
     super.dispose();
   }
@@ -165,7 +206,7 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
               return DropdownMenuItem(
                 value: item,
                 child: Text(
-                  item,
+                  optionText(item),
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontSize: 13),
                 ),
@@ -253,10 +294,13 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: isArabic
+                        ? CrossAxisAlignment.end
+                        : CrossAxisAlignment.start,
                     children: [
                       Text(
                         name,
+                        textAlign: isArabic ? TextAlign.right : TextAlign.left,
                         style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w600,
@@ -264,14 +308,21 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Text(helpType),
+                      Text(
+                        optionText(helpType),
+                        textAlign: isArabic ? TextAlign.right : TextAlign.left,
+                      ),
                       const SizedBox(height: 4),
                       Text(
                         gender,
+                        textAlign: isArabic ? TextAlign.right : TextAlign.left,
                         style: const TextStyle(color: Colors.black54),
                       ),
                       const SizedBox(height: 8),
                       Row(
+                        mainAxisAlignment: isArabic
+                            ? MainAxisAlignment.end
+                            : MainAxisAlignment.start,
                         children: [
                           Container(
                             padding: const EdgeInsets.symmetric(
@@ -325,7 +376,7 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    isAvailable ? 'Available' : 'Busy',
+                    availabilityText(isAvailable),
                     style: TextStyle(
                       color: isAvailable ? Colors.green : Colors.red,
                       fontWeight: FontWeight.bold,
@@ -333,7 +384,10 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
                   ),
                 ),
                 const Spacer(),
-                const Icon(Icons.arrow_forward_ios, size: 18),
+                Icon(
+                  isArabic ? Icons.arrow_back_ios_new : Icons.arrow_forward_ios,
+                  size: 18,
+                ),
               ],
             ),
           ],
@@ -357,116 +411,127 @@ class _VolunteerHelpPageState extends State<VolunteerHelpPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color(0xFF87CEEB),
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const SignUpVolunteerPage(),
-            ),
-          );
-        },
-        child: const Icon(Icons.person_add, color: Colors.white),
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Stack(
-              alignment: Alignment.bottomCenter,
-              children: [
-                Container(
-                  height: 130,
-                  width: double.infinity,
-                  color: const Color(0xFF87CEEB),
-                ),
-                Container(
-                  height: 40,
-                  width: double.infinity,
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.vertical(
-                      top: Radius.circular(40),
+    return Directionality(
+      textDirection: isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        floatingActionButton: FloatingActionButton(
+          backgroundColor: const Color(0xFF87CEEB),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const SignUpVolunteerPage(),
+              ),
+            );
+          },
+          child: const Icon(Icons.person_add, color: Colors.white),
+        ),
+        body: SafeArea(
+          child: Column(
+            children: [
+              Stack(
+                alignment: Alignment.bottomCenter,
+                children: [
+                  Container(
+                    height: 130,
+                    width: double.infinity,
+                    color: const Color(0xFF87CEEB),
+                  ),
+                  Container(
+                    height: 40,
+                    width: double.infinity,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(40),
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-              child: Row(
-                children: [
-                  IconButton(
-                    onPressed: _goBack,
-                    icon: const Icon(Icons.arrow_back, size: 28),
-                  ),
-                  const Expanded(
-                    child: Center(
-                      child: Text(
-                        'Volunteer Help',
-                        style: TextStyle(
-                          fontSize: 25,
-                          fontWeight: FontWeight.bold,
+                ],
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed: _goBack,
+                      icon: Icon(
+                        isArabic ? Icons.arrow_forward : Icons.arrow_back,
+                        size: 28,
+                      ),
+                    ),
+                    Expanded(
+                      child: Center(
+                        child: Text(
+                          tr('Volunteer Help', 'مساعدة المتطوعين'),
+                          style: const TextStyle(
+                            fontSize: 25,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 48),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Container(
-                height: 56,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF4F4F4),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: TextField(
-                  controller: _searchController,
-                  decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.search_rounded),
-                    hintText: 'Search volunteer',
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(vertical: 16),
-                  ),
+                    const SizedBox(width: 48),
+                  ],
                 ),
               ),
-            ),
-            _buildFiltersRow(),
-            const SizedBox(height: 12),
-            Expanded(
-              child: StreamBuilder<QuerySnapshot>(
-                stream: _volunteersStream(),
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) {
-                    return const Center(
-                      child: CircularProgressIndicator(
-                        color: Color(0xFF87CEEB),
-                      ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Container(
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF4F4F4),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: TextField(
+                    controller: _searchController,
+                    textAlign: isArabic ? TextAlign.right : TextAlign.left,
+                    decoration: InputDecoration(
+                      prefixIcon: const Icon(Icons.search_rounded),
+                      hintText: tr('Search volunteer', 'ابحث عن متطوع'),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                  ),
+                ),
+              ),
+              _buildFiltersRow(),
+              const SizedBox(height: 12),
+              Expanded(
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: _volunteersStream(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) {
+                      return const Center(
+                        child: CircularProgressIndicator(
+                          color: Color(0xFF87CEEB),
+                        ),
+                      );
+                    }
+
+                    final volunteers = _filterVolunteers(snapshot.data!);
+
+                    if (volunteers.isEmpty) {
+                      return Center(
+                        child: Text(
+                          tr('No volunteers found', 'لا يوجد متطوعون'),
+                        ),
+                      );
+                    }
+
+                    return ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                      itemCount: volunteers.length,
+                      itemBuilder: (context, index) {
+                        return _buildVolunteerCard(volunteers[index]);
+                      },
                     );
-                  }
-
-                  final volunteers = _filterVolunteers(snapshot.data!);
-
-                  if (volunteers.isEmpty) {
-                    return const Center(child: Text('No volunteers found'));
-                  }
-
-                  return ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                    itemCount: volunteers.length,
-                    itemBuilder: (context, index) {
-                      return _buildVolunteerCard(volunteers[index]);
-                    },
-                  );
-                },
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -5,6 +7,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'Profile_page.dart';
 import 'Settings_page.dart';
 import 'CompanionDashboard_page.dart';
+
+import 'package:humantouch/pages/app_settings_store.dart';
 
 class CompanionRemindersPage extends StatefulWidget {
   const CompanionRemindersPage({super.key});
@@ -36,6 +40,10 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
   DateTime _selectedDate = DateTime.now();
 
   String _selectedEmoji = '💊';
+
+  bool get isArabic => AppSettingsStore.instance.isArabic;
+
+  String tr(String en, String ar) => isArabic ? ar : en;
 
   final List<String> _emojiList = const [
     '💊',
@@ -103,23 +111,105 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
   @override
   void initState() {
     super.initState();
+    AppSettingsStore.instance.addListener(_onLanguageChanged);
+
     _selectedDateText = _formatDate(_selectedDate);
     _dateController.text = _selectedDateText;
     _emojiController.text = _selectedEmoji;
   }
 
+  void _onLanguageChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
+    AppSettingsStore.instance.removeListener(_onLanguageChanged);
+
     _titleController.dispose();
     _timeController.dispose();
     _emojiController.dispose();
     _dateController.dispose();
     _otherReminderController.dispose();
+
     super.dispose();
   }
 
   String _dayName(DateTime date) {
     return _weekDays[date.weekday - 1];
+  }
+
+  String _dayNameText(String day) {
+    switch (day) {
+      case 'Monday':
+        return tr('Monday', 'الاثنين');
+      case 'Tuesday':
+        return tr('Tuesday', 'الثلاثاء');
+      case 'Wednesday':
+        return tr('Wednesday', 'الأربعاء');
+      case 'Thursday':
+        return tr('Thursday', 'الخميس');
+      case 'Friday':
+        return tr('Friday', 'الجمعة');
+      case 'Saturday':
+        return tr('Saturday', 'السبت');
+      case 'Sunday':
+        return tr('Sunday', 'الأحد');
+      default:
+        return day;
+    }
+  }
+
+  String _shortDayNameText(String day) {
+    switch (day) {
+      case 'Mon':
+        return tr('Mon', 'الأثنين');
+      case 'Tue':
+        return tr('Tue', 'الثلاثاء');
+      case 'Wed':
+        return tr('Wed', 'الأربعاء');
+      case 'Thu':
+        return tr('Thu', 'الخميس');
+      case 'Fri':
+        return tr('Fri', 'الجمعة');
+      case 'Sat':
+        return tr('Sat', 'السبت');
+      case 'Sun':
+        return tr('Sun', 'الأحد');
+      default:
+        return day;
+    }
+  }
+
+  String _monthNameText(String month) {
+    switch (month) {
+      case 'January':
+        return tr('January', 'يناير');
+      case 'February':
+        return tr('February', 'فبراير');
+      case 'March':
+        return tr('March', 'مارس');
+      case 'April':
+        return tr('April', 'أبريل');
+      case 'May':
+        return tr('May', 'مايو');
+      case 'June':
+        return tr('June', 'يونيو');
+      case 'July':
+        return tr('July', 'يوليو');
+      case 'August':
+        return tr('August', 'أغسطس');
+      case 'September':
+        return tr('September', 'سبتمبر');
+      case 'October':
+        return tr('October', 'أكتوبر');
+      case 'November':
+        return tr('November', 'نوفمبر');
+      case 'December':
+        return tr('December', 'ديسمبر');
+      default:
+        return month;
+    }
   }
 
   List<DateTime> _currentWeekDates() {
@@ -133,8 +223,8 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
   }
 
   String _formatDate(DateTime date) {
-    final String dayName = _weekDays[date.weekday - 1];
-    final String monthName = _months[date.month - 1];
+    final String dayName = _dayNameText(_weekDays[date.weekday - 1]);
+    final String monthName = _monthNameText(_months[date.month - 1]);
     final String dayNumber = date.day.toString().padLeft(2, '0');
 
     return '$dayName, $dayNumber $monthName ${date.year}';
@@ -156,15 +246,18 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
       firstDate: DateTime(2024),
       lastDate: DateTime(2035),
       builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Color(0xFF69B7E8),
-              onPrimary: Colors.white,
-              onSurface: Colors.black,
+        return Directionality(
+          textDirection: isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
+          child: Theme(
+            data: Theme.of(context).copyWith(
+              colorScheme: const ColorScheme.light(
+                primary: Color(0xFF69B7E8),
+                onPrimary: Colors.white,
+                onSurface: Colors.black,
+              ),
             ),
+            child: child!,
           ),
-          child: child!,
         );
       },
     );
@@ -188,15 +281,18 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
       context: context,
       initialTime: initialTime,
       builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Color(0xFF69B7E8),
-              onPrimary: Colors.white,
-              onSurface: Colors.black,
+        return Directionality(
+          textDirection: isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
+          child: Theme(
+            data: Theme.of(context).copyWith(
+              colorScheme: const ColorScheme.light(
+                primary: Color(0xFF69B7E8),
+                onPrimary: Colors.white,
+                onSurface: Colors.black,
+              ),
             ),
+            child: child!,
           ),
-          child: child!,
         );
       },
     );
@@ -293,9 +389,9 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _bottomItem(Icons.home_rounded, 'Home', 0),
-          _bottomItem(Icons.person_rounded, 'Profile', 1),
-          _bottomItem(Icons.settings_rounded, 'Settings', 2),
+          _bottomItem(Icons.home_rounded, tr('Home', 'الرئيسية'), 0),
+          _bottomItem(Icons.person_rounded, tr('Profile', 'الملف'), 1),
+          _bottomItem(Icons.settings_rounded, tr('Settings', 'الإعدادات'), 2),
         ],
       ),
     );
@@ -328,17 +424,17 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
             children: [
               IconButton(
                 onPressed: _goBack,
-                icon: const Icon(
-                  Icons.arrow_back,
+                icon: Icon(
+                  isArabic ? Icons.arrow_forward : Icons.arrow_back,
                   size: 28,
-                  color: Color(0xFF263238),
+                  color: const Color(0xFF263238),
                 ),
               ),
-              const Expanded(
+              Expanded(
                 child: Center(
                   child: Text(
-                    'Reminders',
-                    style: TextStyle(
+                    tr('Reminders', 'التذكيرات'),
+                    style: const TextStyle(
                       fontSize: 25,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF1A1A1A),
@@ -357,15 +453,15 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
   String _categoryText(String category) {
     switch (category) {
       case 'medicine':
-        return 'Medicine';
+        return tr('Medicine', 'دواء');
       case 'meal':
-        return 'Meal';
+        return tr('Meal', 'وجبة');
       case 'appointment':
-        return 'Appointment';
+        return tr('Appointment', 'موعد');
       case 'others':
-        return 'Others';
+        return tr('Others', 'أخرى');
       default:
-        return 'Others';
+        return tr('Others', 'أخرى');
     }
   }
 
@@ -439,9 +535,10 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
     final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Please login first')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(tr('Please login first', 'يرجى تسجيل الدخول أولاً'))),
+      );
       return;
     }
 
@@ -487,14 +584,22 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
       _clearForm();
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Reminder saved successfully')),
+        SnackBar(
+          content: Text(
+            tr('Reminder saved successfully', 'تم حفظ التذكير بنجاح'),
+          ),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error saving reminder: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            tr('Error saving reminder: $e', 'حدث خطأ أثناء حفظ التذكير: $e'),
+          ),
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -519,69 +624,74 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder: (_) {
-        return Container(
-          padding: const EdgeInsets.fromLTRB(18, 18, 18, 28),
-          height: 310,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Choose Emoji',
-                style: TextStyle(
-                  color: Color(0xFF333333),
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Expanded(
-                child: GridView.builder(
-                  itemCount: _emojiList.length,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 6,
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
+        return Directionality(
+          textDirection: isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 28),
+            height: 310,
+            child: Column(
+              crossAxisAlignment:
+                  isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              children: [
+                Text(
+                  tr('Choose Emoji', 'اختر رمزاً'),
+                  style: const TextStyle(
+                    color: Color(0xFF333333),
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
                   ),
-                  itemBuilder: (context, index) {
-                    final emoji = _emojiList[index];
-
-                    return GestureDetector(
-                      onTap: () {
-                        modalSetState(() {
-                          _selectedEmoji = emoji;
-                          _emojiController.text = emoji;
-                        });
-                        setState(() {
-                          _selectedEmoji = emoji;
-                          _emojiController.text = emoji;
-                        });
-                        Navigator.pop(context);
-                      },
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: _selectedEmoji == emoji
-                              ? const Color(0xFFEAF7FD)
-                              : const Color(0xFFF4F4F4),
-                          border: Border.all(
-                            color: _selectedEmoji == emoji
-                                ? const Color(0xFF69B7E8)
-                                : Colors.transparent,
-                            width: 2,
-                          ),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Center(
-                          child: Text(
-                            emoji,
-                            style: const TextStyle(fontSize: 28),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
                 ),
-              ),
-            ],
+                const SizedBox(height: 16),
+                Expanded(
+                  child: GridView.builder(
+                    itemCount: _emojiList.length,
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 6,
+                      mainAxisSpacing: 12,
+                      crossAxisSpacing: 12,
+                    ),
+                    itemBuilder: (context, index) {
+                      final emoji = _emojiList[index];
+
+                      return GestureDetector(
+                        onTap: () {
+                          modalSetState(() {
+                            _selectedEmoji = emoji;
+                            _emojiController.text = emoji;
+                          });
+                          setState(() {
+                            _selectedEmoji = emoji;
+                            _emojiController.text = emoji;
+                          });
+                          Navigator.pop(context);
+                        },
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: _selectedEmoji == emoji
+                                ? const Color(0xFFEAF7FD)
+                                : const Color(0xFFF4F4F4),
+                            border: Border.all(
+                              color: _selectedEmoji == emoji
+                                  ? const Color(0xFF69B7E8)
+                                  : Colors.transparent,
+                              width: 2,
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Center(
+                            child: Text(
+                              emoji,
+                              style: const TextStyle(fontSize: 28),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -594,161 +704,157 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) {
-        return StatefulBuilder(
-          builder: (context, modalSetState) {
-            return Container(
-              padding: EdgeInsets.only(
-                left: 20,
-                right: 20,
-                top: 22,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 22,
-              ),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-              ),
-              child: Form(
-                key: _formKey,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        _editingReminderId == null
-                            ? 'Add Reminder'
-                            : 'Edit Reminder',
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF333333),
+        return Directionality(
+          textDirection: isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
+          child: StatefulBuilder(
+            builder: (context, modalSetState) {
+              return Container(
+                padding: EdgeInsets.only(
+                  left: 20,
+                  right: 20,
+                  top: 22,
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 22,
+                ),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+                ),
+                child: Form(
+                  key: _formKey,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _editingReminderId == null
+                              ? tr('Add Reminder', 'إضافة تذكير')
+                              : tr('Edit Reminder', 'تعديل التذكير'),
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF333333),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 18),
-
-                      if (_selectedCategory != 'others')
-                        _buildInput(
-                          label: 'Reminder Title',
-                          controller: _titleController,
-                          icon: Icons.title,
-                        ),
-
-                      if (_selectedCategory != 'others')
+                        const SizedBox(height: 18),
+                        if (_selectedCategory != 'others')
+                          _buildInput(
+                            label: tr('Reminder Title', 'عنوان التذكير'),
+                            controller: _titleController,
+                            icon: Icons.title,
+                          ),
+                        if (_selectedCategory != 'others')
+                          const SizedBox(height: 12),
+                        _buildTimeInput(),
                         const SizedBox(height: 12),
-
-                      _buildTimeInput(),
-
-                      const SizedBox(height: 12),
-
-                      _buildEmojiInput(modalSetState),
-
-                      const SizedBox(height: 12),
-
-                      _buildDateInput(),
-
-                      const SizedBox(height: 12),
-
-                      DropdownButtonFormField<String>(
-                        value: _selectedCategory,
-                        decoration: _inputDecoration(
-                          label: 'Category',
-                          icon: Icons.category_outlined,
-                        ),
-                        items: _categories.map((category) {
-                          return DropdownMenuItem(
-                            value: category,
-                            child: Text(_categoryText(category)),
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          modalSetState(() {
-                            _selectedCategory = value!;
-                            if (_selectedCategory != 'others') {
-                              _otherReminderController.clear();
-                            }
-                          });
-
-                          setState(() {
-                            _selectedCategory = value!;
-                            if (_selectedCategory != 'others') {
-                              _otherReminderController.clear();
-                            }
-                          });
-                        },
-                      ),
-
-                      if (_selectedCategory == 'others') ...[
+                        _buildEmojiInput(modalSetState),
                         const SizedBox(height: 12),
-                        _buildInput(
-                          label: 'Write your reminder',
-                          controller: _otherReminderController,
-                          icon: Icons.edit_note_rounded,
+                        _buildDateInput(),
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<String>(
+                          value: _selectedCategory,
+                          decoration: _inputDecoration(
+                            label: tr('Category', 'التصنيف'),
+                            icon: Icons.category_outlined,
+                          ),
+                          items: _categories.map((category) {
+                            return DropdownMenuItem(
+                              value: category,
+                              child: Text(_categoryText(category)),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            if (value == null) return;
+
+                            modalSetState(() {
+                              _selectedCategory = value;
+                              if (_selectedCategory != 'others') {
+                                _otherReminderController.clear();
+                              }
+                            });
+
+                            setState(() {
+                              _selectedCategory = value;
+                              if (_selectedCategory != 'others') {
+                                _otherReminderController.clear();
+                              }
+                            });
+                          },
+                        ),
+                        if (_selectedCategory == 'others') ...[
+                          const SizedBox(height: 12),
+                          _buildInput(
+                            label: tr(
+                              'Write your reminder',
+                              'اكتب التذكير',
+                            ),
+                            controller: _otherReminderController,
+                            icon: Icons.edit_note_rounded,
+                          ),
+                        ],
+                        const SizedBox(height: 14),
+                        SwitchListTile(
+                          value: _notification,
+                          activeColor: const Color(0xFF69B7E8),
+                          title: Text(tr('Notification', 'الإشعار')),
+                          onChanged: (value) {
+                            modalSetState(() {
+                              _notification = value;
+                            });
+                            setState(() {
+                              _notification = value;
+                            });
+                          },
+                        ),
+                        SwitchListTile(
+                          value: _sound,
+                          activeColor: const Color(0xFF69B7E8),
+                          title: Text(tr('Sound', 'الصوت')),
+                          onChanged: (value) {
+                            modalSetState(() {
+                              _sound = value;
+                            });
+                            setState(() {
+                              _sound = value;
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 15),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: ElevatedButton(
+                            onPressed: _isSaving ? null : _saveReminder,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF69B7E8),
+                              disabledBackgroundColor: Colors.grey,
+                              minimumSize: const Size(0, 52),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                            ),
+                            child: _isSaving
+                                ? const CircularProgressIndicator(
+                                    color: Colors.white,
+                                  )
+                                : Text(
+                                    _editingReminderId == null
+                                        ? tr('Add', 'إضافة')
+                                        : tr('Update', 'تحديث'),
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                          ),
                         ),
                       ],
-
-                      const SizedBox(height: 14),
-
-                      SwitchListTile(
-                        value: _notification,
-                        activeColor: const Color(0xFF69B7E8),
-                        title: const Text('Notification'),
-                        onChanged: (value) {
-                          modalSetState(() {
-                            _notification = value;
-                          });
-                          setState(() {
-                            _notification = value;
-                          });
-                        },
-                      ),
-
-                      SwitchListTile(
-                        value: _sound,
-                        activeColor: const Color(0xFF69B7E8),
-                        title: const Text('Sound'),
-                        onChanged: (value) {
-                          modalSetState(() {
-                            _sound = value;
-                          });
-                          setState(() {
-                            _sound = value;
-                          });
-                        },
-                      ),
-
-                      const SizedBox(height: 15),
-
-                      SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: ElevatedButton(
-                          onPressed: _isSaving ? null : _saveReminder,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF69B7E8),
-                            disabledBackgroundColor: Colors.grey,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                          ),
-                          child: _isSaving
-                              ? const CircularProgressIndicator(
-                                  color: Colors.white,
-                                )
-                              : Text(
-                                  _editingReminderId == null ? 'Add' : 'Update',
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         );
       },
     );
@@ -777,10 +883,11 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
   }) {
     return TextFormField(
       controller: controller,
+      textAlign: isArabic ? TextAlign.right : TextAlign.left,
       decoration: _inputDecoration(label: label, icon: icon),
       validator: (value) {
         if ((value ?? '').trim().isEmpty) {
-          return 'Required';
+          return tr('Required', 'مطلوب');
         }
         return null;
       },
@@ -791,20 +898,20 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
     return TextFormField(
       controller: _emojiController,
       readOnly: true,
+      textAlign: isArabic ? TextAlign.right : TextAlign.left,
       onTap: () => _showEmojiPicker(modalSetState),
-      decoration:
-          _inputDecoration(
-            label: 'Emoji',
-            icon: Icons.emoji_emotions_outlined,
-          ).copyWith(
-            suffixIcon: const Icon(
-              Icons.keyboard_arrow_down_rounded,
-              color: Color(0xFF69B7E8),
-            ),
-          ),
+      decoration: _inputDecoration(
+        label: tr('Emoji', 'الرمز'),
+        icon: Icons.emoji_emotions_outlined,
+      ).copyWith(
+        suffixIcon: const Icon(
+          Icons.keyboard_arrow_down_rounded,
+          color: Color(0xFF69B7E8),
+        ),
+      ),
       validator: (value) {
         if ((value ?? '').trim().isEmpty) {
-          return 'Please select emoji';
+          return tr('Please select emoji', 'يرجى اختيار رمز');
         }
         return null;
       },
@@ -815,17 +922,20 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
     return TextFormField(
       controller: _timeController,
       readOnly: true,
+      textAlign: isArabic ? TextAlign.right : TextAlign.left,
       onTap: _pickTime,
-      decoration: _inputDecoration(label: 'Time', icon: Icons.access_time)
-          .copyWith(
-            suffixIcon: const Icon(
-              Icons.keyboard_arrow_down_rounded,
-              color: Color(0xFF69B7E8),
-            ),
-          ),
+      decoration: _inputDecoration(
+        label: tr('Time', 'الوقت'),
+        icon: Icons.access_time,
+      ).copyWith(
+        suffixIcon: const Icon(
+          Icons.keyboard_arrow_down_rounded,
+          color: Color(0xFF69B7E8),
+        ),
+      ),
       validator: (value) {
         if ((value ?? '').trim().isEmpty) {
-          return 'Please select time';
+          return tr('Please select time', 'يرجى اختيار الوقت');
         }
         return null;
       },
@@ -836,20 +946,20 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
     return TextFormField(
       controller: _dateController,
       readOnly: true,
+      textAlign: isArabic ? TextAlign.right : TextAlign.left,
       onTap: _pickDate,
-      decoration:
-          _inputDecoration(
-            label: 'Day / Date',
-            icon: Icons.calendar_month_outlined,
-          ).copyWith(
-            suffixIcon: const Icon(
-              Icons.keyboard_arrow_down_rounded,
-              color: Color(0xFF69B7E8),
-            ),
-          ),
+      decoration: _inputDecoration(
+        label: tr('Day / Date', 'اليوم / التاريخ'),
+        icon: Icons.calendar_month_outlined,
+      ).copyWith(
+        suffixIcon: const Icon(
+          Icons.keyboard_arrow_down_rounded,
+          color: Color(0xFF69B7E8),
+        ),
+      ),
       validator: (value) {
         if ((value ?? '').trim().isEmpty) {
-          return 'Please select day';
+          return tr('Please select day', 'يرجى اختيار اليوم');
         }
         return null;
       },
@@ -881,15 +991,14 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
           margin: const EdgeInsets.symmetric(horizontal: 2),
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
-            color: isSelected
-                ? const Color(0xFF69B7E8)
-                : const Color(0xFFE9E9E9),
+            color:
+                isSelected ? const Color(0xFF69B7E8) : const Color(0xFFE9E9E9),
             borderRadius: BorderRadius.circular(14),
           ),
           child: Column(
             children: [
               Text(
-                _shortWeekDays[date.weekday - 1],
+                _shortDayNameText(_shortWeekDays[date.weekday - 1]),
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
@@ -933,11 +1042,12 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
     final weekDates = _currentWeekDates();
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+          isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
       children: [
-        const Text(
-          'This Week',
-          style: TextStyle(
+        Text(
+          tr('This Week', 'هذا الأسبوع'),
+          style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
             color: Color(0xFF333333),
@@ -970,6 +1080,7 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
                 Expanded(
                   child: Text(
                     _selectedDateText,
+                    textAlign: isArabic ? TextAlign.right : TextAlign.left,
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
@@ -1009,7 +1120,7 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
   }
 
   Widget _buildReminderCard(String docId, Map<String, dynamic> data) {
-    final String title = data['title'] ?? 'Reminder';
+    final String title = data['title'] ?? tr('Reminder', 'تذكير');
     final String time = data['time'] ?? '';
     final String emoji = data['emoji'] ?? '🔔';
     final String category = data['category'] ?? 'others';
@@ -1039,10 +1150,12 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
           const SizedBox(width: 14),
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+                  isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
+                  textAlign: isArabic ? TextAlign.right : TextAlign.left,
                   style: const TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.bold,
@@ -1051,12 +1164,16 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
                 ),
                 const SizedBox(height: 5),
                 Row(
+                  mainAxisAlignment: isArabic
+                      ? MainAxisAlignment.end
+                      : MainAxisAlignment.start,
                   children: [
                     Icon(_categoryIcon(category), size: 16, color: Colors.grey),
                     const SizedBox(width: 5),
                     Expanded(
                       child: Text(
                         '${_categoryText(category)} • $time',
+                        textAlign: isArabic ? TextAlign.right : TextAlign.left,
                         style: const TextStyle(
                           color: Colors.grey,
                           fontSize: 13,
@@ -1069,6 +1186,7 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
                 const SizedBox(height: 3),
                 Text(
                   dateText,
+                  textAlign: isArabic ? TextAlign.right : TextAlign.left,
                   style: const TextStyle(color: Colors.grey, fontSize: 12),
                 ),
               ],
@@ -1091,119 +1209,134 @@ class _CompanionRemindersPageState extends State<CompanionRemindersPage> {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF4F4F4),
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(),
-            StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: _remindersStream(),
-              builder: (context, snapshot) {
-                final reminders = snapshot.data?.docs ?? [];
+    return Directionality(
+      textDirection: isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF4F4F4),
+        body: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(),
+              StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                stream: _remindersStream(),
+                builder: (context, snapshot) {
+                  final reminders = snapshot.data?.docs ?? [];
 
-                final selectedReminders = reminders.where((doc) {
-                  final data = doc.data();
-                  return data['dateText'] == _selectedDateText;
-                }).toList();
+                  final selectedReminders = reminders.where((doc) {
+                    final data = doc.data();
+                    return data['dateText'] == _selectedDateText;
+                  }).toList();
 
-                return Expanded(
-                  child: Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(18, 8, 18, 10),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            _buildActionButton(
-                              icon: Icons.add,
-                              onTap: () {
-                                _clearForm();
-                                _showReminderForm();
-                              },
-                            ),
-                            _buildActionButton(
-                              icon: Icons.edit_note,
-                              onTap: () {
-                                if (selectedReminders.isNotEmpty) {
-                                  final doc = selectedReminders.first;
-                                  _fillFormForEdit(doc.id, doc.data());
-                                }
-                              },
-                            ),
-                            _buildActionButton(
-                              icon: Icons.delete_outline,
-                              onTap: () {
-                                if (selectedReminders.isNotEmpty) {
-                                  _deleteReminder(selectedReminders.first.id);
-                                }
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.fromLTRB(18, 10, 18, 10),
-                          color: const Color(0xFFF4F4F4),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                  return Expanded(
+                    child: Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(18, 8, 18, 10),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
                             children: [
-                              _buildWeekSelector(reminders),
-                              const SizedBox(height: 24),
-                              Expanded(
-                                child: user == null
-                                    ? const Center(
-                                        child: Text(
-                                          'Please login first',
-                                          style: TextStyle(
-                                            fontSize: 17,
-                                            color: Colors.grey,
-                                          ),
-                                        ),
-                                      )
-                                    : snapshot.connectionState ==
-                                          ConnectionState.waiting
-                                    ? const Center(
-                                        child: CircularProgressIndicator(
-                                          color: Color(0xFF69B7E8),
-                                        ),
-                                      )
-                                    : selectedReminders.isEmpty
-                                    ? const Center(
-                                        child: Text(
-                                          'No reminders for this day',
-                                          style: TextStyle(
-                                            fontSize: 17,
-                                            color: Colors.grey,
-                                          ),
-                                        ),
-                                      )
-                                    : ListView.builder(
-                                        itemCount: selectedReminders.length,
-                                        itemBuilder: (context, index) {
-                                          final doc = selectedReminders[index];
-                                          return _buildReminderCard(
-                                            doc.id,
-                                            doc.data(),
-                                          );
-                                        },
-                                      ),
+                              _buildActionButton(
+                                icon: Icons.add,
+                                onTap: () {
+                                  _clearForm();
+                                  _showReminderForm();
+                                },
+                              ),
+                              _buildActionButton(
+                                icon: Icons.edit_note,
+                                onTap: () {
+                                  if (selectedReminders.isNotEmpty) {
+                                    final doc = selectedReminders.first;
+                                    _fillFormForEdit(doc.id, doc.data());
+                                  }
+                                },
+                              ),
+                              _buildActionButton(
+                                icon: Icons.delete_outline,
+                                onTap: () {
+                                  if (selectedReminders.isNotEmpty) {
+                                    _deleteReminder(selectedReminders.first.id);
+                                  }
+                                },
                               ),
                             ],
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ],
+                        Expanded(
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.fromLTRB(18, 10, 18, 10),
+                            color: const Color(0xFFF4F4F4),
+                            child: Column(
+                              crossAxisAlignment: isArabic
+                                  ? CrossAxisAlignment.end
+                                  : CrossAxisAlignment.start,
+                              children: [
+                                _buildWeekSelector(reminders),
+                                const SizedBox(height: 24),
+                                Expanded(
+                                  child: user == null
+                                      ? Center(
+                                          child: Text(
+                                            tr(
+                                              'Please login first',
+                                              'يرجى تسجيل الدخول أولاً',
+                                            ),
+                                            style: const TextStyle(
+                                              fontSize: 17,
+                                              color: Colors.grey,
+                                            ),
+                                          ),
+                                        )
+                                      : snapshot.connectionState ==
+                                              ConnectionState.waiting
+                                          ? const Center(
+                                              child: CircularProgressIndicator(
+                                                color: Color(0xFF69B7E8),
+                                              ),
+                                            )
+                                          : selectedReminders.isEmpty
+                                              ? Center(
+                                                  child: Text(
+                                                    tr(
+                                                      'No reminders for this day',
+                                                      'لا توجد تذكيرات لهذا اليوم',
+                                                    ),
+                                                    style: const TextStyle(
+                                                      fontSize: 17,
+                                                      color: Colors.grey,
+                                                    ),
+                                                  ),
+                                                )
+                                              : ListView.builder(
+                                                  itemCount:
+                                                      selectedReminders.length,
+                                                  itemBuilder:
+                                                      (context, index) {
+                                                    final doc =
+                                                        selectedReminders[
+                                                            index];
+                                                    return _buildReminderCard(
+                                                      doc.id,
+                                                      doc.data(),
+                                                    );
+                                                  },
+                                                ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
         ),
+        bottomNavigationBar: _buildBottomNavigation(),
       ),
-      bottomNavigationBar: _buildBottomNavigation(),
     );
   }
 }

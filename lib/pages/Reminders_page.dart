@@ -1,10 +1,14 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'app_tts.dart';
+
 import 'Dashboard_page.dart';
 import 'Profile_page.dart';
 import 'Settings_page.dart';
+
+import 'package:humantouch/pages/app_settings_store.dart';
 
 class RemindersPage extends StatefulWidget {
   const RemindersPage({super.key});
@@ -25,6 +29,47 @@ class _RemindersPageState extends State<RemindersPage> {
     'Friday',
     'Saturday',
   ];
+
+  bool get isArabic => AppSettingsStore.instance.isArabic;
+
+  String tr(String en, String ar) => isArabic ? ar : en;
+
+  String dayName(String day) {
+    switch (day) {
+      case 'Sunday':
+        return tr('Sunday', 'الأحد');
+      case 'Monday':
+        return tr('Monday', 'الاثنين');
+      case 'Tuesday':
+        return tr('Tuesday', 'الثلاثاء');
+      case 'Wednesday':
+        return tr('Wednesday', 'الأربعاء');
+      case 'Thursday':
+        return tr('Thursday', 'الخميس');
+      case 'Friday':
+        return tr('Friday', 'الجمعة');
+      case 'Saturday':
+        return tr('Saturday', 'السبت');
+      default:
+        return day;
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    AppSettingsStore.instance.addListener(_onLanguageChanged);
+  }
+
+  void _onLanguageChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    AppSettingsStore.instance.removeListener(_onLanguageChanged);
+    super.dispose();
+  }
 
   void _goBack() {
     if (Navigator.canPop(context)) {
@@ -99,9 +144,9 @@ class _RemindersPageState extends State<RemindersPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _bottomItem(Icons.home_rounded, 'Home', 0),
-          _bottomItem(Icons.person_rounded, 'Profile', 1),
-          _bottomItem(Icons.settings_rounded, 'Settings', 2),
+          _bottomItem(Icons.home_rounded, tr('Home', 'الرئيسية'), 0),
+          _bottomItem(Icons.person_rounded, tr('Profile', 'الملف'), 1),
+          _bottomItem(Icons.settings_rounded, tr('Settings', 'الإعدادات'), 2),
         ],
       ),
     );
@@ -134,17 +179,17 @@ class _RemindersPageState extends State<RemindersPage> {
             children: [
               IconButton(
                 onPressed: _goBack,
-                icon: const Icon(
-                  Icons.arrow_back,
+                icon: Icon(
+                  isArabic ? Icons.arrow_forward : Icons.arrow_back,
                   size: 28,
-                  color: Color(0xFF263238),
+                  color: const Color(0xFF263238),
                 ),
               ),
-              const Expanded(
+              Expanded(
                 child: Center(
                   child: Text(
-                    'Reminders',
-                    style: TextStyle(
+                    tr('Reminders', 'التذكيرات'),
+                    style: const TextStyle(
                       fontSize: 25,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF1A1A1A),
@@ -163,15 +208,15 @@ class _RemindersPageState extends State<RemindersPage> {
   String _categoryText(String category) {
     switch (category.toLowerCase()) {
       case 'medicine':
-        return 'Medicine';
+        return tr('Medicine', 'دواء');
       case 'meal':
-        return 'Meal';
+        return tr('Meal', 'وجبة');
       case 'appointment':
-        return 'Appointment';
+        return tr('Appointment', 'موعد');
       case 'others':
-        return 'Others';
+        return tr('Others', 'أخرى');
       default:
-        return 'Others';
+        return tr('Others', 'أخرى');
     }
   }
 
@@ -210,13 +255,13 @@ class _RemindersPageState extends State<RemindersPage> {
           ),
           child: Center(
             child: Text(
-              day,
+              dayName(day),
               textAlign: TextAlign.center,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: isSelected ? Colors.white : const Color(0xFF333333),
-                fontSize: 8.5,
+                fontSize: isArabic ? 8 : 8.5,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -239,13 +284,13 @@ class _RemindersPageState extends State<RemindersPage> {
 
     if (status == 'accepted') {
       color = Colors.green;
-      text = 'Accepted';
+      text = tr('Accepted', 'تم');
     } else if (status == 'none') {
       color = Colors.orange;
-      text = 'None';
+      text = tr('None', 'لم يتم');
     } else {
       color = Colors.grey;
-      text = 'Pending';
+      text = tr('Pending', 'قيد الانتظار');
     }
 
     return Container(
@@ -278,6 +323,7 @@ class _RemindersPageState extends State<RemindersPage> {
           style: ElevatedButton.styleFrom(
             backgroundColor: color,
             elevation: 0,
+            minimumSize: const Size(0, 38),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(14),
             ),
@@ -299,7 +345,7 @@ class _RemindersPageState extends State<RemindersPage> {
     required String docId,
     required Map<String, dynamic> data,
   }) {
-    final String title = data['title'] ?? 'Reminder';
+    final String title = data['title'] ?? tr('Reminder', 'تذكير');
     final String time = data['time'] ?? '';
     final String emoji = data['emoji'] ?? '🔔';
     final String category = data['category'] ?? 'others';
@@ -331,10 +377,13 @@ class _RemindersPageState extends State<RemindersPage> {
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: isArabic
+                      ? CrossAxisAlignment.end
+                      : CrossAxisAlignment.start,
                   children: [
                     Text(
                       title,
+                      textAlign: isArabic ? TextAlign.right : TextAlign.left,
                       style: const TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.bold,
@@ -343,6 +392,9 @@ class _RemindersPageState extends State<RemindersPage> {
                     ),
                     const SizedBox(height: 5),
                     Row(
+                      mainAxisAlignment: isArabic
+                          ? MainAxisAlignment.end
+                          : MainAxisAlignment.start,
                       children: [
                         Icon(
                           _categoryIcon(category),
@@ -369,13 +421,13 @@ class _RemindersPageState extends State<RemindersPage> {
           Row(
             children: [
               _smallButton(
-                text: 'Accept',
+                text: tr('Accept', 'تم'),
                 color: const Color(0xFF69B7E8),
                 onTap: () => _changeReminderStatus(docId, 'accepted'),
               ),
               const SizedBox(width: 10),
               _smallButton(
-                text: 'None',
+                text: tr('None', 'لم يتم'),
                 color: Colors.orange,
                 onTap: () => _changeReminderStatus(docId, 'none'),
               ),
@@ -400,94 +452,109 @@ class _RemindersPageState extends State<RemindersPage> {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF4F4F4),
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(),
-            Expanded(
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
-                color: const Color(0xFFF4F4F4),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(children: _days.map(_buildDayTab).toList()),
-                    const SizedBox(height: 24),
-                    Expanded(
-                      child: user == null
-                          ? const Center(
-                              child: Text(
-                                'Please login to see reminders',
-                                style: TextStyle(
-                                  fontSize: 17,
-                                  color: Colors.grey,
+    return Directionality(
+      textDirection: isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF4F4F4),
+        body: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(),
+              Expanded(
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
+                  color: const Color(0xFFF4F4F4),
+                  child: Column(
+                    crossAxisAlignment: isArabic
+                        ? CrossAxisAlignment.end
+                        : CrossAxisAlignment.start,
+                    children: [
+                      Row(children: _days.map(_buildDayTab).toList()),
+                      const SizedBox(height: 24),
+                      Expanded(
+                        child: user == null
+                            ? Center(
+                                child: Text(
+                                  tr(
+                                    'Please login to see reminders',
+                                    'يرجى تسجيل الدخول لعرض التذكيرات',
+                                  ),
+                                  style: const TextStyle(
+                                    fontSize: 17,
+                                    color: Colors.grey,
+                                  ),
                                 ),
-                              ),
-                            )
-                          : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                              stream: _remindersStream(),
-                              builder: (context, snapshot) {
-                                if (snapshot.hasError) {
-                                  return const Center(
-                                    child: Text(
-                                      'Error loading reminders',
-                                      style: TextStyle(
-                                        fontSize: 17,
-                                        color: Colors.grey,
+                              )
+                            : StreamBuilder<
+                                QuerySnapshot<Map<String, dynamic>>>(
+                                stream: _remindersStream(),
+                                builder: (context, snapshot) {
+                                  if (snapshot.hasError) {
+                                    return Center(
+                                      child: Text(
+                                        tr(
+                                          'Error loading reminders',
+                                          'حدث خطأ أثناء تحميل التذكيرات',
+                                        ),
+                                        style: const TextStyle(
+                                          fontSize: 17,
+                                          color: Colors.grey,
+                                        ),
                                       ),
-                                    ),
-                                  );
-                                }
-
-                                if (snapshot.connectionState ==
-                                    ConnectionState.waiting) {
-                                  return const Center(
-                                    child: CircularProgressIndicator(
-                                      color: Color(0xFF87CEEB),
-                                    ),
-                                  );
-                                }
-
-                                if (!snapshot.hasData ||
-                                    snapshot.data!.docs.isEmpty) {
-                                  return const Center(
-                                    child: Text(
-                                      'No reminders for this day',
-                                      style: TextStyle(
-                                        fontSize: 17,
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                  );
-                                }
-
-                                final reminders = snapshot.data!.docs;
-
-                                return ListView.builder(
-                                  itemCount: reminders.length,
-                                  itemBuilder: (context, index) {
-                                    final doc = reminders[index];
-
-                                    return _buildReminderCard(
-                                      docId: doc.id,
-                                      data: doc.data(),
                                     );
-                                  },
-                                );
-                              },
-                            ),
-                    ),
-                  ],
+                                  }
+
+                                  if (snapshot.connectionState ==
+                                      ConnectionState.waiting) {
+                                    return const Center(
+                                      child: CircularProgressIndicator(
+                                        color: Color(0xFF87CEEB),
+                                      ),
+                                    );
+                                  }
+
+                                  if (!snapshot.hasData ||
+                                      snapshot.data!.docs.isEmpty) {
+                                    return Center(
+                                      child: Text(
+                                        tr(
+                                          'No reminders for this day',
+                                          'لا توجد تذكيرات لهذا اليوم',
+                                        ),
+                                        style: const TextStyle(
+                                          fontSize: 17,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
+                                    );
+                                  }
+
+                                  final reminders = snapshot.data!.docs;
+
+                                  return ListView.builder(
+                                    itemCount: reminders.length,
+                                    itemBuilder: (context, index) {
+                                      final doc = reminders[index];
+
+                                      return _buildReminderCard(
+                                        docId: doc.id,
+                                        data: doc.data(),
+                                      );
+                                    },
+                                  );
+                                },
+                              ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
+        bottomNavigationBar: _buildBottomNavigation(),
       ),
-      bottomNavigationBar: _buildBottomNavigation(),
     );
   }
 }

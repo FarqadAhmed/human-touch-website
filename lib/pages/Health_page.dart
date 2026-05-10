@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -5,6 +7,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'Dashboard_page.dart';
 import 'Profile_page.dart';
 import 'Settings_page.dart';
+
+import 'package:humantouch/pages/app_settings_store.dart';
 
 class HealthPage extends StatefulWidget {
   const HealthPage({super.key});
@@ -17,6 +21,67 @@ class _HealthPageState extends State<HealthPage> {
   String _selectedMood = 'Happy';
   String _userName = 'User';
   bool _showAllActivities = false;
+
+  bool get isArabic => AppSettingsStore.instance.isArabic;
+
+  String tr(String en, String ar) => isArabic ? ar : en;
+
+  String moodName(String mood) {
+    switch (mood) {
+      case 'Happy':
+        return tr('Happy', 'سعيد');
+      case 'Calm':
+        return tr('Calm', 'هادئ');
+      case 'Tired':
+        return tr('Tired', 'متعب');
+      case 'Sad':
+        return tr('Sad', 'حزين');
+      case 'Stressed':
+        return tr('Stressed', 'متوتر');
+      case 'Anxious':
+        return tr('Anxious', 'قلق');
+      case 'Angry':
+        return tr('Angry', 'غاضب');
+      case 'Sick':
+        return tr('Sick', 'مريض');
+      default:
+        return mood;
+    }
+  }
+
+  String activityTitle(String title) {
+    switch (title) {
+      case 'Heart':
+        return tr('Heart', 'القلب');
+      case 'Sleep':
+        return tr('Sleep', 'النوم');
+      case 'Walk':
+        return tr('Walk', 'المشي');
+      case 'Exercise':
+        return tr('Exercise', 'الرياضة');
+      case 'Water':
+        return tr('Water', 'الماء');
+      default:
+        return title;
+    }
+  }
+
+  String unitName(String unit) {
+    switch (unit) {
+      case 'BPM':
+        return tr('BPM', 'نبضة/دقيقة');
+      case 'Hours':
+        return tr('Hours', 'ساعات');
+      case 'Steps':
+        return tr('Steps', 'خطوة');
+      case 'Minutes':
+        return tr('Minutes', 'دقائق');
+      case 'Cups':
+        return tr('Cups', 'أكواب');
+      default:
+        return unit;
+    }
+  }
 
   final List<HealthMood> _moods = const [
     HealthMood(label: 'Happy', emoji: '😊', color: Color(0xFFFDFFB6)),
@@ -76,6 +141,17 @@ class _HealthPageState extends State<HealthPage> {
   void initState() {
     super.initState();
     _loadUserDataFromFirebase();
+    AppSettingsStore.instance.addListener(_onLanguageChanged);
+  }
+
+  void _onLanguageChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    AppSettingsStore.instance.removeListener(_onLanguageChanged);
+    super.dispose();
   }
 
   Future<void> _loadUserDataFromFirebase() async {
@@ -113,7 +189,9 @@ class _HealthPageState extends State<HealthPage> {
 
   String _getGreeting() {
     final int hour = DateTime.now().hour;
-    return hour < 12 ? 'Good Morning' : 'Good Evening';
+    return hour < 12
+        ? tr('Good Morning', 'صباح الخير')
+        : tr('Good Evening', 'مساء الخير');
   }
 
   Future<void> _saveMoodForCompanion(HealthMood mood) async {
@@ -121,9 +199,11 @@ class _HealthPageState extends State<HealthPage> {
       final user = FirebaseAuth.instance.currentUser;
 
       if (user == null) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Please login first')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content:
+                  Text(tr('Please login first', 'يرجى تسجيل الدخول أولاً'))),
+        );
         return;
       }
 
@@ -144,15 +224,22 @@ class _HealthPageState extends State<HealthPage> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${mood.emoji} Mood saved and sent to companion'),
+          content: Text(
+            tr(
+              '${mood.emoji} Mood saved and sent to companion',
+              '${mood.emoji} تم حفظ المزاج وإرساله للمرافق',
+            ),
+          ),
         ),
       );
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error saving mood: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(
+                tr('Error saving mood: $e', 'حدث خطأ أثناء حفظ المزاج: $e'))),
+      );
     }
   }
 
@@ -243,9 +330,9 @@ class _HealthPageState extends State<HealthPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _bottomItem(Icons.home_rounded, 'Home', 0),
-          _bottomItem(Icons.person_rounded, 'Profile', 1),
-          _bottomItem(Icons.settings_rounded, 'Settings', 2),
+          _bottomItem(Icons.home_rounded, tr('Home', 'الرئيسية'), 0),
+          _bottomItem(Icons.person_rounded, tr('Profile', 'الملف'), 1),
+          _bottomItem(Icons.settings_rounded, tr('Settings', 'الإعدادات'), 2),
         ],
       ),
     );
@@ -278,17 +365,17 @@ class _HealthPageState extends State<HealthPage> {
             children: [
               IconButton(
                 onPressed: _goBack,
-                icon: const Icon(
-                  Icons.arrow_back,
+                icon: Icon(
+                  isArabic ? Icons.arrow_forward : Icons.arrow_back,
                   size: 28,
-                  color: Color(0xFF263238),
+                  color: const Color(0xFF263238),
                 ),
               ),
-              const Expanded(
+              Expanded(
                 child: Center(
                   child: Text(
-                    'Health',
-                    style: TextStyle(
+                    tr('Health', 'الصحة'),
+                    style: const TextStyle(
                       fontSize: 25,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF1A1A1A),
@@ -321,10 +408,11 @@ class _HealthPageState extends State<HealthPage> {
           const SizedBox(width: 14),
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+                  isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
               children: [
                 Text(
-                  item.title,
+                  activityTitle(item.title),
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
@@ -340,7 +428,7 @@ class _HealthPageState extends State<HealthPage> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '${item.value.toInt()} / ${item.goal.toInt()} ${item.unit}',
+                  '${item.value.toInt()} / ${item.goal.toInt()} ${unitName(item.unit)}',
                   style: const TextStyle(
                     fontSize: 14,
                     color: Colors.black87,
@@ -401,9 +489,9 @@ class _HealthPageState extends State<HealthPage> {
               color: Colors.white,
               borderRadius: BorderRadius.circular(22),
             ),
-            child: const Text(
-              'Could not load health tips.',
-              style: TextStyle(fontSize: 15),
+            child: Text(
+              tr('Could not load health tips.', 'تعذر تحميل النصائح الصحية.'),
+              style: const TextStyle(fontSize: 15),
             ),
           );
         }
@@ -428,9 +516,12 @@ class _HealthPageState extends State<HealthPage> {
               borderRadius: BorderRadius.circular(24),
               boxShadow: _shadow(),
             ),
-            child: const Text(
-              'No health tips yet. When a volunteer writes a tip, it will appear here.',
-              style: TextStyle(
+            child: Text(
+              tr(
+                'No health tips yet. When a volunteer writes a tip, it will appear here.',
+                'لا توجد نصائح صحية بعد. عندما يكتب المتطوع نصيحة، ستظهر هنا.',
+              ),
+              style: const TextStyle(
                 fontSize: 15,
                 color: Colors.black87,
                 height: 1.4,
@@ -485,7 +576,9 @@ class _HealthPageState extends State<HealthPage> {
                     children: [
                       Expanded(
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment: isArabic
+                              ? CrossAxisAlignment.end
+                              : CrossAxisAlignment.start,
                           children: [
                             Row(
                               children: [
@@ -504,7 +597,10 @@ class _HealthPageState extends State<HealthPage> {
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
-                                    '${tip.personName} • ${tip.personType}',
+                                    '${tip.personName} • ${isArabic && tip.personType == 'Volunteer' ? 'متطوع' : tip.personType}',
+                                    textAlign: isArabic
+                                        ? TextAlign.right
+                                        : TextAlign.left,
                                     style: const TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600,
@@ -516,6 +612,8 @@ class _HealthPageState extends State<HealthPage> {
                             const SizedBox(height: 14),
                             Text(
                               tip.title,
+                              textAlign:
+                                  isArabic ? TextAlign.right : TextAlign.left,
                               style: const TextStyle(
                                 fontSize: 22,
                                 fontWeight: FontWeight.w800,
@@ -526,6 +624,8 @@ class _HealthPageState extends State<HealthPage> {
                               tip.shortTip,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
+                              textAlign:
+                                  isArabic ? TextAlign.right : TextAlign.left,
                               style: const TextStyle(
                                 fontSize: 15,
                                 color: Colors.black87,
@@ -561,128 +661,139 @@ class _HealthPageState extends State<HealthPage> {
     final activitiesToShow =
         _showAllActivities ? _activities : _activities.take(3).toList();
 
-    return GestureDetector(
-      onTap: () => FocusScope.of(context).unfocus(),
-      child: Scaffold(
-        backgroundColor: const Color(0xFFF4F4F4),
-        floatingActionButton: _buildAIButton(),
-        body: SafeArea(
-          child: ListView(
-            padding: EdgeInsets.zero,
-            children: [
-              _buildHeader(),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${_getGreeting()}, $_userName',
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w600,
+    return Directionality(
+      textDirection: isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
+      child: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Scaffold(
+          backgroundColor: const Color(0xFFF4F4F4),
+          floatingActionButton: _buildAIButton(),
+          body: SafeArea(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                _buildHeader(),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                  child: Column(
+                    crossAxisAlignment: isArabic
+                        ? CrossAxisAlignment.end
+                        : CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${_getGreeting()}, $_userName',
+                        textAlign: isArabic ? TextAlign.right : TextAlign.left,
+                        style: const TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 36),
-                    const Text(
-                      'How are you feeling today?',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
+                      const SizedBox(height: 36),
+                      Text(
+                        tr(
+                          'How are you feeling today?',
+                          'كيف تشعر اليوم؟',
+                        ),
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: _moods.map((mood) {
-                          final bool isSelected = _selectedMood == mood.label;
+                      const SizedBox(height: 12),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: _moods.map((mood) {
+                            final bool isSelected = _selectedMood == mood.label;
 
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 16),
-                            child: GestureDetector(
-                              onTap: () => _saveMoodForCompanion(mood),
-                              child: Column(
-                                children: [
-                                  Container(
-                                    width: 68,
-                                    height: 68,
-                                    decoration: BoxDecoration(
-                                      color: mood.color,
-                                      borderRadius: BorderRadius.circular(18),
-                                      border: Border.all(
-                                        color: isSelected
-                                            ? Colors.black
-                                            : Colors.transparent,
-                                        width: 2,
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 16),
+                              child: GestureDetector(
+                                onTap: () => _saveMoodForCompanion(mood),
+                                child: Column(
+                                  children: [
+                                    Container(
+                                      width: 68,
+                                      height: 68,
+                                      decoration: BoxDecoration(
+                                        color: mood.color,
+                                        borderRadius: BorderRadius.circular(18),
+                                        border: Border.all(
+                                          color: isSelected
+                                              ? Colors.black
+                                              : Colors.transparent,
+                                          width: 2,
+                                        ),
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          mood.emoji,
+                                          style: const TextStyle(fontSize: 30),
+                                        ),
                                       ),
                                     ),
-                                    child: Center(
-                                      child: Text(
-                                        mood.emoji,
-                                        style: const TextStyle(fontSize: 30),
-                                      ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      moodName(mood.label),
+                                      style: const TextStyle(fontSize: 12),
                                     ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    mood.label,
-                                    style: const TextStyle(fontSize: 12),
-                                  ),
-                                ],
+                                  ],
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            tr('Today\'s Activity', 'نشاط اليوم'),
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              setState(() {
+                                _showAllActivities = !_showAllActivities;
+                              });
+                            },
+                            child: Text(
+                              _showAllActivities
+                                  ? tr('See less', 'عرض أقل')
+                                  : tr('See more', 'عرض المزيد'),
+                              style: const TextStyle(
+                                fontSize: 16,
+                                color: Color(0xFF87CEEB),
                               ),
                             ),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Today\'s Activity',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
                           ),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            setState(() {
-                              _showAllActivities = !_showAllActivities;
-                            });
-                          },
-                          child: Text(
-                            _showAllActivities ? 'See less' : 'See more',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              color: Color(0xFF87CEEB),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    ...activitiesToShow.map(_buildProgressActivity),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Health Tips',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildHealthTipsFromFirebase(),
-                    const SizedBox(height: 90),
-                  ],
+                      const SizedBox(height: 12),
+                      ...activitiesToShow.map(_buildProgressActivity),
+                      const SizedBox(height: 6),
+                      Text(
+                        tr('Health Tips', 'نصائح صحية'),
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _buildHealthTipsFromFirebase(),
+                      const SizedBox(height: 90),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
+          bottomNavigationBar: _buildBottomNavigation(),
         ),
-        bottomNavigationBar: _buildBottomNavigation(),
       ),
     );
   }
@@ -747,6 +858,10 @@ class HealthTipDetailsPage extends StatelessWidget {
 
   const HealthTipDetailsPage({super.key, required this.tip});
 
+  bool get isArabic => AppSettingsStore.instance.isArabic;
+
+  String tr(String en, String ar) => isArabic ? ar : en;
+
   String _formatDate(dynamic createdAt) {
     try {
       if (createdAt is Timestamp) {
@@ -774,82 +889,91 @@ class HealthTipDetailsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final dateText = _formatDate(tip.createdAt);
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF4F4F4),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF87CEEB),
-        elevation: 0,
-        leading: IconButton(
-          onPressed: () => _goBack(context),
-          icon: const Icon(Icons.arrow_back, size: 28),
-        ),
-        title: const Text('Tip Details'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: const Color(0xFFD9F3FF),
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.08),
-                blurRadius: 12,
-                offset: const Offset(0, 5),
-              ),
-            ],
+    return Directionality(
+      textDirection: isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF4F4F4),
+        appBar: AppBar(
+          backgroundColor: const Color(0xFF87CEEB),
+          elevation: 0,
+          leading: IconButton(
+            onPressed: () => _goBack(context),
+            icon: Icon(
+              isArabic ? Icons.arrow_forward : Icons.arrow_back,
+              size: 28,
+            ),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(tip.emoji, style: const TextStyle(fontSize: 54)),
-              const SizedBox(height: 12),
-              Text(
-                '${tip.personName} • ${tip.personType}',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+          title: Text(tr('Tip Details', 'تفاصيل النصيحة')),
+        ),
+        body: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: const Color(0xFFD9F3FF),
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 12,
+                  offset: const Offset(0, 5),
                 ),
-              ),
-              if (dateText.isNotEmpty) ...[
-                const SizedBox(height: 6),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment:
+                  isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              children: [
+                Text(tip.emoji, style: const TextStyle(fontSize: 54)),
+                const SizedBox(height: 12),
                 Text(
-                  dateText,
+                  '${tip.personName} • ${isArabic && tip.personType == 'Volunteer' ? 'متطوع' : tip.personType}',
                   style: const TextStyle(
-                    fontSize: 13,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (dateText.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    dateText,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF5D6D7E),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 16),
+                Text(
+                  tip.title,
+                  textAlign: isArabic ? TextAlign.right : TextAlign.left,
+                  style: const TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  tip.category,
+                  style: const TextStyle(
+                    fontSize: 15,
                     color: Color(0xFF5D6D7E),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  tip.fullTip,
+                  textAlign: isArabic ? TextAlign.right : TextAlign.left,
+                  style: const TextStyle(
+                    fontSize: 17,
+                    color: Colors.black87,
+                    height: 1.5,
                   ),
                 ),
               ],
-              const SizedBox(height: 16),
-              Text(
-                tip.title,
-                style: const TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                tip.category,
-                style: const TextStyle(
-                  fontSize: 15,
-                  color: Color(0xFF5D6D7E),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 18),
-              Text(
-                tip.fullTip,
-                style: const TextStyle(
-                  fontSize: 17,
-                  color: Colors.black87,
-                  height: 1.5,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -869,49 +993,91 @@ class _AIQuestionsPageState extends State<AIQuestionsPage> {
   final List<String?> _answers = List.filled(6, null);
   double _moodValue = 2;
 
-  final List<AIQuestion> _questions = const [
+  bool get isArabic => AppSettingsStore.instance.isArabic;
+
+  String tr(String en, String ar) => isArabic ? ar : en;
+
+  late final List<AIQuestion> _questions = [
     AIQuestion(
-      title: 'How is your mood?',
-      subtitle: 'On a scale of 1 – 3 how are you feeling today?',
+      title: tr('How is your mood?', 'كيف مزاجك؟'),
+      subtitle: tr(
+        'On a scale of 1 – 3 how are you feeling today?',
+        'على مقياس من 1 إلى 3 كيف تشعر اليوم؟',
+      ),
       type: AIQuestionType.sliderMood,
-      options: ['😒', '🙂', '😜'],
+      options: const ['😒', '🙂', '😜'],
     ),
     AIQuestion(
-      title: 'How was your day?',
-      subtitle: 'Did you experience anything out of the ordinary?',
+      title: tr('How was your day?', 'كيف كان يومك؟'),
+      subtitle: tr(
+        'Did you experience anything out of the ordinary?',
+        'هل حدث معك شيء غير معتاد؟',
+      ),
       type: AIQuestionType.options,
       options: [
-        'Incredible 😇',
-        'Great 😃',
-        'Good 🙂',
-        'Okay 🙁',
-        'Really Bad 😞',
+        tr('Incredible 😇', 'رائع جداً 😇'),
+        tr('Great 😃', 'ممتاز 😃'),
+        tr('Good 🙂', 'جيد 🙂'),
+        tr('Okay 🙁', 'عادي 🙁'),
+        tr('Really Bad 😞', 'سيء جداً 😞'),
       ],
     ),
     AIQuestion(
-      title: 'How is your energy level right now?',
-      subtitle: 'Did you notice anything affecting your energy today?',
+      title: tr('How is your energy level right now?', 'كيف مستوى طاقتك الآن؟'),
+      subtitle: tr(
+        'Did you notice anything affecting your energy today?',
+        'هل لاحظت شيئاً أثر على طاقتك اليوم؟',
+      ),
       type: AIQuestionType.options,
-      options: ['High ⚡', 'Medium 🙂', 'Low 😴', 'Exhausted 🛌'],
+      options: [
+        tr('High ⚡', 'عالية ⚡'),
+        tr('Medium 🙂', 'متوسطة 🙂'),
+        tr('Low 😴', 'منخفضة 😴'),
+        tr('Exhausted 🛌', 'مرهق 🛌'),
+      ],
     ),
     AIQuestion(
-      title: 'How are you feeling physically?',
-      subtitle: 'Did you experience any unusual physical symptoms?',
+      title: tr('How are you feeling physically?', 'كيف تشعر جسدياً؟'),
+      subtitle: tr(
+        'Did you experience any unusual physical symptoms?',
+        'هل شعرت بأي أعراض جسدية غير معتادة؟',
+      ),
       type: AIQuestionType.options,
-      options: ['Excellent 💪', 'Good 🙂', 'Okay 😐', 'Not well 🤒'],
+      options: [
+        tr('Excellent 💪', 'ممتاز 💪'),
+        tr('Good 🙂', 'جيد 🙂'),
+        tr('Okay 😐', 'عادي 😐'),
+        tr('Not well 🤒', 'لست بخير 🤒'),
+      ],
     ),
     AIQuestion(
-      title: 'Did you sleep well last night?',
-      subtitle:
-          'Did anything disturb your sleep or make it different than usual?',
+      title:
+          tr('Did you sleep well last night?', 'هل نمت جيداً الليلة الماضية؟'),
+      subtitle: tr(
+        'Did anything disturb your sleep or make it different than usual?',
+        'هل كان هناك شيء أزعج نومك أو جعله مختلفاً عن المعتاد؟',
+      ),
       type: AIQuestionType.options,
-      options: ['Excellent 🌙', 'Good 🙂', 'Okay 😐', 'Poor 😴'],
+      options: [
+        tr('Excellent 🌙', 'ممتاز 🌙'),
+        tr('Good 🙂', 'جيد 🙂'),
+        tr('Okay 😐', 'عادي 😐'),
+        tr('Poor 😴', 'ضعيف 😴'),
+      ],
     ),
     AIQuestion(
-      title: 'Do you need any help or support today?',
-      subtitle: 'Is there anything specific you need help with today?',
+      title: tr('Do you need any help or support today?',
+          'هل تحتاج إلى مساعدة أو دعم اليوم؟'),
+      subtitle: tr(
+        'Is there anything specific you need help with today?',
+        'هل يوجد شيء محدد تحتاج مساعدة فيه اليوم؟',
+      ),
       type: AIQuestionType.options,
-      options: ['Yes ✅', 'Maybe 🤔', 'No ❌'],
+      options: [
+        tr('Yes ✅', 'نعم ✅'),
+        tr('Maybe 🤔', 'ربما 🤔'),
+        tr('No ❌', 'لا ❌'),
+      ],
     ),
   ];
 
@@ -923,39 +1089,73 @@ class _AIQuestionsPageState extends State<AIQuestionsPage> {
     final sleep = _answers[4] ?? '';
     final help = _answers[5] ?? '';
 
-    if (help.contains('Yes')) {
-      return 'Thank you for sharing. Since you selected that you need help today, it is a good idea to contact your companion or ask for support. You are not alone. 💙';
+    if (help.contains('Yes') || help.contains('نعم')) {
+      return tr(
+        'Thank you for sharing. Since you selected that you need help today, it is a good idea to contact your companion or ask for support. You are not alone. 💙',
+        'شكراً لمشاركتك. بما أنك اخترت أنك تحتاج إلى مساعدة اليوم، من الأفضل التواصل مع المرافق أو طلب الدعم. أنت لست وحدك. 💙',
+      );
     }
 
-    if (physical.contains('Not well')) {
-      return 'Your answers show that you may not be feeling well physically today. Try to rest, drink water, and tell your companion if the feeling continues. 🤒';
+    if (physical.contains('Not well') || physical.contains('لست بخير')) {
+      return tr(
+        'Your answers show that you may not be feeling well physically today. Try to rest, drink water, and tell your companion if the feeling continues. 🤒',
+        'إجاباتك تشير إلى أنك قد لا تشعر بأنك بخير جسدياً اليوم. حاول أن ترتاح، اشرب الماء، وأخبر المرافق إذا استمر الشعور. 🤒',
+      );
     }
 
-    if (sleep.contains('Poor')) {
-      return 'It looks like your sleep was not good last night. Try to take things slowly today, rest when you can, and avoid too much stress. 😴';
+    if (sleep.contains('Poor') || sleep.contains('ضعيف')) {
+      return tr(
+        'It looks like your sleep was not good last night. Try to take things slowly today, rest when you can, and avoid too much stress. 😴',
+        'يبدو أن نومك لم يكن جيداً الليلة الماضية. حاول أن تأخذ يومك بهدوء، واسترح عندما تستطيع، وتجنب التوتر الزائد. 😴',
+      );
     }
 
-    if (energy.contains('Exhausted') || energy.contains('Low')) {
-      return 'Your energy level seems low today. A short rest, light food, and drinking water may help you feel better. 🌿';
+    if (energy.contains('Exhausted') ||
+        energy.contains('Low') ||
+        energy.contains('مرهق') ||
+        energy.contains('منخفضة')) {
+      return tr(
+        'Your energy level seems low today. A short rest, light food, and drinking water may help you feel better. 🌿',
+        'يبدو أن مستوى طاقتك منخفض اليوم. الراحة القصيرة، الطعام الخفيف، وشرب الماء قد يساعدونك على الشعور بشكل أفضل. 🌿',
+      );
     }
 
-    if (day.contains('Really Bad') || mood.contains('Bad')) {
-      return 'It seems today was emotionally difficult. Take a deep breath, do something calming, and talk to someone you trust if you need comfort. 💙';
+    if (day.contains('Really Bad') ||
+        mood.contains('Bad') ||
+        day.contains('سيء')) {
+      return tr(
+        'It seems today was emotionally difficult. Take a deep breath, do something calming, and talk to someone you trust if you need comfort. 💙',
+        'يبدو أن اليوم كان صعباً عاطفياً. خذ نفساً عميقاً، افعل شيئاً يهدئك، وتحدث مع شخص تثق به إذا احتجت للراحة. 💙',
+      );
     }
 
     if (day.contains('Okay') ||
         physical.contains('Okay') ||
-        sleep.contains('Okay')) {
-      return 'Your answers show that your day is okay, but your body may still need some care. Try a light activity, drink water, and rest when needed. 🙂';
+        sleep.contains('Okay') ||
+        day.contains('عادي') ||
+        physical.contains('عادي') ||
+        sleep.contains('عادي')) {
+      return tr(
+        'Your answers show that your day is okay, but your body may still need some care. Try a light activity, drink water, and rest when needed. 🙂',
+        'إجاباتك تبين أن يومك عادي، لكن جسمك قد يحتاج لبعض العناية. جرّب نشاطاً خفيفاً، اشرب الماء، واسترح عند الحاجة. 🙂',
+      );
     }
 
     if (day.contains('Incredible') ||
         day.contains('Great') ||
-        mood.contains('Very Happy')) {
-      return 'Great job! Your answers show that you are feeling positive today. Keep taking care of yourself and continue your healthy routine. 🌟';
+        mood.contains('Very Happy') ||
+        day.contains('رائع') ||
+        day.contains('ممتاز')) {
+      return tr(
+        'Great job! Your answers show that you are feeling positive today. Keep taking care of yourself and continue your healthy routine. 🌟',
+        'رائع! إجاباتك تبين أنك تشعر بإيجابية اليوم. استمر في الاهتمام بنفسك ومتابعة روتينك الصحي. 🌟',
+      );
     }
 
-    return 'Your answers look stable today. Keep monitoring your health, drink water, and take care of your body. 💙';
+    return tr(
+      'Your answers look stable today. Keep monitoring your health, drink water, and take care of your body. 💙',
+      'إجاباتك تبدو مستقرة اليوم. استمر في متابعة صحتك، اشرب الماء، واعتنِ بجسمك. 💙',
+    );
   }
 
   void _nextQuestion() {
@@ -963,19 +1163,20 @@ class _AIQuestionsPageState extends State<AIQuestionsPage> {
 
     if (question.type == AIQuestionType.sliderMood) {
       if (_moodValue == 1) {
-        _answers[_currentIndex] = 'Bad 😒';
+        _answers[_currentIndex] = tr('Bad 😒', 'سيء 😒');
       } else if (_moodValue == 2) {
-        _answers[_currentIndex] = 'Good 🙂';
+        _answers[_currentIndex] = tr('Good 🙂', 'جيد 🙂');
       } else {
-        _answers[_currentIndex] = 'Very Happy 😜';
+        _answers[_currentIndex] = tr('Very Happy 😜', 'سعيد جداً 😜');
       }
     }
 
     if (question.type == AIQuestionType.options &&
         _answers[_currentIndex] == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Please choose an answer')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(tr('Please choose an answer', 'يرجى اختيار إجابة'))),
+      );
       return;
     }
 
@@ -1021,28 +1222,31 @@ class _AIQuestionsPageState extends State<AIQuestionsPage> {
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Center(
-            child: Text('AI Result'),
-          ),
-          content: Text(
-            resultMessage,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 16,
-              height: 1.4,
+        return Directionality(
+          textDirection: isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
+          child: AlertDialog(
+            title: Center(
+              child: Text(tr('AI Result', 'نتيجة الذكاء الاصطناعي')),
             ),
-          ),
-          actionsAlignment: MainAxisAlignment.center,
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                Navigator.pop(context);
-              },
-              child: const Text('Done'),
+            content: Text(
+              resultMessage,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 16,
+                height: 1.4,
+              ),
             ),
-          ],
+            actionsAlignment: MainAxisAlignment.center,
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.pop(context);
+                },
+                child: Text(tr('Done', 'تم')),
+              ),
+            ],
+          ),
         );
       },
     );
@@ -1050,7 +1254,12 @@ class _AIQuestionsPageState extends State<AIQuestionsPage> {
 
   void _needHelp() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Help request sent to companion')),
+      SnackBar(
+        content: Text(
+          tr('Help request sent to companion',
+              'تم إرسال طلب المساعدة إلى المرافق'),
+        ),
+      ),
     );
   }
 
@@ -1092,17 +1301,17 @@ class _AIQuestionsPageState extends State<AIQuestionsPage> {
             children: [
               IconButton(
                 onPressed: _goBack,
-                icon: const Icon(
-                  Icons.arrow_back,
+                icon: Icon(
+                  isArabic ? Icons.arrow_forward : Icons.arrow_back,
                   size: 28,
-                  color: Color(0xFF263238),
+                  color: const Color(0xFF263238),
                 ),
               ),
-              const Expanded(
+              Expanded(
                 child: Center(
                   child: Text(
-                    'AI Health Check',
-                    style: TextStyle(
+                    tr('AI Health Check', 'الفحص الصحي الذكي'),
+                    style: const TextStyle(
                       fontSize: 25,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF1A1A1A),
@@ -1123,86 +1332,92 @@ class _AIQuestionsPageState extends State<AIQuestionsPage> {
     final AIQuestion question = _questions[_currentIndex];
     final double progress = (_currentIndex + 1) / _questions.length;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF4F4F4),
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(18, 10, 18, 0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Question ${_currentIndex + 1}/6',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        color: Color(0xFF5D6D7E),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    LinearProgressIndicator(
-                      value: progress,
-                      minHeight: 8,
-                      backgroundColor: const Color(0xFFE2E7EC),
-                      valueColor: const AlwaysStoppedAnimation(
-                        Color(0xFF87CEEB),
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    const Spacer(),
-                    Text(
-                      question.title,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.black,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      question.subtitle,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFF5D6D7E),
-                      ),
-                    ),
-                    const SizedBox(height: 30),
-                    if (question.type == AIQuestionType.sliderMood)
-                      _buildMoodSlider(question)
-                    else
-                      _buildOptions(question),
-                    const Spacer(),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _blueButton(
-                            text: 'Need help?',
-                            onTap: _needHelp,
-                          ),
+    return Directionality(
+      textDirection: isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF4F4F4),
+        body: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 10, 18, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        tr(
+                          'Question ${_currentIndex + 1}/6',
+                          'السؤال ${_currentIndex + 1}/6',
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _blueButton(
-                            text: _currentIndex == _questions.length - 1
-                                ? 'Finish'
-                                : 'Next Question',
-                            onTap: _nextQuestion,
-                          ),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          color: Color(0xFF5D6D7E),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 25),
-                  ],
+                      ),
+                      const SizedBox(height: 10),
+                      LinearProgressIndicator(
+                        value: progress,
+                        minHeight: 8,
+                        backgroundColor: const Color(0xFFE2E7EC),
+                        valueColor: const AlwaysStoppedAnimation(
+                          Color(0xFF87CEEB),
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      const Spacer(),
+                      Text(
+                        question.title,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.black,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        question.subtitle,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF5D6D7E),
+                        ),
+                      ),
+                      const SizedBox(height: 30),
+                      if (question.type == AIQuestionType.sliderMood)
+                        _buildMoodSlider(question)
+                      else
+                        _buildOptions(question),
+                      const Spacer(),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _blueButton(
+                              text: tr('Need help?', 'تحتاج مساعدة؟'),
+                              onTap: _needHelp,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _blueButton(
+                              text: _currentIndex == _questions.length - 1
+                                  ? tr('Finish', 'إنهاء')
+                                  : tr('Next Question', 'السؤال التالي'),
+                              onTap: _nextQuestion,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 25),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1295,6 +1510,7 @@ class _AIQuestionsPageState extends State<AIQuestionsPage> {
           foregroundColor: Colors.white,
           elevation: 4,
           shadowColor: Colors.black26,
+          minimumSize: const Size(0, 50),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
           ),

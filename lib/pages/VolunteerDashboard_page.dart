@@ -1,9 +1,13 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'Profile_page.dart';
 import 'Settings_page.dart';
+
+import 'package:humantouch/pages/app_settings_store.dart';
 
 class VolunteerDashboardPage extends StatefulWidget {
   const VolunteerDashboardPage({super.key});
@@ -31,11 +35,48 @@ class _VolunteerDashboardPageState extends State<VolunteerDashboardPage>
     'Others',
   ];
 
+  bool get isArabic => AppSettingsStore.instance.isArabic;
+
+  String tr(String en, String ar) => isArabic ? ar : en;
+
+  String categoryText(String category) {
+    switch (category) {
+      case 'Health':
+        return tr('Health', 'الصحة');
+      case 'Food':
+        return tr('Food', 'الغذاء');
+      case 'Medicine':
+        return tr('Medicine', 'الدواء');
+      case 'Exercise':
+        return tr('Exercise', 'الرياضة');
+      case 'Mental Health':
+        return tr('Mental Health', 'الصحة النفسية');
+      case 'Others':
+        return tr('Others', 'أخرى');
+      default:
+        return category;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+    AppSettingsStore.instance.addListener(_onLanguageChanged);
     _loadVolunteerName();
+  }
+
+  void _onLanguageChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    AppSettingsStore.instance.removeListener(_onLanguageChanged);
+    _tabController.dispose();
+    _tipTitleController.dispose();
+    _tipDescController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadVolunteerName() async {
@@ -57,11 +98,6 @@ class _VolunteerDashboardPageState extends State<VolunteerDashboardPage>
   void _goBack() {
     if (Navigator.canPop(context)) {
       Navigator.pop(context);
-    } else {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const VolunteerDashboardPage()),
-      );
     }
   }
 
@@ -92,17 +128,17 @@ class _VolunteerDashboardPageState extends State<VolunteerDashboardPage>
             children: [
               IconButton(
                 onPressed: _goBack,
-                icon: const Icon(
-                  Icons.arrow_back,
+                icon: Icon(
+                  isArabic ? Icons.arrow_forward : Icons.arrow_back,
                   size: 28,
-                  color: Color(0xFF263238),
+                  color: const Color(0xFF263238),
                 ),
               ),
-              const Expanded(
+              Expanded(
                 child: Center(
                   child: Text(
-                    'Volunteer',
-                    style: TextStyle(
+                    tr('Volunteer', 'المتطوع'),
+                    style: const TextStyle(
                       fontSize: 25,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF1A1A1A),
@@ -117,9 +153,9 @@ class _VolunteerDashboardPageState extends State<VolunteerDashboardPage>
         Padding(
           padding: const EdgeInsets.fromLTRB(22, 0, 22, 12),
           child: Align(
-            alignment: Alignment.centerLeft,
+            alignment: isArabic ? Alignment.centerRight : Alignment.centerLeft,
             child: Text(
-              'Welcome, $_volunteerName',
+              tr('Welcome, $_volunteerName', 'مرحباً، $_volunteerName'),
               style: const TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w600,
@@ -153,7 +189,14 @@ class _VolunteerDashboardPageState extends State<VolunteerDashboardPage>
     if (_tipTitleController.text.trim().isEmpty ||
         _tipDescController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please write the tip title and details')),
+        SnackBar(
+          content: Text(
+            tr(
+              'Please write the tip title and details',
+              'يرجى كتابة عنوان النصيحة والتفاصيل',
+            ),
+          ),
+        ),
       );
       return;
     }
@@ -179,7 +222,14 @@ class _VolunteerDashboardPageState extends State<VolunteerDashboardPage>
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Tip sent to patient successfully')),
+      SnackBar(
+        content: Text(
+          tr(
+            'Tip sent to patient successfully',
+            'تم إرسال النصيحة للمريض بنجاح',
+          ),
+        ),
+      ),
     );
   }
 
@@ -231,93 +281,114 @@ class _VolunteerDashboardPageState extends State<VolunteerDashboardPage>
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 20,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 45,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-              ),
-              const SizedBox(height: 18),
-              Text(
-                'Contact ${data['patientName'] ?? 'Patient'}',
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Ask the patient for more details before accepting or rejecting.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey.shade600),
-              ),
-              const SizedBox(height: 18),
-              TextField(
-                controller: messageController,
-                maxLines: 4,
-                decoration: InputDecoration(
-                  hintText: 'Write your message here...',
-                  filled: true,
-                  fillColor: Colors.grey.shade100,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(18),
-                    borderSide: BorderSide.none,
+        return Directionality(
+          textDirection: isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
+          child: Padding(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 20,
+              bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 45,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(20),
                   ),
                 ),
-              ),
-              const SizedBox(height: 15),
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF87CEEB),
-                    shape: RoundedRectangleBorder(
+                const SizedBox(height: 18),
+                Text(
+                  tr(
+                    'Contact ${data['patientName'] ?? 'Patient'}',
+                    'التواصل مع ${data['patientName'] ?? 'المريض'}',
+                  ),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  tr(
+                    'Ask the patient for more details before accepting or rejecting.',
+                    'اسأل المريض عن تفاصيل أكثر قبل القبول أو الرفض.',
+                  ),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey.shade600),
+                ),
+                const SizedBox(height: 18),
+                TextField(
+                  controller: messageController,
+                  maxLines: 4,
+                  textAlign: isArabic ? TextAlign.right : TextAlign.left,
+                  decoration: InputDecoration(
+                    hintText: tr(
+                      'Write your message here...',
+                      'اكتب رسالتك هنا...',
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey.shade100,
+                    border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(18),
+                      borderSide: BorderSide.none,
                     ),
                   ),
-                  onPressed: () async {
-                    if (messageController.text.trim().isEmpty) return;
+                ),
+                const SizedBox(height: 15),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF87CEEB),
+                      minimumSize: const Size(0, 50),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                    ),
+                    onPressed: () async {
+                      if (messageController.text.trim().isEmpty) return;
 
-                    await FirebaseFirestore.instance
-                        .collection('messages')
-                        .add({
-                      'requestId': data['requestId'] ?? '',
-                      'patientName': data['patientName'] ?? '',
-                      'patientId': data['patientId'] ?? '',
-                      'senderRole': 'volunteer',
-                      'senderName': _volunteerName,
-                      'message': messageController.text.trim(),
-                      'createdAt': FieldValue.serverTimestamp(),
-                    });
+                      await FirebaseFirestore.instance
+                          .collection('messages')
+                          .add({
+                        'requestId': data['requestId'] ?? '',
+                        'patientName': data['patientName'] ?? '',
+                        'patientId': data['patientId'] ?? '',
+                        'senderRole': 'volunteer',
+                        'senderName': _volunteerName,
+                        'message': messageController.text.trim(),
+                        'createdAt': FieldValue.serverTimestamp(),
+                      });
 
-                    if (!mounted) return;
-                    Navigator.pop(context);
+                      if (!mounted) return;
+                      Navigator.pop(context);
 
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Message sent to patient')),
-                    );
-                  },
-                  icon: const Icon(Icons.send, color: Colors.white),
-                  label: const Text(
-                    'Send Message',
-                    style: TextStyle(color: Colors.white),
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            tr(
+                              'Message sent to patient',
+                              'تم إرسال الرسالة للمريض',
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.send, color: Colors.white),
+                    label: Text(
+                      tr('Send Message', 'إرسال الرسالة'),
+                      style: const TextStyle(color: Colors.white),
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
@@ -391,57 +462,52 @@ class _VolunteerDashboardPageState extends State<VolunteerDashboardPage>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _bottomItem(Icons.home_rounded, 'Home', 0),
-          _bottomItem(Icons.person_rounded, 'Profile', 1),
-          _bottomItem(Icons.settings_rounded, 'Settings', 2),
+          _bottomItem(Icons.home_rounded, tr('Home', 'الرئيسية'), 0),
+          _bottomItem(Icons.person_rounded, tr('Profile', 'الملف'), 1),
+          _bottomItem(Icons.settings_rounded, tr('Settings', 'الإعدادات'), 2),
         ],
       ),
     );
   }
 
   @override
-  void dispose() {
-    _tabController.dispose();
-    _tipTitleController.dispose();
-    _tipDescController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5FBFF),
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(),
-            TabBar(
-              controller: _tabController,
-              labelColor: const Color(0xFF2196F3),
-              unselectedLabelColor: Colors.grey,
-              indicatorColor: const Color(0xFF2196F3),
-              tabs: const [
-                Tab(text: 'Requests'),
-                Tab(text: 'Accepted'),
-                Tab(text: 'Tips'),
-                Tab(text: 'Notifications'),
-              ],
-            ),
-            Expanded(
-              child: TabBarView(
+    return Directionality(
+      textDirection: isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF5FBFF),
+        body: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(),
+              TabBar(
                 controller: _tabController,
-                children: [
-                  _buildRequestsTab(),
-                  _buildAcceptedTab(),
-                  _buildTipsTab(),
-                  _buildNotificationsTab(),
+                labelColor: const Color(0xFF2196F3),
+                unselectedLabelColor: Colors.grey,
+                indicatorColor: const Color(0xFF2196F3),
+                tabs: [
+                  Tab(text: tr('Requests', 'الطلبات')),
+                  Tab(text: tr('Accepted', 'المقبولة')),
+                  Tab(text: tr('Tips', 'النصائح')),
+                  Tab(text: tr('Notifications', 'الإشعارات')),
                 ],
               ),
-            ),
-          ],
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildRequestsTab(),
+                    _buildAcceptedTab(),
+                    _buildTipsTab(),
+                    _buildNotificationsTab(),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
+        bottomNavigationBar: _buildBottomBar(),
       ),
-      bottomNavigationBar: _buildBottomBar(),
     );
   }
 
@@ -456,7 +522,7 @@ class _VolunteerDashboardPageState extends State<VolunteerDashboardPage>
         final docs = snapshot.data!.docs;
 
         if (docs.isEmpty) {
-          return _emptyText('No pending requests');
+          return _emptyText(tr('No pending requests', 'لا توجد طلبات معلقة'));
         }
 
         return ListView.builder(
@@ -488,7 +554,7 @@ class _VolunteerDashboardPageState extends State<VolunteerDashboardPage>
         final docs = snapshot.data!.docs;
 
         if (docs.isEmpty) {
-          return _emptyText('No accepted requests');
+          return _emptyText(tr('No accepted requests', 'لا توجد طلبات مقبولة'));
         }
 
         return ListView.builder(
@@ -514,11 +580,15 @@ class _VolunteerDashboardPageState extends State<VolunteerDashboardPage>
     required Map<String, dynamic> data,
     required bool showActions,
   }) {
-    final patientName = data['patientName'] ?? 'Patient';
-    final needTitle = data['needTitle'] ?? 'Need help';
-    final needDescription =
-        data['needDescription'] ?? 'Patient needs volunteer support';
-    final location = data['location'] ?? 'Unknown location';
+    final patientName = data['patientName'] ?? tr('Patient', 'المريض');
+    final needTitle = data['needTitle'] ?? tr('Need help', 'يحتاج مساعدة');
+    final needDescription = data['needDescription'] ??
+        tr(
+          'Patient needs volunteer support',
+          'المريض يحتاج إلى دعم من متطوع',
+        );
+    final location =
+        data['location'] ?? tr('Unknown location', 'موقع غير معروف');
     final date = data['date'] ?? '';
     final time = data['time'] ?? '';
 
@@ -537,7 +607,8 @@ class _VolunteerDashboardPageState extends State<VolunteerDashboardPage>
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
           Row(
             children: [
@@ -550,6 +621,7 @@ class _VolunteerDashboardPageState extends State<VolunteerDashboardPage>
               Expanded(
                 child: Text(
                   patientName,
+                  textAlign: isArabic ? TextAlign.right : TextAlign.left,
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -564,10 +636,15 @@ class _VolunteerDashboardPageState extends State<VolunteerDashboardPage>
           const SizedBox(height: 14),
           Text(
             needTitle,
+            textAlign: isArabic ? TextAlign.right : TextAlign.left,
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 6),
-          Text(needDescription, style: TextStyle(color: Colors.grey.shade700)),
+          Text(
+            needDescription,
+            textAlign: isArabic ? TextAlign.right : TextAlign.left,
+            style: TextStyle(color: Colors.grey.shade700),
+          ),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -577,7 +654,12 @@ class _VolunteerDashboardPageState extends State<VolunteerDashboardPage>
               const SizedBox(width: 16),
               const Icon(Icons.location_on, size: 18, color: Colors.grey),
               const SizedBox(width: 6),
-              Expanded(child: Text(location)),
+              Expanded(
+                child: Text(
+                  location,
+                  textAlign: isArabic ? TextAlign.right : TextAlign.left,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 15),
@@ -586,7 +668,7 @@ class _VolunteerDashboardPageState extends State<VolunteerDashboardPage>
             child: OutlinedButton.icon(
               onPressed: () => _openChatSheet(data),
               icon: const Icon(Icons.chat_bubble_outline),
-              label: const Text('Chat with Patient'),
+              label: Text(tr('Chat with Patient', 'الدردشة مع المريض')),
               style: OutlinedButton.styleFrom(
                 foregroundColor: const Color(0xFF2196F3),
                 side: const BorderSide(color: Color(0xFF2196F3)),
@@ -606,13 +688,14 @@ class _VolunteerDashboardPageState extends State<VolunteerDashboardPage>
                         _updateRequestStatus(requestId, 'accepted'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
+                      minimumSize: const Size(0, 44),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
                     ),
-                    child: const Text(
-                      'Accept',
-                      style: TextStyle(color: Colors.white),
+                    child: Text(
+                      tr('Accept', 'قبول'),
+                      style: const TextStyle(color: Colors.white),
                     ),
                   ),
                 ),
@@ -623,13 +706,14 @@ class _VolunteerDashboardPageState extends State<VolunteerDashboardPage>
                         _updateRequestStatus(requestId, 'rejected'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.redAccent,
+                      minimumSize: const Size(0, 44),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
                     ),
-                    child: const Text(
-                      'Reject',
-                      style: TextStyle(color: Colors.white),
+                    child: Text(
+                      tr('Reject', 'رفض'),
+                      style: const TextStyle(color: Colors.white),
                     ),
                   ),
                 ),
@@ -658,37 +742,44 @@ class _VolunteerDashboardPageState extends State<VolunteerDashboardPage>
           ],
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment:
+              isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Send Health Tip to Patient',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            Text(
+              tr('Send Health Tip to Patient', 'إرسال نصيحة صحية للمريض'),
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 15),
             TextField(
               controller: _tipTitleController,
-              decoration: _inputDecoration('Tip title'),
+              textAlign: isArabic ? TextAlign.right : TextAlign.left,
+              decoration: _inputDecoration(tr('Tip title', 'عنوان النصيحة')),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _tipDescController,
+              textAlign: isArabic ? TextAlign.right : TextAlign.left,
               maxLines: 4,
-              decoration: _inputDecoration('Tip description'),
+              decoration: _inputDecoration(
+                tr('Tip description', 'تفاصيل النصيحة'),
+              ),
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              initialValue: _selectedTipCategory,
-              items: _tipCategories
-                  .map(
-                    (item) => DropdownMenuItem(value: item, child: Text(item)),
-                  )
-                  .toList(),
+              value: _selectedTipCategory,
+              items: _tipCategories.map((item) {
+                return DropdownMenuItem(
+                  value: item,
+                  child: Text(categoryText(item)),
+                );
+              }).toList(),
               onChanged: (value) {
+                if (value == null) return;
                 setState(() {
-                  _selectedTipCategory = value!;
+                  _selectedTipCategory = value;
                 });
               },
-              decoration: _inputDecoration('Category'),
+              decoration: _inputDecoration(tr('Category', 'التصنيف')),
             ),
             const SizedBox(height: 18),
             SizedBox(
@@ -697,12 +788,16 @@ class _VolunteerDashboardPageState extends State<VolunteerDashboardPage>
               child: ElevatedButton.icon(
                 onPressed: _sendTipToPatient,
                 icon: const Icon(Icons.send, color: Colors.white),
-                label: const Text(
-                  'Send to Patient Health Page',
-                  style: TextStyle(color: Colors.white),
+                label: Text(
+                  tr(
+                    'Send to Patient Health Page',
+                    'إرسال إلى صفحة صحة المريض',
+                  ),
+                  style: const TextStyle(color: Colors.white),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF87CEEB),
+                  minimumSize: const Size(0, 52),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(18),
                   ),
@@ -729,7 +824,7 @@ class _VolunteerDashboardPageState extends State<VolunteerDashboardPage>
         final docs = snapshot.data!.docs;
 
         if (docs.isEmpty) {
-          return _emptyText('No notifications yet');
+          return _emptyText(tr('No notifications yet', 'لا توجد إشعارات بعد'));
         }
 
         return ListView.builder(
@@ -754,14 +849,22 @@ class _VolunteerDashboardPageState extends State<VolunteerDashboardPage>
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: isArabic
+                          ? CrossAxisAlignment.end
+                          : CrossAxisAlignment.start,
                       children: [
                         Text(
-                          data['title'] ?? 'Notification',
+                          data['title'] ?? tr('Notification', 'إشعار'),
+                          textAlign:
+                              isArabic ? TextAlign.right : TextAlign.left,
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 4),
-                        Text(data['message'] ?? ''),
+                        Text(
+                          data['message'] ?? '',
+                          textAlign:
+                              isArabic ? TextAlign.right : TextAlign.left,
+                        ),
                       ],
                     ),
                   ),
@@ -790,6 +893,7 @@ class _VolunteerDashboardPageState extends State<VolunteerDashboardPage>
     return Center(
       child: Text(
         text,
+        textAlign: TextAlign.center,
         style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
       ),
     );

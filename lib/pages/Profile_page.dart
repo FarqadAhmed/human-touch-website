@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -8,6 +9,8 @@ import 'Dashboard_page.dart';
 import 'Login_page.dart';
 import 'Profile2_page.dart';
 import 'Settings_page.dart';
+
+import 'package:humantouch/pages/app_settings_store.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -24,10 +27,25 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _isActive = true;
   bool _isLoading = true;
 
+  bool get isArabic => AppSettingsStore.instance.isArabic;
+
+  String tr(String en, String ar) => isArabic ? ar : en;
+
   @override
   void initState() {
     super.initState();
     _loadProfileFromFirebase();
+    AppSettingsStore.instance.addListener(_onLanguageChanged);
+  }
+
+  void _onLanguageChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    AppSettingsStore.instance.removeListener(_onLanguageChanged);
+    super.dispose();
   }
 
   Future<void> _loadProfileFromFirebase() async {
@@ -51,12 +69,11 @@ class _ProfilePageState extends State<ProfilePage> {
       if (!mounted) return;
 
       setState(() {
-        _name =
-            (data?['name'] ??
-                    data?['fullName'] ??
-                    data?['username'] ??
-                    'No Name')
-                .toString();
+        _name = (data?['name'] ??
+                data?['fullName'] ??
+                data?['username'] ??
+                'No Name')
+            .toString();
 
         _email = (data?['email'] ?? user.email ?? 'No Email').toString();
 
@@ -76,9 +93,13 @@ class _ProfilePageState extends State<ProfilePage> {
         _isLoading = false;
       });
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error loading profile: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            tr('Error loading profile: $e', 'حدث خطأ أثناء تحميل الملف: $e'),
+          ),
+        ),
+      );
     }
   }
 
@@ -125,6 +146,18 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  String _translatedRole() {
+    if (_role == 'patient') {
+      return tr('Patient Account', 'حساب مريض');
+    } else if (_role == 'companion') {
+      return tr('Companion Account', 'حساب مرافق');
+    } else if (_role == 'volunteer') {
+      return tr('Volunteer Account', 'حساب متطوع');
+    } else {
+      return tr('User Account', 'حساب مستخدم');
+    }
+  }
+
   Widget _bottomItem(IconData icon, String label, int index) {
     return GestureDetector(
       onTap: () => _goToPage(index),
@@ -168,9 +201,9 @@ class _ProfilePageState extends State<ProfilePage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _bottomItem(Icons.home_rounded, 'Home', 0),
-          _bottomItem(Icons.person_rounded, 'Profile', 1),
-          _bottomItem(Icons.settings_rounded, 'Settings', 2),
+          _bottomItem(Icons.home_rounded, tr('Home', 'الرئيسية'), 0),
+          _bottomItem(Icons.person_rounded, tr('Profile', 'الملف'), 1),
+          _bottomItem(Icons.settings_rounded, tr('Settings', 'الإعدادات'), 2),
         ],
       ),
     );
@@ -248,7 +281,8 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
         const SizedBox(height: 12),
         Text(
-          _name.isEmpty ? 'No Name' : _name,
+          _name.isEmpty ? tr('No Name', 'لا يوجد اسم') : _name,
+          textAlign: TextAlign.center,
           style: const TextStyle(
             color: Color(0xFF14181B),
             fontSize: 24,
@@ -257,7 +291,8 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
         const SizedBox(height: 4),
         Text(
-          _email.isEmpty ? 'No Email' : _email,
+          _email.isEmpty ? tr('No Email', 'لا يوجد بريد إلكتروني') : _email,
+          textAlign: TextAlign.center,
           style: const TextStyle(
             color: Color(0xFF87CEEB),
             fontSize: 16,
@@ -299,9 +334,12 @@ class _ProfilePageState extends State<ProfilePage> {
               child: SwitchListTile.adaptive(
                 value: _isActive,
                 onChanged: _updateActiveStatus,
-                title: const Text(
-                  'Active',
-                  style: TextStyle(color: Color(0xFF14181B), fontSize: 14),
+                title: Text(
+                  tr('Active', 'نشط'),
+                  style: const TextStyle(
+                    color: Color(0xFF14181B),
+                    fontSize: 14,
+                  ),
                 ),
                 activeColor: const Color(0xFF39D2C0),
                 activeTrackColor: const Color(0x3439D2C0),
@@ -341,11 +379,14 @@ class _ProfilePageState extends State<ProfilePage> {
               children: [
                 Icon(icon, color: const Color(0xFF14181B), size: 24),
                 const SizedBox(width: 12),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: Color(0xFF14181B),
-                    fontSize: 14,
+                Expanded(
+                  child: Text(
+                    title,
+                    textAlign: isArabic ? TextAlign.right : TextAlign.left,
+                    style: const TextStyle(
+                      color: Color(0xFF14181B),
+                      fontSize: 14,
+                    ),
                   ),
                 ),
               ],
@@ -357,18 +398,6 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildRoleInfoCard() {
-    String roleText = '';
-
-    if (_role == 'patient') {
-      roleText = 'Patient Account';
-    } else if (_role == 'companion') {
-      roleText = 'Companion Account';
-    } else if (_role == 'volunteer') {
-      roleText = 'Volunteer Account';
-    } else {
-      roleText = 'User Account';
-    }
-
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       child: Container(
@@ -387,9 +416,15 @@ class _ProfilePageState extends State<ProfilePage> {
               size: 24,
             ),
             const SizedBox(width: 12),
-            Text(
-              roleText,
-              style: const TextStyle(color: Color(0xFF14181B), fontSize: 14),
+            Expanded(
+              child: Text(
+                _translatedRole(),
+                textAlign: isArabic ? TextAlign.right : TextAlign.left,
+                style: const TextStyle(
+                  color: Color(0xFF14181B),
+                  fontSize: 14,
+                ),
+              ),
             ),
           ],
         ),
@@ -412,70 +447,78 @@ class _ProfilePageState extends State<ProfilePage> {
             side: const BorderSide(color: Color(0xFFE0E3E7)),
           ),
         ),
-        child: const Text('Log Out'),
+        child: Text(tr('Log Out', 'تسجيل الخروج')),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => FocusScope.of(context).unfocus(),
-      child: Scaffold(
-        backgroundColor: const Color(0xFFF4F4F4),
-        body: SafeArea(
-          child: Column(
-            children: [
-              _buildHeader(),
-              Expanded(
-                child: _isLoading
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                          color: Color(0xFF87CEEB),
-                        ),
-                      )
-                    : SingleChildScrollView(
-                        child: Column(
-                          children: [
-                            _buildProfileTop(),
-                            _buildActiveCard(),
-                            _buildActionCard(
-                              icon: Icons.account_circle_outlined,
-                              title: 'Edit Profile',
-                              onTap: () async {
-                                await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const Profile2Page(),
-                                  ),
-                                );
+    return Directionality(
+      textDirection: isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
+      child: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Scaffold(
+          backgroundColor: const Color(0xFFF4F4F4),
+          body: SafeArea(
+            child: Column(
+              children: [
+                _buildHeader(),
+                Expanded(
+                  child: _isLoading
+                      ? const Center(
+                          child: CircularProgressIndicator(
+                            color: Color(0xFF87CEEB),
+                          ),
+                        )
+                      : SingleChildScrollView(
+                          child: Column(
+                            children: [
+                              _buildProfileTop(),
+                              _buildActiveCard(),
+                              _buildActionCard(
+                                icon: Icons.account_circle_outlined,
+                                title: tr('Edit Profile', 'تعديل الملف'),
+                                onTap: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const Profile2Page(),
+                                    ),
+                                  );
 
-                                await _loadProfileFromFirebase();
-                              },
-                            ),
-                            _buildActionCard(
-                              icon: Icons.settings_outlined,
-                              title: 'Account Settings',
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const SettingsPage(),
-                                  ),
-                                );
-                              },
-                            ),
-                            _buildRoleInfoCard(),
-                            _buildLogoutButton(),
-                            const SizedBox(height: 20),
-                          ],
+                                  await _loadProfileFromFirebase();
+                                },
+                              ),
+                              _buildActionCard(
+                                icon: Icons.settings_outlined,
+                                title: tr(
+                                  'Account Settings',
+                                  'إعدادات الحساب',
+                                ),
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const SettingsPage(),
+                                    ),
+                                  );
+                                },
+                              ),
+                              _buildRoleInfoCard(),
+                              _buildLogoutButton(),
+                              const SizedBox(height: 20),
+                            ],
+                          ),
                         ),
-                      ),
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
+          bottomNavigationBar: _buildBottomNavigation(),
         ),
-        bottomNavigationBar: _buildBottomNavigation(),
       ),
     );
   }

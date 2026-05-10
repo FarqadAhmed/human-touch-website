@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -8,6 +10,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'Dashboard_page.dart';
 import 'Profile_page.dart';
 import 'Settings_page.dart';
+
+import 'package:humantouch/pages/app_settings_store.dart';
 
 class EmergencyPage extends StatefulWidget {
   const EmergencyPage({super.key});
@@ -43,10 +47,27 @@ class _EmergencyPageState extends State<EmergencyPage> {
   bool _sendSmsToCompanion = true;
   bool _alertNearbyVolunteers = true;
 
+  bool get isArabic => AppSettingsStore.instance.isArabic;
+
+  String tr(String en, String ar) {
+    return isArabic ? ar : en;
+  }
+
   @override
   void initState() {
     super.initState();
     _loadEmergencySettingsFromFirebase();
+    AppSettingsStore.instance.addListener(_onLanguageChanged);
+  }
+
+  void _onLanguageChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    AppSettingsStore.instance.removeListener(_onLanguageChanged);
+    super.dispose();
   }
 
   Future<void> _loadEmergencySettingsFromFirebase() async {
@@ -54,9 +75,7 @@ class _EmergencyPageState extends State<EmergencyPage> {
       final user = FirebaseAuth.instance.currentUser;
 
       if (user == null) {
-        setState(() {
-          _isLoadingSettings = false;
-        });
+        setState(() => _isLoadingSettings = false);
         return;
       }
 
@@ -81,7 +100,10 @@ class _EmergencyPageState extends State<EmergencyPage> {
 
       setState(() {
         _isLoadingSettings = false;
-        _statusMessage = 'Failed to load emergency settings.';
+        _statusMessage = tr(
+          'Failed to load emergency settings.',
+          'فشل تحميل إعدادات الطوارئ.',
+        );
       });
     }
   }
@@ -140,7 +162,10 @@ class _EmergencyPageState extends State<EmergencyPage> {
     final bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
 
     if (!serviceEnabled) {
-      throw Exception('Location services are disabled.');
+      throw Exception(tr(
+        'Location services are disabled.',
+        'خدمات الموقع غير مفعلة.',
+      ));
     }
 
     LocationPermission permission = await Geolocator.checkPermission();
@@ -150,11 +175,17 @@ class _EmergencyPageState extends State<EmergencyPage> {
     }
 
     if (permission == LocationPermission.denied) {
-      throw Exception('Location permission denied.');
+      throw Exception(tr(
+        'Location permission denied.',
+        'تم رفض إذن الموقع.',
+      ));
     }
 
     if (permission == LocationPermission.deniedForever) {
-      throw Exception('Location permission denied forever.');
+      throw Exception(tr(
+        'Location permission denied forever.',
+        'تم رفض إذن الموقع بشكل دائم.',
+      ));
     }
 
     return Geolocator.getCurrentPosition(
@@ -169,24 +200,21 @@ class _EmergencyPageState extends State<EmergencyPage> {
         .where('isAvailable', isEqualTo: true)
         .get();
 
-    return snapshot.docs
-        .map((doc) {
-          final data = doc.data();
+    return snapshot.docs.map((doc) {
+      final data = doc.data();
 
-          return VolunteerContact(
-            name: (data['name'] ?? 'Volunteer').toString(),
-            phone: (data['phone'] ?? data['phoneNumber'] ?? '').toString(),
-            latitude: (data['latitude'] ?? 0).toDouble(),
-            longitude: (data['longitude'] ?? 0).toDouble(),
-            available: data['isAvailable'] ?? false,
-          );
-        })
-        .where((volunteer) {
-          return volunteer.phone.trim().isNotEmpty &&
-              volunteer.latitude != 0 &&
-              volunteer.longitude != 0;
-        })
-        .toList();
+      return VolunteerContact(
+        name: (data['name'] ?? 'Volunteer').toString(),
+        phone: (data['phone'] ?? data['phoneNumber'] ?? '').toString(),
+        latitude: (data['latitude'] ?? 0).toDouble(),
+        longitude: (data['longitude'] ?? 0).toDouble(),
+        available: data['isAvailable'] ?? false,
+      );
+    }).where((volunteer) {
+      return volunteer.phone.trim().isNotEmpty &&
+          volunteer.latitude != 0 &&
+          volunteer.longitude != 0;
+    }).toList();
   }
 
   Future<VolunteerContact?> _findNearestVolunteer(
@@ -226,7 +254,10 @@ class _EmergencyPageState extends State<EmergencyPage> {
     final uri = Uri(scheme: 'tel', path: phone);
 
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      throw Exception('Could not place call to companion.');
+      throw Exception(tr(
+        'Could not place call to companion.',
+        'تعذر الاتصال بالمرافق.',
+      ));
     }
   }
 
@@ -267,8 +298,11 @@ class _EmergencyPageState extends State<EmergencyPage> {
 
     if (_companionPhone.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please add companion phone number in settings first.'),
+        SnackBar(
+          content: Text(tr(
+            'Please add companion phone number in settings first.',
+            'يرجى إضافة رقم هاتف المرافق في الإعدادات أولاً.',
+          )),
         ),
       );
       return;
@@ -276,7 +310,10 @@ class _EmergencyPageState extends State<EmergencyPage> {
 
     setState(() {
       _isSending = true;
-      _statusMessage = 'Preparing emergency alert...';
+      _statusMessage = tr(
+        'Preparing emergency alert...',
+        'جاري تجهيز تنبيه الطوارئ...',
+      );
     });
 
     try {
@@ -286,7 +323,10 @@ class _EmergencyPageState extends State<EmergencyPage> {
 
       if (_alertNearbyVolunteers) {
         setState(() {
-          _statusMessage = 'Finding nearest volunteer...';
+          _statusMessage = tr(
+            'Finding nearest volunteer...',
+            'جاري البحث عن أقرب متطوع...',
+          );
         });
 
         nearestVolunteer = await _findNearestVolunteer(position);
@@ -295,8 +335,15 @@ class _EmergencyPageState extends State<EmergencyPage> {
       final locationText =
           'https://maps.google.com/?q=${position.latitude},${position.longitude}';
 
-      final companionMessage =
-          '''
+      final companionMessage = isArabic
+          ? '''
+تنبيه طوارئ من Human Touch.
+قد يحتاج المريض إلى مساعدة فورية.
+
+الموقع الحالي:
+$locationText
+'''
+          : '''
 Emergency alert from Human Touch.
 The patient may need immediate help.
 
@@ -304,8 +351,15 @@ Current location:
 $locationText
 ''';
 
-      String volunteerMessage =
-          '''
+      String volunteerMessage = isArabic
+          ? '''
+تنبيه طوارئ من Human Touch.
+قد يحتاج مريض قريب إلى مساعدة عاجلة.
+
+الموقع الحالي:
+$locationText
+'''
+          : '''
 Emergency alert from Human Touch.
 A nearby patient may need urgent assistance.
 
@@ -314,13 +368,17 @@ $locationText
 ''';
 
       if (nearestVolunteer != null) {
-        volunteerMessage +=
-            '\nNearest volunteer selected: ${nearestVolunteer.name}';
+        volunteerMessage += isArabic
+            ? '\nالمتطوع الأقرب: ${nearestVolunteer.name}'
+            : '\nNearest volunteer selected: ${nearestVolunteer.name}';
       }
 
       if (_callCompanion) {
         setState(() {
-          _statusMessage = 'Calling companion...';
+          _statusMessage = tr(
+            'Calling companion...',
+            'جاري الاتصال بالمرافق...',
+          );
         });
 
         await _callCompanionPhone(_companionPhone);
@@ -328,7 +386,10 @@ $locationText
 
       if (_sendSmsToCompanion) {
         setState(() {
-          _statusMessage = 'Sending SMS to companion...';
+          _statusMessage = tr(
+            'Sending SMS to companion...',
+            'جاري إرسال رسالة للمرافق...',
+          );
         });
 
         await _sendEmergencySms(
@@ -339,7 +400,10 @@ $locationText
 
       if (_alertNearbyVolunteers && nearestVolunteer != null) {
         setState(() {
-          _statusMessage = 'Sending SMS to nearest volunteer...';
+          _statusMessage = tr(
+            'Sending SMS to nearest volunteer...',
+            'جاري إرسال رسالة لأقرب متطوع...',
+          );
         });
 
         await _sendEmergencySms(
@@ -348,11 +412,16 @@ $locationText
         );
       }
 
-      String finalStatus = 'Emergency action completed.';
+      String finalStatus = tr(
+        'Emergency action completed.',
+        'تم تنفيذ إجراء الطوارئ.',
+      );
 
       if (_alertNearbyVolunteers && nearestVolunteer == null) {
-        finalStatus =
-            'Emergency sent to companion. No available volunteer found.';
+        finalStatus = tr(
+          'Emergency sent to companion. No available volunteer found.',
+          'تم إرسال الطوارئ للمرافق. لا يوجد متطوع متاح.',
+        );
       }
 
       await _saveEmergencyLog(
@@ -374,7 +443,8 @@ $locationText
       if (!mounted) return;
 
       setState(() {
-        _statusMessage = 'Emergency failed: ${e.toString()}';
+        _statusMessage =
+            tr('Emergency failed: ', 'فشل إجراء الطوارئ: ') + e.toString();
       });
 
       ScaffoldMessenger.of(
@@ -397,6 +467,7 @@ $locationText
         Expanded(
           child: Text(
             text,
+            textAlign: isArabic ? TextAlign.right : TextAlign.left,
             style: const TextStyle(
               color: Colors.white,
               fontSize: 15,
@@ -418,11 +489,12 @@ $locationText
         ),
         padding: const EdgeInsets.all(14),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment:
+              isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Current Emergency Settings',
-              style: TextStyle(
+            Text(
+              tr('Current Emergency Settings', 'إعدادات الطوارئ الحالية'),
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
@@ -430,22 +502,22 @@ $locationText
             ),
             const SizedBox(height: 10),
             Text(
-              'Companion Phone: ${_companionPhone.isEmpty ? "Not set" : _companionPhone}',
+              '${tr('Companion Phone', 'رقم المرافق')}: ${_companionPhone.isEmpty ? tr("Not set", "غير محدد") : _companionPhone}',
               style: const TextStyle(color: Colors.white, fontSize: 13),
             ),
             const SizedBox(height: 6),
             Text(
-              'Call Companion: ${_callCompanion ? "On" : "Off"}',
+              '${tr('Call Companion', 'الاتصال بالمرافق')}: ${_callCompanion ? tr("On", "مفعل") : tr("Off", "غير مفعل")}',
               style: const TextStyle(color: Colors.white, fontSize: 13),
             ),
             const SizedBox(height: 6),
             Text(
-              'SMS to Companion: ${_sendSmsToCompanion ? "On" : "Off"}',
+              '${tr('SMS to Companion', 'رسالة للمرافق')}: ${_sendSmsToCompanion ? tr("On", "مفعل") : tr("Off", "غير مفعل")}',
               style: const TextStyle(color: Colors.white, fontSize: 13),
             ),
             const SizedBox(height: 6),
             Text(
-              'Nearby Volunteers: ${_alertNearbyVolunteers ? "On" : "Off"}',
+              '${tr('Nearby Volunteers', 'المتطوعون القريبون')}: ${_alertNearbyVolunteers ? tr("On", "مفعل") : tr("Off", "غير مفعل")}',
               style: const TextStyle(color: Colors.white, fontSize: 13),
             ),
           ],
@@ -469,9 +541,14 @@ $locationText
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Align(
-            alignment: Alignment.centerLeft,
+            alignment: isArabic ? Alignment.centerRight : Alignment.centerLeft,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 0, 0),
+              padding: EdgeInsets.fromLTRB(
+                isArabic ? 0 : 20,
+                0,
+                isArabic ? 20 : 0,
+                0,
+              ),
               child: IconButton(
                 onPressed: () {
                   if (Navigator.canPop(context)) {
@@ -485,8 +562,8 @@ $locationText
                     );
                   }
                 },
-                icon: const Icon(
-                  Icons.arrow_back,
+                icon: Icon(
+                  isArabic ? Icons.arrow_forward : Icons.arrow_back,
                   color: Colors.black,
                   size: 30,
                 ),
@@ -498,20 +575,23 @@ $locationText
             child: Icon(Icons.warning_rounded, color: Colors.white, size: 80),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Emergency',
+          Text(
+            tr('Emergency', 'الطوارئ'),
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 26,
               fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
-            'Press SOS to send emergency',
+          Text(
+            tr(
+              'Press SOS to send emergency',
+              'اضغط SOS لإرسال تنبيه الطوارئ',
+            ),
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white, fontSize: 18),
+            style: const TextStyle(color: Colors.white, fontSize: 18),
           ),
           const SizedBox(height: 30),
           Center(
@@ -534,10 +614,10 @@ $locationText
                 ),
                 child: Center(
                   child: _isSending
-                      ? const Column(
+                      ? Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            SizedBox(
+                            const SizedBox(
                               width: 38,
                               height: 38,
                               child: CircularProgressIndicator(
@@ -545,10 +625,10 @@ $locationText
                                 color: Colors.red,
                               ),
                             ),
-                            SizedBox(height: 16),
+                            const SizedBox(height: 16),
                             Text(
-                              'Sending...',
-                              style: TextStyle(
+                              tr('Sending...', 'جاري الإرسال...'),
+                              style: const TextStyle(
                                 color: Colors.red,
                                 fontSize: 24,
                                 fontWeight: FontWeight.w800,
@@ -556,10 +636,10 @@ $locationText
                             ),
                           ],
                         )
-                      : const Column(
+                      : Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(
+                            const Text(
                               'SOS',
                               textAlign: TextAlign.center,
                               style: TextStyle(
@@ -568,11 +648,11 @@ $locationText
                                 fontWeight: FontWeight.w900,
                               ),
                             ),
-                            SizedBox(height: 8),
+                            const SizedBox(height: 8),
                             Text(
-                              'EMERGENCY',
+                              tr('EMERGENCY', 'طوارئ'),
                               textAlign: TextAlign.center,
-                              style: TextStyle(
+                              style: const TextStyle(
                                 color: Colors.red,
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -597,22 +677,34 @@ $locationText
                 children: [
                   _buildInfoRow(
                     icon: Icons.phone_rounded,
-                    text: 'Call companion immediately',
+                    text: tr(
+                      'Call companion immediately',
+                      'الاتصال بالمرافق فوراً',
+                    ),
                   ),
                   const SizedBox(height: 12),
                   _buildInfoRow(
                     icon: Icons.sms_outlined,
-                    text: 'SMS to companion and nearest volunteer',
+                    text: tr(
+                      'SMS to companion and nearest volunteer',
+                      'إرسال رسالة للمرافق وأقرب متطوع',
+                    ),
                   ),
                   const SizedBox(height: 12),
                   _buildInfoRow(
                     icon: Icons.location_on_rounded,
-                    text: 'Use current location to find nearest volunteer',
+                    text: tr(
+                      'Use current location to find nearest volunteer',
+                      'استخدام الموقع الحالي للعثور على أقرب متطوع',
+                    ),
                   ),
                   const SizedBox(height: 12),
                   _buildInfoRow(
                     icon: Icons.wifi_off_rounded,
-                    text: 'Designed to work without internet',
+                    text: tr(
+                      'Designed to work without internet',
+                      'مصمم للعمل بدون إنترنت',
+                    ),
                   ),
                 ],
               ),
@@ -623,7 +715,10 @@ $locationText
             padding: const EdgeInsets.fromLTRB(40, 14, 40, 30),
             child: Text(
               _statusMessage.isEmpty
-                  ? 'Your current location and emergency message will be shared based on your emergency settings.'
+                  ? tr(
+                      'Your current location and emergency message will be shared based on your emergency settings.',
+                      'سيتم مشاركة موقعك الحالي ورسالة الطوارئ حسب إعدادات الطوارئ الخاصة بك.',
+                    )
                   : _statusMessage,
               textAlign: TextAlign.center,
               style: const TextStyle(color: Colors.white, fontSize: 14),
@@ -636,28 +731,35 @@ $locationText
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => FocusScope.of(context).unfocus(),
-      child: Scaffold(
-        backgroundColor: const Color(0xFF87CEEB),
-        bottomNavigationBar: Container(
-          margin: const EdgeInsets.all(16),
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(30),
-            boxShadow: _shadow(),
+    return Directionality(
+      textDirection: isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
+      child: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Scaffold(
+          backgroundColor: const Color(0xFF87CEEB),
+          bottomNavigationBar: Container(
+            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(30),
+              boxShadow: _shadow(),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _bottomItem(Icons.home_rounded, tr('Home', 'الرئيسية'), 0),
+                _bottomItem(Icons.person_rounded, tr('Profile', 'الملف'), 1),
+                _bottomItem(
+                  Icons.settings_rounded,
+                  tr('Settings', 'الإعدادات'),
+                  2,
+                ),
+              ],
+            ),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _bottomItem(Icons.home_rounded, 'Home', 0),
-              _bottomItem(Icons.person_rounded, 'Profile', 1),
-              _bottomItem(Icons.settings_rounded, 'Settings', 2),
-            ],
-          ),
+          body: SafeArea(child: _buildBodyContent()),
         ),
-        body: SafeArea(child: _buildBodyContent()),
       ),
     );
   }

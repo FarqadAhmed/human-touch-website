@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
+import 'dart:ui' as ui;
 import 'Reminders_page.dart';
 import 'Health_page.dart';
 import 'Communication_page.dart';
@@ -11,6 +11,8 @@ import 'Map_page.dart';
 import 'VolunteerHelp_page.dart';
 import 'Profile_page.dart';
 import 'Settings_page.dart';
+
+import 'package:humantouch/pages/app_settings_store.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -22,10 +24,30 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> {
   String _userName = 'User';
 
+  bool get isArabic => AppSettingsStore.instance.isArabic;
+
+  String tr(String en, String ar) {
+    return isArabic ? ar : en;
+  }
+
   @override
   void initState() {
     super.initState();
     _loadUserName();
+
+    AppSettingsStore.instance.addListener(_onLanguageChanged);
+  }
+
+  void _onLanguageChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  @override
+  void dispose() {
+    AppSettingsStore.instance.removeListener(_onLanguageChanged);
+    super.dispose();
   }
 
   Future<void> _loadUserName() async {
@@ -49,9 +71,9 @@ class _DashboardPageState extends State<DashboardPage> {
     final hour = DateTime.now().hour;
 
     if (hour < 12) {
-      return 'Good Morning';
+      return tr('Good Morning', 'صباح الخير');
     } else {
-      return 'Good Evening';
+      return tr('Good Evening', 'مساء الخير');
     }
   }
 
@@ -108,10 +130,14 @@ class _DashboardPageState extends State<DashboardPage> {
           ],
           borderRadius: BorderRadius.circular(25),
         ),
-        child: const Center(
+        child: Center(
           child: Text(
-            'Please login to see reminders',
-            style: TextStyle(
+            tr(
+              'Please login to see reminders',
+              'يرجى تسجيل الدخول لعرض التذكيرات',
+            ),
+            textAlign: TextAlign.center,
+            style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w500,
               color: Colors.black54,
@@ -147,10 +173,11 @@ class _DashboardPageState extends State<DashboardPage> {
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return const Center(
+            return Center(
               child: Text(
-                'Error loading reminders',
-                style: TextStyle(
+                tr('Error loading reminders', 'حدث خطأ في تحميل التذكيرات'),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
                   color: Colors.black54,
@@ -166,10 +193,11 @@ class _DashboardPageState extends State<DashboardPage> {
           }
 
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(
+            return Center(
               child: Text(
-                'No reminders for today',
-                style: TextStyle(
+                tr('No reminders for today', 'لا توجد تذكيرات لهذا اليوم'),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
                   color: Colors.black54,
@@ -181,11 +209,12 @@ class _DashboardPageState extends State<DashboardPage> {
           final reminders = snapshot.data!.docs;
 
           return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment:
+                isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Today’s Reminders',
-                style: TextStyle(
+              Text(
+                tr('Today’s Reminders', 'تذكيرات اليوم'),
+                style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
                   color: Colors.black,
@@ -202,7 +231,8 @@ class _DashboardPageState extends State<DashboardPage> {
                     final data = reminders[index].data();
 
                     final String emoji = data['emoji'] ?? '🔔';
-                    final String title = data['title'] ?? 'Reminder';
+                    final String title =
+                        data['title'] ?? tr('Reminder', 'تذكير');
                     final String time = data['time'] ?? '';
 
                     return Container(
@@ -219,6 +249,8 @@ class _DashboardPageState extends State<DashboardPage> {
                           Expanded(
                             child: Text(
                               '$emoji $title • $time',
+                              textAlign:
+                                  isArabic ? TextAlign.right : TextAlign.left,
                               style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
@@ -339,131 +371,137 @@ class _DashboardPageState extends State<DashboardPage> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        FocusScope.of(context).unfocus();
-      },
-      child: Scaffold(
-        backgroundColor: const Color(0xFFF4F4F4),
-        body: SafeArea(
-          child: Column(
-            children: [
-              Stack(
-                alignment: Alignment.topCenter,
-                children: [
-                  Container(
-                    width: double.infinity,
-                    height: 130,
-                    color: const Color(0xFF87CEEB),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 100),
-                    child: Container(
+    return Directionality(
+      textDirection: isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
+      child: GestureDetector(
+        onTap: () {
+          FocusScope.of(context).unfocus();
+        },
+        child: Scaffold(
+          backgroundColor: const Color(0xFFF4F4F4),
+          body: SafeArea(
+            child: Column(
+              children: [
+                Stack(
+                  alignment: Alignment.topCenter,
+                  children: [
+                    Container(
                       width: double.infinity,
-                      height: 41,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFF4F4F4),
-                        borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(70),
-                          topRight: Radius.circular(70),
+                      height: 130,
+                      color: const Color(0xFF87CEEB),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 100),
+                      child: Container(
+                        width: double.infinity,
+                        height: 41,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFF4F4F4),
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(70),
+                            topRight: Radius.circular(70),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(30, 10, 30, 15),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    '${_getGreeting()}, $_userName',
-                    style: const TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                    ),
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(30, 0, 30, 0),
-                child: _buildTopReminderCard(),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 35, 20, 0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _buildFeatureItem(
-                      context: context,
-                      label: 'Reminders',
-                      imagePath: 'assets/Reminder.png',
-                      page: const RemindersPage(),
-                    ),
-                    _buildFeatureItem(
-                      context: context,
-                      label: 'Health',
-                      imagePath: 'assets/Health.png',
-                      page: const HealthPage(),
-                      imageHeight: 60,
-                    ),
-                    _buildFeatureItem(
-                      context: context,
-                      label: 'Communication',
-                      imagePath: 'assets/communication.png',
-                      page: const CommunicationPage(),
-                      imageWidth: 100,
-                      imageHeight: 100,
-                    ),
                   ],
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _buildFeatureItem(
-                      context: context,
-                      label: 'Emergency',
-                      imagePath: 'assets/Emergency.png',
-                      page: const EmergencyPage(),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(30, 10, 30, 15),
+                  child: Align(
+                    alignment:
+                        isArabic ? Alignment.centerRight : Alignment.centerLeft,
+                    child: Text(
+                      '${_getGreeting()}, $_userName',
+                      textAlign: isArabic ? TextAlign.right : TextAlign.left,
+                      style: const TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
                     ),
-                    _buildFeatureItem(
-                      context: context,
-                      label: 'Map',
-                      imagePath: 'assets/map.png',
-                      page: const MapPage(),
-                    ),
-                    _buildFeatureItem(
-                      context: context,
-                      label: 'Volunteer\nHelp',
-                      imagePath: 'assets/volunteer.png',
-                      page: const VolunteerHelpPage(),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-              const Spacer(),
-            ],
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(30, 0, 30, 0),
+                  child: _buildTopReminderCard(),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 35, 20, 0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildFeatureItem(
+                        context: context,
+                        label: tr('Reminders', 'التذكيرات'),
+                        imagePath: 'assets/Reminder.png',
+                        page: const RemindersPage(),
+                      ),
+                      _buildFeatureItem(
+                        context: context,
+                        label: tr('Health', 'الصحة'),
+                        imagePath: 'assets/Health.png',
+                        page: const HealthPage(),
+                        imageHeight: 60,
+                      ),
+                      _buildFeatureItem(
+                        context: context,
+                        label: tr('Communication', 'التواصل'),
+                        imagePath: 'assets/communication.png',
+                        page: const CommunicationPage(),
+                        imageWidth: 100,
+                        imageHeight: 100,
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildFeatureItem(
+                        context: context,
+                        label: tr('Emergency', 'الطوارئ'),
+                        imagePath: 'assets/Emergency.png',
+                        page: const EmergencyPage(),
+                      ),
+                      _buildFeatureItem(
+                        context: context,
+                        label: tr('Map', 'الخريطة'),
+                        imagePath: 'assets/map.png',
+                        page: const MapPage(),
+                      ),
+                      _buildFeatureItem(
+                        context: context,
+                        label: tr('Volunteer\nHelp', 'مساعدة\nالمتطوعين'),
+                        imagePath: 'assets/volunteer.png',
+                        page: const VolunteerHelpPage(),
+                      ),
+                    ],
+                  ),
+                ),
+                const Spacer(),
+              ],
+            ),
           ),
-        ),
-        bottomNavigationBar: Container(
-          margin: const EdgeInsets.all(16),
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-          decoration: BoxDecoration(
-            color: const Color(0xFF87CEEB),
-            borderRadius: BorderRadius.circular(30),
-            boxShadow: _shadow(),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _bottomItem(Icons.home_rounded, 'Home', 0),
-              _bottomItem(Icons.person_rounded, 'Profile', 1),
-              _bottomItem(Icons.settings_rounded, 'Settings', 2),
-            ],
+          bottomNavigationBar: Container(
+            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF87CEEB),
+              borderRadius: BorderRadius.circular(30),
+              boxShadow: _shadow(),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _bottomItem(Icons.home_rounded, tr('Home', 'الرئيسية'), 0),
+                _bottomItem(Icons.person_rounded, tr('Profile', 'الملف'), 1),
+                _bottomItem(
+                    Icons.settings_rounded, tr('Settings', 'الإعدادات'), 2),
+              ],
+            ),
           ),
         ),
       ),
