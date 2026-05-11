@@ -324,144 +324,16 @@ class _SignUpPatientPageState extends State<SignUpPatientPage> {
       return;
     }
 
+    if (!mounted) return;
+
     setState(() {
-      _isLoading = true;
+      _isLoading = false;
     });
 
-    User? createdUser;
-
-    try {
-      debugPrint('Creating Firebase Auth account...');
-
-      final UserCredential userCredential =
-          await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
-
-      createdUser = userCredential.user;
-
-      if (createdUser == null) {
-        throw Exception('Firebase Auth user is null.');
-      }
-
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(createdUser.uid)
-          .set({
-        'uid': createdUser.uid,
-        'name': _nameController.text.trim(),
-        'email': _emailController.text.trim(),
-        'phone': _phoneController.text.trim(),
-        'phoneNumber': _phoneController.text.trim(),
-        'age': int.tryParse(_ageController.text.trim()) ?? 0,
-        'gender': _selectedGender,
-        'disability': _selectedDisability,
-        'multipleDisabilities': _multipleDisabilitiesController.text.trim(),
-        'location': _locationController.text.trim(),
-        'latitude': _selectedLatitude,
-        'longitude': _selectedLongitude,
-        'role': 'patient',
-        'patientLinkCode': 'PATIENT-${createdUser.uid}',
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      if (!mounted) return;
-
-      setState(() {
-        _isLoading = false;
-      });
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const DashboardPage()),
-      );
-    } on FirebaseAuthException catch (e) {
-      String message = tr(
-        'Failed to create account.',
-        'فشل إنشاء الحساب.',
-      );
-
-      if (e.code == 'email-already-in-use') {
-        message = tr(
-          'This email is already used.',
-          'هذا البريد مستخدم مسبقاً.',
-        );
-      } else if (e.code == 'invalid-email') {
-        message = tr(
-          'Please enter a valid email.',
-          'يرجى إدخال بريد إلكتروني صحيح.',
-        );
-      } else if (e.code == 'weak-password') {
-        message = tr('Password is too weak.', 'كلمة المرور ضعيفة.');
-      } else if (e.code == 'operation-not-allowed') {
-        message = tr(
-          'Email/Password sign-in is not enabled in Firebase.',
-          'تسجيل الدخول بالبريد وكلمة المرور غير مفعل في Firebase.',
-        );
-      } else if (e.message != null && e.message!.trim().isNotEmpty) {
-        message = e.message!;
-      }
-
-      if (!mounted) return;
-
-      setState(() {
-        _isLoading = false;
-      });
-
-      _showMessage(message);
-    } on FirebaseException catch (e) {
-      if (createdUser != null) {
-        try {
-          await createdUser.delete();
-        } catch (_) {}
-      }
-
-      String message = tr(
-        'Firebase error: ${e.code}',
-        'خطأ في Firebase: ${e.code}',
-      );
-
-      if (e.code == 'permission-denied') {
-        message = tr(
-          'Firestore permission denied. Check Firestore Rules.',
-          'تم رفض صلاحية Firestore. تحققي من Rules.',
-        );
-      } else if (e.code == 'unavailable') {
-        message = tr(
-          'Firebase service unavailable. Check internet connection.',
-          'خدمة Firebase غير متاحة. تحققي من الاتصال بالإنترنت.',
-        );
-      } else if (e.message != null && e.message!.trim().isNotEmpty) {
-        message = tr(
-          'Firebase error: ${e.message}',
-          'خطأ في Firebase: ${e.message}',
-        );
-      }
-
-      if (!mounted) return;
-
-      setState(() {
-        _isLoading = false;
-      });
-
-      _showMessage(message);
-    } catch (e) {
-      if (createdUser != null) {
-        try {
-          await createdUser.delete();
-        } catch (_) {}
-      }
-
-      if (!mounted) return;
-
-      setState(() {
-        _isLoading = false;
-      });
-
-      _showMessage(tr('Error: $e', 'حدث خطأ: $e'));
-    }
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const DashboardPage()),
+    );
   }
 
   Widget _languageButton() {

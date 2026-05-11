@@ -60,7 +60,7 @@ class _WelcomePageState extends State<WelcomePage> {
                   mainAxisAlignment: MainAxisAlignment.start,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const SizedBox(height: 200),
+                    const SizedBox(height: 160),
                     Center(
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(8),
@@ -72,7 +72,26 @@ class _WelcomePageState extends State<WelcomePage> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 100),
+                    const SizedBox(height: 25),
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Text(
+                          tr(
+                            'Welcome to Human Touch',
+                            'مرحبًا بك في Human Touch "اللمسة الإنسانية"',
+                          ),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 30,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 75),
                     Center(
                       child: SizedBox(
                         width: 300,

@@ -21,6 +21,16 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
   bool _emailSent = false;
 
   bool get isArabic => AppSettingsStore.instance.isArabic;
+  bool get isDarkMode => AppSettingsStore.instance.isDarkMode;
+
+  Color get backgroundColor => isDarkMode ? Colors.black : Colors.white;
+
+  Color get fieldColor =>
+      isDarkMode ? const Color(0xFF1E1E1E) : const Color(0xFFF4F4F4);
+
+  Color get textColor => isDarkMode ? Colors.white : Colors.black;
+
+  Color get subTextColor => isDarkMode ? Colors.white70 : Colors.black87;
 
   String tr(String en, String ar) => isArabic ? ar : en;
 
@@ -60,12 +70,13 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
     return InputDecoration(
       isDense: true,
       labelText: label,
-      labelStyle: const TextStyle(
+      labelStyle: TextStyle(
         fontSize: 18,
-        color: Colors.black87,
+        color: subTextColor,
         fontWeight: FontWeight.normal,
       ),
-      prefixIcon: prefixIcon != null ? Icon(prefixIcon) : null,
+      prefixIcon:
+          prefixIcon != null ? Icon(prefixIcon, color: subTextColor) : null,
       border: InputBorder.none,
       enabledBorder: InputBorder.none,
       focusedBorder: InputBorder.none,
@@ -80,8 +91,9 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
       width: double.infinity,
       height: height,
       decoration: BoxDecoration(
-        color: const Color(0xFFF4F4F4),
+        color: fieldColor,
         borderRadius: BorderRadius.circular(4),
+        border: isDarkMode ? Border.all(color: Colors.white12, width: 1) : null,
       ),
       padding: const EdgeInsets.fromLTRB(12, 5, 12, 0),
       child: child,
@@ -182,7 +194,7 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.15),
+                color: Colors.black.withOpacity(isDarkMode ? 0.35 : 0.15),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -222,10 +234,10 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
           Text(
             tr('Forgot Password', 'نسيت كلمة المرور'),
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 30,
               fontWeight: FontWeight.w300,
-              color: Colors.black,
+              color: textColor,
             ),
           ),
           const SizedBox(height: 10),
@@ -235,7 +247,7 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
               'أدخل بريدك الإلكتروني وسنرسل لك رابط إعادة تعيين كلمة المرور.',
             ),
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 16, color: Colors.black87),
+            style: TextStyle(fontSize: 16, color: subTextColor),
           ),
           const SizedBox(height: 30),
           _buildFieldContainer(
@@ -247,7 +259,7 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
                 label: tr('Enter your email', 'أدخل بريدك الإلكتروني'),
                 prefixIcon: Icons.mail_outline_rounded,
               ),
-              style: const TextStyle(fontSize: 16),
+              style: TextStyle(fontSize: 16, color: textColor),
               validator: (value) {
                 final text = (value ?? '').trim();
 
@@ -322,10 +334,10 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
         Text(
           tr('Check your email', 'تحقق من بريدك الإلكتروني'),
           textAlign: TextAlign.center,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 26,
             fontWeight: FontWeight.w600,
-            color: Colors.black,
+            color: textColor,
           ),
         ),
         const SizedBox(height: 20),
@@ -337,10 +349,10 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
               'أرسلنا رابط إعادة تعيين كلمة المرور إلى:\n$email\n\nافتح بريدك الإلكتروني واتبع الرابط لإنشاء كلمة مرور جديدة.',
             ),
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w500,
-              color: Colors.black87,
+              color: subTextColor,
             ),
           ),
         ),
@@ -370,9 +382,9 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
         const SizedBox(height: 12),
         TextButton(
           onPressed: _isLoading ? null : _sendResetEmail,
-          child: Text(
-            tr('Resend Email', 'إعادة إرسال البريد'),
-            style: const TextStyle(
+          child: const Text(
+            'Resend Email',
+            style: TextStyle(
               color: Color(0xFF025590),
               fontSize: 14,
             ),
@@ -391,7 +403,7 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
           FocusScope.of(context).unfocus();
         },
         child: Scaffold(
-          backgroundColor: Colors.white,
+          backgroundColor: backgroundColor,
           body: SafeArea(
             child: Stack(
               children: [
@@ -420,7 +432,7 @@ class _ForgetPasswordPageState extends State<ForgetPasswordPage> {
                             icon: Icon(
                               isArabic ? Icons.arrow_forward : Icons.arrow_back,
                               size: 30,
-                              color: Colors.black,
+                              color: textColor,
                             ),
                           ),
                         ),

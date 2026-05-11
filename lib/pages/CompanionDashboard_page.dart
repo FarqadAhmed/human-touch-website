@@ -109,6 +109,21 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
   String _selectedReport = 'Daily';
 
   bool get isArabic => AppSettingsStore.instance.isArabic;
+  bool get isDarkMode => AppSettingsStore.instance.isDarkMode;
+
+  Color get _backgroundColor =>
+      isDarkMode ? Colors.black : const Color(0xFFF4F4F4);
+
+  Color get _cardColor => isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
+
+  Color get _textColor => isDarkMode ? Colors.white : Colors.black87;
+
+  Color get _subTextColor => isDarkMode ? Colors.white70 : Colors.black54;
+
+  Color get _softCardColor =>
+      isDarkMode ? const Color(0xFF2A2A2A) : const Color(0xFFEAF8FD);
+
+  Color get _chartLabelColor => isDarkMode ? Colors.white70 : Colors.black54;
 
   String tr(String en, String ar) {
     return isArabic ? ar : en;
@@ -451,9 +466,9 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
         Container(
           height: 40,
           width: double.infinity,
-          decoration: const BoxDecoration(
-            color: Color(0xFFF4F4F4),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(40)),
+          decoration: BoxDecoration(
+            color: _backgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(40)),
           ),
         ),
       ],
@@ -517,10 +532,10 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
       child: Text(
         title,
         textAlign: isArabic ? TextAlign.right : TextAlign.left,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 19,
           fontWeight: FontWeight.bold,
-          color: Colors.black87,
+          color: _textColor,
         ),
       ),
     );
@@ -532,7 +547,7 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
       margin: const EdgeInsets.only(top: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _cardColor,
         borderRadius: BorderRadius.circular(22),
         boxShadow: _shadow(),
       ),
@@ -549,7 +564,7 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
             width: double.infinity,
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: _cardColor,
               borderRadius: BorderRadius.circular(24),
               boxShadow: _shadow(),
             ),
@@ -564,10 +579,10 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
                 const SizedBox(height: 16),
                 Text(
                   tr('No Patient Linked', 'لا يوجد مريض مرتبط'),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: _textColor,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -577,9 +592,9 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
                     'يجب ربط حسابك بالمريض أولاً لعرض التحديثات الصحية، التذكيرات، التنبيهات، الموقع، التقارير، والإجراءات السريعة.',
                   ),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
-                    color: Colors.black54,
+                    color: _subTextColor,
                     height: 1.4,
                   ),
                 ),
@@ -625,9 +640,16 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
         const SizedBox(height: 6),
         Text(
           value,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+            color: _textColor,
+          ),
         ),
-        Text(title, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+        Text(
+          title,
+          style: TextStyle(color: _subTextColor, fontSize: 13),
+        ),
       ],
     );
   }
@@ -643,7 +665,7 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          color: const Color(0xFFEAF8FD),
+          color: _softCardColor,
           borderRadius: BorderRadius.circular(18),
         ),
         child: Column(
@@ -653,7 +675,10 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
             Text(
               title,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontWeight: FontWeight.w600),
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: _textColor,
+              ),
             ),
           ],
         ),
@@ -674,14 +699,14 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: selected ? const Color(0xFF87CEEB) : const Color(0xFFEAF8FD),
+            color: selected ? const Color(0xFF87CEEB) : _softCardColor,
             borderRadius: BorderRadius.circular(18),
           ),
           child: Center(
             child: Text(
               label,
               style: TextStyle(
-                color: selected ? Colors.white : Colors.black87,
+                color: selected ? Colors.white : _textColor,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -706,7 +731,7 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
             children: [
               Text(
                 '$value%',
-                style: const TextStyle(fontSize: 11, color: Colors.black54),
+                style: TextStyle(fontSize: 11, color: _chartLabelColor),
               ),
               const SizedBox(height: 5),
               Container(
@@ -720,7 +745,7 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
               const SizedBox(height: 6),
               Text(
                 labels[index],
-                style: const TextStyle(fontSize: 11, color: Colors.grey),
+                style: TextStyle(fontSize: 11, color: _subTextColor),
               ),
             ],
           );
@@ -733,7 +758,7 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
     if (report == null) {
       return Text(
         tr('No AI Health Check report yet.', 'لا يوجد تقرير فحص صحي ذكي بعد.'),
-        style: const TextStyle(color: Colors.grey),
+        style: TextStyle(color: _subTextColor),
       );
     }
 
@@ -743,7 +768,8 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
       children: [
         Text(
           tr('AI Health Check Summary', 'ملخص الفحص الصحي الذكي'),
-          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+          style: TextStyle(
+              fontSize: 17, fontWeight: FontWeight.bold, color: _textColor),
         ),
         const SizedBox(height: 10),
         Text('${tr('Mood', 'المزاج')}: ${report.moodAnswer}'),
@@ -756,9 +782,9 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
         Text(
           report.resultMessage,
           textAlign: isArabic ? TextAlign.right : TextAlign.left,
-          style: const TextStyle(
+          style: TextStyle(
             fontWeight: FontWeight.w600,
-            color: Colors.black87,
+            color: _textColor,
           ),
         ),
       ],
@@ -782,7 +808,8 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
       children: [
         Text(
           tr('Today Summary', 'ملخص اليوم'),
-          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+          style: TextStyle(
+              fontSize: 17, fontWeight: FontWeight.bold, color: _textColor),
         ),
         const SizedBox(height: 10),
         Text(
@@ -826,7 +853,8 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
       children: [
         Text(
           tr('Weekly Summary', 'ملخص الأسبوع'),
-          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+          style: TextStyle(
+              fontSize: 17, fontWeight: FontWeight.bold, color: _textColor),
         ),
         const SizedBox(height: 10),
         Text(tr(
@@ -851,7 +879,8 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
         const SizedBox(height: 18),
         Text(
           tr('AI Weekly Health Summary', 'ملخص الصحة الذكي الأسبوعي'),
-          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+          style: TextStyle(
+              fontSize: 17, fontWeight: FontWeight.bold, color: _textColor),
         ),
         const SizedBox(height: 10),
         Text(
@@ -896,7 +925,8 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
       children: [
         Text(
           tr('Monthly Summary', 'ملخص الشهر'),
-          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+          style: TextStyle(
+              fontSize: 17, fontWeight: FontWeight.bold, color: _textColor),
         ),
         const SizedBox(height: 10),
         Text(tr(
@@ -913,7 +943,8 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
         const SizedBox(height: 18),
         Text(
           tr('AI Monthly Health Summary', 'ملخص الصحة الذكي الشهري'),
-          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+          style: TextStyle(
+              fontSize: 17, fontWeight: FontWeight.bold, color: _textColor),
         ),
         const SizedBox(height: 10),
         Text(
@@ -970,10 +1001,10 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
             Text(
               '${getGreeting()}, $companionName 👋',
               textAlign: isArabic ? TextAlign.right : TextAlign.left,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 25,
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                color: _textColor,
               ),
             ),
             const SizedBox(height: 6),
@@ -982,7 +1013,7 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
                 'Here is $patientName\'s latest update',
                 'هذه آخر تحديثات $patientName',
               ),
-              style: const TextStyle(fontSize: 16, color: Colors.black54),
+              style: TextStyle(fontSize: 16, color: _subTextColor),
             ),
             _card(
               child: Row(
@@ -1028,8 +1059,8 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
                         const SizedBox(height: 4),
                         Text(
                           '${tr('Last update', 'آخر تحديث')}: $_lastUpdated',
-                          style: const TextStyle(
-                            color: Colors.grey,
+                          style: TextStyle(
+                            color: _subTextColor,
                             fontSize: 13,
                           ),
                         ),
@@ -1053,7 +1084,7 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
                           'No urgent alerts. Patient is doing well today.',
                           'لا توجد تنبيهات عاجلة. المريض بحالة جيدة اليوم.',
                         ),
-                        style: const TextStyle(fontSize: 15),
+                        style: TextStyle(fontSize: 15, color: _textColor),
                       ),
                     ),
                   ],
@@ -1081,8 +1112,9 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
                                 '${item.title} was missed at ${item.time}',
                                 'تم تفويت ${item.title} في ${item.time}',
                               ),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.w600,
+                                color: _textColor,
                               ),
                             ),
                           ),
@@ -1142,7 +1174,7 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
               _card(
                 child: Text(
                   tr('No reminders added yet.', 'لا توجد تذكيرات مضافة بعد.'),
-                  style: const TextStyle(color: Colors.grey),
+                  style: TextStyle(color: _subTextColor),
                 ),
               )
             else
@@ -1168,7 +1200,7 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
                               ),
                               Text(
                                 '${item.day} - ${item.time}',
-                                style: const TextStyle(color: Colors.grey),
+                                style: TextStyle(color: _subTextColor),
                               ),
                             ],
                           ),
@@ -1226,7 +1258,7 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
                         '$patientName is currently near $location',
                         '$patientName حالياً بالقرب من $location',
                       ),
-                      style: const TextStyle(fontSize: 16),
+                      style: TextStyle(fontSize: 16, color: _textColor),
                     ),
                   ),
                 ],
@@ -1260,7 +1292,7 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
                               insight['message'],
                               textAlign:
                                   isArabic ? TextAlign.right : TextAlign.left,
-                              style: const TextStyle(fontSize: 14),
+                              style: TextStyle(fontSize: 14, color: _textColor),
                             ),
                           ],
                         ),
@@ -1367,7 +1399,7 @@ class _CompanionDashboardPageState extends State<CompanionDashboardPage> {
     return Directionality(
       textDirection: isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF4F4F4),
+        backgroundColor: _backgroundColor,
         body: SafeArea(
           child: Column(
             children: [

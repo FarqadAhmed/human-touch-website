@@ -14,6 +14,7 @@ class CallLogsPage extends StatelessWidget {
   });
 
   bool get isArabic => AppSettingsStore.instance.isArabic;
+  bool get isDarkMode => AppSettingsStore.instance.isDarkMode;
 
   String tr(String en, String ar) => isArabic ? ar : en;
 
@@ -80,12 +81,28 @@ class CallLogsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final Color backgroundColor =
+        isDarkMode ? Colors.black : const Color(0xFFF4F4F4);
+
+    final Color cardColor = isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
+
+    final Color textColor = isDarkMode ? Colors.white : const Color(0xFF14181B);
+
+    final Color subTextColor =
+        isDarkMode ? Colors.white70 : const Color(0xFF57636C);
+
     return Directionality(
       textDirection: isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
       child: Scaffold(
+        backgroundColor: backgroundColor,
         appBar: AppBar(
-          title: Text(tr('Call History', 'سجل المكالمات')),
+          title: Text(
+            tr('Call History', 'سجل المكالمات'),
+            style: const TextStyle(color: Colors.white),
+          ),
           backgroundColor: const Color(0xFF87CEEB),
+          foregroundColor: Colors.white,
+          elevation: 0,
         ),
         body: StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance
@@ -107,19 +124,27 @@ class CallLogsPage extends StatelessWidget {
                     'تحتاج إنشاء Index في Firestore من لوحة التحكم.',
                   ),
                   textAlign: TextAlign.center,
+                  style: TextStyle(color: textColor),
                 ),
               );
             }
 
             if (!snapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
+              return const Center(
+                child: CircularProgressIndicator(
+                  color: Color(0xFF87CEEB),
+                ),
+              );
             }
 
             final docs = snapshot.data!.docs;
 
             if (docs.isEmpty) {
               return Center(
-                child: Text(tr('No calls yet', 'لا توجد مكالمات بعد')),
+                child: Text(
+                  tr('No calls yet', 'لا توجد مكالمات بعد'),
+                  style: TextStyle(color: textColor),
+                ),
               );
             }
 
@@ -138,6 +163,7 @@ class CallLogsPage extends StatelessWidget {
                 final time = _formatTime(data['updatedAt']);
 
                 return Card(
+                  color: cardColor,
                   margin: const EdgeInsets.symmetric(
                     horizontal: 14,
                     vertical: 6,
@@ -153,25 +179,34 @@ class CallLogsPage extends StatelessWidget {
                     title: Text(
                       otherPartyName.toString(),
                       textAlign: isArabic ? TextAlign.right : TextAlign.left,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                      ),
                     ),
                     subtitle: Column(
                       crossAxisAlignment: isArabic
                           ? CrossAxisAlignment.end
                           : CrossAxisAlignment.start,
                       children: [
-                        Text(_formatStatus(status)),
+                        Text(
+                          _formatStatus(status),
+                          style: TextStyle(color: subTextColor),
+                        ),
                         Text(
                           isOutgoing
                               ? tr('Outgoing Call', 'مكالمة صادرة')
                               : tr('Incoming Call', 'مكالمة واردة'),
-                          style: const TextStyle(fontSize: 12),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: subTextColor,
+                          ),
                         ),
                         Text(
                           time,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 11,
-                            color: Colors.grey,
+                            color: isDarkMode ? Colors.white54 : Colors.grey,
                           ),
                         ),
                       ],

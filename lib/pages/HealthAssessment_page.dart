@@ -25,6 +25,20 @@ class _HealthAssessmentPageState extends State<HealthAssessmentPage> {
   final Map<int, dynamic> _answers = {};
 
   bool get isArabic => AppSettingsStore.instance.isArabic;
+  bool get isDarkMode => AppSettingsStore.instance.isDarkMode;
+
+  Color get backgroundColor =>
+      isDarkMode ? const Color(0xFF121212) : const Color(0xFFF4F4F4);
+
+  Color get cardColor => isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
+
+  Color get textColor => isDarkMode ? Colors.white : const Color(0xFF0F1113);
+
+  Color get subTextColor =>
+      isDarkMode ? Colors.white70 : const Color(0xFF57636C);
+
+  Color get borderColor =>
+      isDarkMode ? Colors.white12 : const Color(0xFFE0E3E7);
 
   String tr(String en, String ar) => isArabic ? ar : en;
 
@@ -160,8 +174,6 @@ class _HealthAssessmentPageState extends State<HealthAssessmentPage> {
         return tr('Excellent 💪', 'ممتاز 💪');
       case 'Excellent 🌙':
         return tr('Excellent 🌙', 'ممتاز 🌙');
-      case 'Good 🙂':
-        return tr('Good 🙂', 'جيد 🙂');
       case 'Okay 😐':
         return tr('Okay 😐', 'عادي 😐');
       case 'Not well 🤕':
@@ -197,7 +209,8 @@ class _HealthAssessmentPageState extends State<HealthAssessmentPage> {
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text(tr('Please login first', 'يرجى تسجيل الدخول أولاً'))),
+          content: Text(tr('Please login first', 'يرجى تسجيل الدخول أولاً')),
+        ),
       );
       return;
     }
@@ -288,7 +301,11 @@ class _HealthAssessmentPageState extends State<HealthAssessmentPage> {
             textDirection:
                 isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
             child: AlertDialog(
-              title: Text(tr('Assessment Result', 'نتيجة التقييم')),
+              backgroundColor: cardColor,
+              title: Text(
+                tr('Assessment Result', 'نتيجة التقييم'),
+                style: TextStyle(color: textColor),
+              ),
               content: Text(
                 needsHelp
                     ? tr(
@@ -299,6 +316,7 @@ class _HealthAssessmentPageState extends State<HealthAssessmentPage> {
                         'The patient seems okay today.',
                         'يبدو أن المريض بخير اليوم.',
                       ),
+                style: TextStyle(color: subTextColor),
               ),
               actions: [
                 TextButton(
@@ -363,7 +381,8 @@ class _HealthAssessmentPageState extends State<HealthAssessmentPage> {
           const SizedBox(height: 24),
           Slider(
             activeColor: const Color(0xFF87CEEB),
-            inactiveColor: const Color(0xFFE0E3E7),
+            inactiveColor:
+                isDarkMode ? const Color(0xFF2A2A2A) : const Color(0xFFE0E3E7),
             min: 1,
             max: 3,
             divisions: 2,
@@ -377,7 +396,11 @@ class _HealthAssessmentPageState extends State<HealthAssessmentPage> {
           const SizedBox(height: 8),
           Text(
             '$emoji  $moodText',
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              color: textColor,
+            ),
           ),
         ],
       );
@@ -400,12 +423,10 @@ class _HealthAssessmentPageState extends State<HealthAssessmentPage> {
               decoration: BoxDecoration(
                 color: isSelected
                     ? const Color(0xFF87CEEB).withOpacity(0.20)
-                    : Colors.white,
+                    : cardColor,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: isSelected
-                      ? const Color(0xFF87CEEB)
-                      : const Color(0xFFE0E3E7),
+                  color: isSelected ? const Color(0xFF87CEEB) : borderColor,
                   width: 1.5,
                 ),
               ),
@@ -415,9 +436,9 @@ class _HealthAssessmentPageState extends State<HealthAssessmentPage> {
                     child: Text(
                       _optionText(option),
                       textAlign: isArabic ? TextAlign.right : TextAlign.left,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 16,
-                        color: Color(0xFF57636C),
+                        color: subTextColor,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -445,7 +466,7 @@ class _HealthAssessmentPageState extends State<HealthAssessmentPage> {
       onPressed: onTap,
       icon: Icon(
         icon,
-        color: Colors.black,
+        color: isDarkMode ? Colors.white : Colors.black,
         size: icon == Icons.settings_outlined ? 45 : 50,
       ),
       splashColor: Colors.grey.withOpacity(0.20),
@@ -462,7 +483,7 @@ class _HealthAssessmentPageState extends State<HealthAssessmentPage> {
       child: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
         child: Scaffold(
-          backgroundColor: const Color(0xFFF4F4F4),
+          backgroundColor: backgroundColor,
           body: SafeArea(
             child: Column(
               children: [
@@ -479,9 +500,9 @@ class _HealthAssessmentPageState extends State<HealthAssessmentPage> {
                       child: Container(
                         width: double.infinity,
                         height: 41.1,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFF4F4F4),
-                          borderRadius: BorderRadius.only(
+                        decoration: BoxDecoration(
+                          color: backgroundColor,
+                          borderRadius: const BorderRadius.only(
                             topLeft: Radius.circular(70),
                             topRight: Radius.circular(70),
                           ),
@@ -503,8 +524,8 @@ class _HealthAssessmentPageState extends State<HealthAssessmentPage> {
                             'Question $questionNumber/6',
                             'السؤال $questionNumber/6',
                           ),
-                          style: const TextStyle(
-                            color: Color(0xFF57636C),
+                          style: TextStyle(
+                            color: subTextColor,
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
                           ),
@@ -515,7 +536,9 @@ class _HealthAssessmentPageState extends State<HealthAssessmentPage> {
                           child: LinearProgressIndicator(
                             value: _progress,
                             minHeight: 12,
-                            backgroundColor: const Color(0xFFE0E3E7),
+                            backgroundColor: isDarkMode
+                                ? const Color(0xFF2A2A2A)
+                                : const Color(0xFFE0E3E7),
                             valueColor: const AlwaysStoppedAnimation(
                               Color(0xFF87CEEB),
                             ),
@@ -528,10 +551,10 @@ class _HealthAssessmentPageState extends State<HealthAssessmentPage> {
                                 ? _currentQuestion.titleAr
                                 : _currentQuestion.title,
                             textAlign: TextAlign.center,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 28,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFF0F1113),
+                              color: textColor,
                             ),
                           ),
                         ),
@@ -542,9 +565,9 @@ class _HealthAssessmentPageState extends State<HealthAssessmentPage> {
                                 ? _currentQuestion.subtitleAr
                                 : _currentQuestion.subtitle,
                             textAlign: TextAlign.center,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 15,
-                              color: Color(0xFF57636C),
+                              color: subTextColor,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -614,8 +637,10 @@ class _HealthAssessmentPageState extends State<HealthAssessmentPage> {
                                       : Text(
                                           questionNumber == 6
                                               ? tr('Finish', 'إنهاء')
-                                              : tr('Next Question',
-                                                  'السؤال التالي'),
+                                              : tr(
+                                                  'Next Question',
+                                                  'السؤال التالي',
+                                                ),
                                           style: const TextStyle(fontSize: 16),
                                         ),
                                 ),
@@ -630,7 +655,7 @@ class _HealthAssessmentPageState extends State<HealthAssessmentPage> {
                 Container(
                   width: double.infinity,
                   height: 60,
-                  decoration: const BoxDecoration(color: Colors.white),
+                  decoration: BoxDecoration(color: cardColor),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [

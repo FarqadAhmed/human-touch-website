@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'Dashboard_page.dart';
 import 'Profile_page.dart';
@@ -26,6 +28,7 @@ class _SettingsPageState extends State<SettingsPage> {
   String _name = '';
   String _email = '';
   String _profileImageBase64 = '';
+  String _userRole = 'patient';
 
   bool _darkMode = false;
   bool _notifications = true;
@@ -34,15 +37,38 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _sendSmsToCompanion = true;
   bool _alertNearbyVolunteers = true;
 
+  bool _isPatientLinkedToCompanion = false;
+
   String _language = 'en';
   double _textScale = 1.0;
   bool _isLoading = true;
+
+  static const String humanTouchEmail = 'info@humantouchapp.com';
 
   bool get isArabic => AppSettingsStore.instance.isArabic;
 
   String tr(String en, String ar) {
     return isArabic ? ar : en;
   }
+
+  Color get _backgroundColor =>
+      _darkMode ? const Color(0xFF121212) : const Color(0xFFF4F4F4);
+
+  Color get _cardColor => _darkMode ? const Color(0xFF1E1E1E) : Colors.white;
+
+  Color get _profileCardColor =>
+      _darkMode ? const Color(0xFF121212) : const Color(0xFFF4F4F4);
+
+  Color get _textColor => _darkMode ? Colors.white : const Color(0xFF14181B);
+
+  Color get _subTextColor =>
+      _darkMode ? const Color(0xFFB0B0B0) : const Color(0xFF57636C);
+
+  Color get _fieldColor =>
+      _darkMode ? const Color(0xFF2A2A2A) : const Color(0xFFF4F4F4);
+
+  Color get _dividerColor =>
+      _darkMode ? const Color(0xFF3A3A3A) : const Color(0xFFE0E0E0);
 
   @override
   void initState() {
@@ -59,10 +85,17 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _loadUserSettings() async {
     final user = _auth.currentUser;
+    final prefs = await SharedPreferences.getInstance();
+
+    final localLanguage = prefs.getString('language') ?? 'en';
+    AppSettingsStore.instance.changeLanguage(localLanguage);
 
     if (user == null) {
       if (!mounted) return;
       setState(() {
+        _language = localLanguage;
+        _darkMode = prefs.getBool('darkMode') ?? false;
+        _textScale = prefs.getDouble('textScale') ?? 1.0;
         _isLoading = false;
       });
       return;
@@ -72,11 +105,13 @@ class _SettingsPageState extends State<SettingsPage> {
       final doc = await _firestore.collection('users').doc(user.uid).get();
       final data = doc.data() ?? {};
 
-      if (!mounted) return;
-
-      final savedLanguage = (data['language'] ?? 'en').toString();
+      final savedLanguage =
+          (data['language'] ?? prefs.getString('language') ?? 'en').toString();
 
       AppSettingsStore.instance.changeLanguage(savedLanguage);
+      await prefs.setString('language', savedLanguage);
+
+      if (!mounted) return;
 
       setState(() {
         _name = (data['name'] ?? data['fullName'] ?? data['username'] ?? '')
@@ -85,7 +120,9 @@ class _SettingsPageState extends State<SettingsPage> {
         _profileImageBase64 =
             (data['profileImageBase64'] ?? data['image'] ?? '').toString();
 
-        _darkMode = data['darkMode'] ?? false;
+        _userRole = (data['role'] ?? 'patient').toString();
+
+        _darkMode = data['darkMode'] ?? prefs.getBool('darkMode') ?? false;
         _notifications = data['notifications'] ?? true;
         _locationSharing = data['locationSharing'] ?? true;
         _callCompanion = data['callCompanion'] ?? true;
@@ -98,11 +135,16 @@ class _SettingsPageState extends State<SettingsPage> {
         if (textScaleValue is num) {
           _textScale = textScaleValue.toDouble();
         } else {
-          _textScale = 1.0;
+          _textScale = prefs.getDouble('textScale') ?? 1.0;
         }
 
         _companionPhoneController.text =
             (data['companionPhone'] ?? '').toString();
+
+        _isPatientLinkedToCompanion = _userRole == 'patient' &&
+            ((data['companionUid'] ?? '').toString().isNotEmpty ||
+                (data['linkedCompanionUid'] ?? '').toString().isNotEmpty ||
+                (data['companionPhone'] ?? '').toString().isNotEmpty);
 
         _isLoading = false;
       });
@@ -112,19 +154,33 @@ class _SettingsPageState extends State<SettingsPage> {
       if (!mounted) return;
 
       setState(() {
+        _language = localLanguage;
+        _darkMode = prefs.getBool('darkMode') ?? false;
+        _textScale = prefs.getDouble('textScale') ?? 1.0;
         _name = user.displayName ?? '';
         _email = user.email ?? '';
         _isLoading = false;
       });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading settings: $e')),
-      );
     }
   }
 
   Future<void> _updateSetting(String field, dynamic value) async {
     final user = _auth.currentUser;
+
+    final prefs = await SharedPreferences.getInstance();
+
+    if (field == 'language') {
+      await prefs.setString('language', value.toString());
+    }
+
+    if (field == 'darkMode') {
+      await prefs.setBool('darkMode', value == true);
+    }
+
+    if (field == 'textScale') {
+      await prefs.setDouble('textScale', (value as num).toDouble());
+    }
+
     if (user == null) return;
 
     try {
@@ -134,11 +190,29 @@ class _SettingsPageState extends State<SettingsPage> {
       }, SetOptions(merge: true));
     } catch (e) {
       debugPrint('Error updating setting $field: $e');
+    }
+  }
 
+  Future<void> _openEmail() async {
+    final Uri emailUri = Uri(
+      scheme: 'mailto',
+      path: humanTouchEmail,
+      query: 'subject=Human Touch Support',
+    );
+
+    if (await canLaunchUrl(emailUri)) {
+      await launchUrl(emailUri);
+    } else {
       if (!mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error saving setting: $e')),
+        SnackBar(
+          content: Text(
+            tr(
+              'Could not open email app',
+              'تعذر فتح تطبيق البريد الإلكتروني',
+            ),
+          ),
+        ),
       );
     }
   }
@@ -172,7 +246,7 @@ class _SettingsPageState extends State<SettingsPage> {
   void _showInfoCard({
     required String title,
     required IconData icon,
-    required String content,
+    required Widget child,
   }) {
     showDialog(
       context: context,
@@ -183,9 +257,11 @@ class _SettingsPageState extends State<SettingsPage> {
             backgroundColor: Colors.transparent,
             insetPadding: const EdgeInsets.all(20),
             child: Container(
-              constraints: const BoxConstraints(maxHeight: 650, minHeight: 120),
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.78,
+              ),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: _cardColor,
                 borderRadius: BorderRadius.circular(24),
               ),
               child: Column(
@@ -225,14 +301,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   Flexible(
                     child: SingleChildScrollView(
                       padding: const EdgeInsets.all(20),
-                      child: Text(
-                        content,
-                        style: const TextStyle(
-                          color: Color(0xFF14181B),
-                          fontSize: 14,
-                          height: 1.55,
-                        ),
-                      ),
+                      child: child,
                     ),
                   ),
                 ],
@@ -248,9 +317,16 @@ class _SettingsPageState extends State<SettingsPage> {
     _showInfoCard(
       title: tr('About Human Touch', 'عن Human Touch'),
       icon: Icons.supervisor_account,
-      content: tr(
-        'Human Touch is a smart companion designed to improve daily life and independence for people with disabilities.',
-        'Human Touch هو تطبيق ذكي مصمم لتحسين الحياة اليومية وزيادة الاستقلالية للأشخاص ذوي الإعاقة.',
+      child: Text(
+        tr(
+          'Human Touch is a smart and user-friendly mobile application designed to support people with disabilities in their daily lives. The app helps users manage reminders, communicate more easily, access emergency support, and connect with volunteers and companions. Human Touch aims to improve independence, safety, and accessibility through simple and helpful digital solutions.',
+          'Human Touch هو تطبيق ذكي وسهل الاستخدام مصمم لدعم الأشخاص ذوي الإعاقة في حياتهم اليومية. يساعد التطبيق المستخدمين على إدارة التذكيرات، والتواصل بسهولة أكبر، والوصول إلى دعم الطوارئ، والتواصل مع المتطوعين والمرافقين. يهدف Human Touch إلى تحسين الاستقلالية والسلامة وإمكانية الوصول من خلال حلول رقمية بسيطة ومفيدة.',
+        ),
+        style: TextStyle(
+          color: _textColor,
+          fontSize: 14,
+          height: 1.55,
+        ),
       ),
     );
   }
@@ -259,17 +335,48 @@ class _SettingsPageState extends State<SettingsPage> {
     _showInfoCard(
       title: tr('Contact Us', 'تواصل معنا'),
       icon: Icons.phone_paused_rounded,
-      content: tr(
-        '''We are here to support you.
-
-Email: humantouchapp@gmail.com
-
-Service Provider: Human Touch Team''',
-        '''نحن هنا لدعمك.
-
-البريد الإلكتروني: humantouchapp@gmail.com
-
-مزود الخدمة: فريق Human Touch''',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment:
+            isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        children: [
+          Text(
+            tr(
+              'We are here to support you.',
+              'نحن هنا لدعمك.',
+            ),
+            style: TextStyle(
+              color: _textColor,
+              fontSize: 14,
+              height: 1.55,
+            ),
+          ),
+          const SizedBox(height: 12),
+          InkWell(
+            onTap: _openEmail,
+            child: const Text(
+              humanTouchEmail,
+              style: TextStyle(
+                color: Color(0xFF87CEEB),
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                decoration: TextDecoration.underline,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            tr(
+              'Service Provider: Human Touch Team',
+              'مزود الخدمة: فريق Human Touch',
+            ),
+            style: TextStyle(
+              color: _textColor,
+              fontSize: 14,
+              height: 1.55,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -278,15 +385,137 @@ Service Provider: Human Touch Team''',
     _showInfoCard(
       title: tr('Privacy Policy', 'سياسة الخصوصية'),
       icon: Icons.privacy_tip_outlined,
-      content: tr(
-        '''Privacy Policy
-Effective Date: April 27, 2026
+      child: Text(
+        r'''Privacy Policy
+Effective Date: May 11, 2026
 
-This Privacy Policy applies to the Human Touch app.''',
-        '''سياسة الخصوصية
-تاريخ السريان: 27 أبريل 2026
+This Privacy Policy applies to the Human Touch app (hereafter referred to as the “Application”), developed and provided as a free service by the Human Touch Team (hereafter referred to as the “Service Provider”). The Application is provided “AS IS”, and this Privacy Policy explains how user data is collected, used, and protected.
 
-تنطبق سياسة الخصوصية هذه على تطبيق Human Touch.''',
+1. Information Collection and Use
+
+1.1 User-Provided Information
+
+The Application may collect certain personally identifiable information (e.g., name, email address, phone number) when:
+
+Users create an account or sign in.
+Users contact the Service Provider for support or inquiries.
+Users use specific features such as volunteer assistance, emergency contacts, or reminders.
+
+This information is securely stored and used only as outlined in this Privacy Policy.
+
+1.2 Automatically Collected Information
+
+The Application may automatically collect certain data to improve user experience and service quality. This may include:
+
+Operation Logs: Basic records of feature usage for analytics and performance improvements.
+Last Login Time: The date and time of the user’s most recent login.
+Device Information: Device type, operating system version, and app version.
+Push Notification Identifiers: Device identifiers used to send reminders, alerts, and updates.
+
+🚫 What the Application Does NOT Collect Automatically:
+
+No tracking of browsing activity outside the app.
+No access to photos, files, or contacts without user permission.
+No collection of sensitive personal data unless required for specific features and approved by the user.
+
+2. Use of Information
+
+The Service Provider uses collected information solely for the following purposes:
+
+To provide and improve Application functionality.
+To manage reminders for medications, meals, appointments, and tasks.
+To enable emergency support features and volunteer assistance.
+To improve communication tools such as voice and sign support.
+To analyze engagement and enhance user experience.
+To send important notifications, reminders, or updates.
+To prevent fraudulent activity and ensure security.
+
+3. Third-Party Services
+
+The Application may integrate third-party services which may collect limited data as part of their functionality. These may include:
+
+Google Play Services
+Firebase Authentication / Database
+OneSignal or similar Push Notification Services
+
+These providers have their own Privacy Policies, which users are encouraged to review.
+
+🚨 Important: The Service Provider does not sell, rent, or share user data with advertisers or third-party marketing platforms.
+
+4. Data Sharing and Disclosure
+
+The Service Provider may disclose collected information only in the following circumstances:
+
+Legal Compliance: If required by law or government request.
+User Protection: If necessary to protect user safety or investigate fraud/security issues.
+Trusted Service Providers: For secure backend support under strict confidentiality agreements.
+Emergency Situations: If the user activates emergency assistance features requiring contact with selected companions or responders.
+
+🚫 No user data is shared for advertising purposes.
+
+5. Opt-Out Rights
+
+Users may opt-out of certain data collection by:
+
+Disabling notifications in device settings.
+Disabling optional permissions such as location or microphone access.
+Uninstalling the Application.
+Requesting account or data deletion by contacting the Service Provider.
+
+6. Data Retention Policy
+
+The Service Provider retains user data only as long as necessary to provide services.
+
+Reminder and account data are retained while the account remains active.
+Emergency contacts remain stored until edited or deleted by the user.
+Notification identifiers remain while notifications are enabled.
+
+📌 Users may request deletion of their personal data at any time.
+
+7. Children’s Privacy
+
+The Application is not intended for children under the age of 13 without parental supervision.
+
+The Service Provider does not knowingly collect personal data from children under 13. If discovered, such data will be deleted promptly.
+
+8. Security Measures
+
+The Service Provider takes reasonable precautions to protect user data, including:
+
+Encryption and secure storage of sensitive information.
+Restricted access controls.
+Regular security monitoring and updates.
+
+📌 However, no online method is 100% secure, and users should take care when sharing personal information.
+
+9. Privacy Policy Updates
+
+This Privacy Policy may be updated periodically to reflect:
+
+Changes in Application features.
+Security improvements.
+Compliance with new laws or regulations.
+
+📌 Users will be notified of significant updates through the app or email.
+
+Continued use of the Application after updates means acceptance of the revised policy.
+
+10. Your Consent
+
+By using the Application, you consent to the collection and processing of your information as described in this Privacy Policy.
+
+11. Contact Us
+
+For privacy-related questions or concerns, you may contact:
+
+📧 Email: info@humantouchapp.com
+
+🏢 Service Provider: Human Touch Team''',
+        style: TextStyle(
+          color: _textColor,
+          fontSize: 14,
+          height: 1.55,
+        ),
       ),
     );
   }
@@ -356,8 +585,8 @@ This Privacy Policy applies to the Human Touch app.''',
           child: Container(
             width: double.infinity,
             height: 41,
-            decoration: const BoxDecoration(
-              color: Color(0xFFF4F4F4),
+            decoration: BoxDecoration(
+              color: _backgroundColor,
               borderRadius: BorderRadius.only(
                 topLeft: Radius.circular(70),
                 topRight: Radius.circular(70),
@@ -413,8 +642,8 @@ This Privacy Policy applies to the Human Touch app.''',
                 children: [
                   Text(
                     _name.isEmpty ? tr('No Name', 'لا يوجد اسم') : _name,
-                    style: const TextStyle(
-                      color: Color(0xFF14181B),
+                    style: TextStyle(
+                      color: _textColor,
                       fontSize: 24,
                       fontWeight: FontWeight.w500,
                     ),
@@ -445,7 +674,8 @@ This Privacy Policy applies to the Human Touch app.''',
         alignment: isArabic ? Alignment.centerRight : Alignment.centerLeft,
         child: Text(
           title,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          style: TextStyle(
+              fontSize: 16, fontWeight: FontWeight.w600, color: _textColor),
         ),
       ),
     );
@@ -457,7 +687,7 @@ This Privacy Policy applies to the Human Touch app.''',
       child: Container(
         width: double.infinity,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: _cardColor,
           boxShadow: const [
             BoxShadow(
               blurRadius: 5,
@@ -473,11 +703,11 @@ This Privacy Policy applies to the Human Touch app.''',
   }
 
   Widget _buildDivider() {
-    return const Divider(
+    return Divider(
       thickness: 1,
       indent: 15,
       endIndent: 15,
-      color: Color(0xFFE0E0E0),
+      color: _dividerColor,
     );
   }
 
@@ -492,14 +722,14 @@ This Privacy Policy applies to the Human Touch app.''',
       child: Row(
         children: [
           if (icon != null) ...[
-            Icon(icon, color: const Color(0xFF57636C), size: 22),
+            Icon(icon, color: _subTextColor, size: 22),
             const SizedBox(width: 12),
           ],
           Expanded(
             child: Text(
               title,
               textAlign: isArabic ? TextAlign.right : TextAlign.left,
-              style: const TextStyle(color: Color(0xFF14181B), fontSize: 14),
+              style: TextStyle(color: _textColor, fontSize: 14),
             ),
           ),
           Switch(
@@ -524,29 +754,111 @@ This Privacy Policy applies to the Human Touch app.''',
         padding: const EdgeInsets.fromLTRB(24, 12, 24, 12),
         child: Row(
           children: [
-            Icon(icon, color: const Color(0xFF57636C), size: 24),
+            Icon(icon, color: _subTextColor, size: 24),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
                 title,
                 textAlign: isArabic ? TextAlign.right : TextAlign.left,
-                style: const TextStyle(color: Color(0xFF14181B), fontSize: 14),
+                style: TextStyle(color: _textColor, fontSize: 14),
               ),
             ),
             if (trailingText != null)
               Text(
                 trailingText,
-                style: const TextStyle(color: Color(0xFF57636C), fontSize: 14),
+                style: TextStyle(color: _subTextColor, fontSize: 14),
               ),
             if (onTap != null) ...[
               const SizedBox(width: 8),
-              const Icon(
+              Icon(
                 Icons.arrow_forward_ios_rounded,
                 size: 16,
-                color: Color(0xFF57636C),
+                color: _subTextColor,
               ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+
+  String _textScaleTitle(double value) {
+    if (value == 0.9) return tr('Small', 'صغير');
+    if (value == 1.15) return tr('Large', 'كبير');
+    return tr('Medium', 'متوسط');
+  }
+
+  Widget _buildTextSizeRow() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 10, 24, 10),
+      child: Column(
+        crossAxisAlignment:
+            isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.format_size_rounded, color: _subTextColor, size: 22),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  tr('Text Size', 'حجم الخط'),
+                  textAlign: isArabic ? TextAlign.right : TextAlign.left,
+                  style: TextStyle(color: _textColor, fontSize: 14),
+                ),
+              ),
+              Text(
+                _textScaleTitle(_textScale),
+                style: TextStyle(color: _subTextColor, fontSize: 13),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: _fieldColor,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              children: [
+                _textSizeOption(tr('Small', 'صغير'), 0.9),
+                _textSizeOption(tr('Medium', 'متوسط'), 1.0),
+                _textSizeOption(tr('Large', 'كبير'), 1.15),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _textSizeOption(String title, double value) {
+    final bool selected = _textScale == value;
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: () async {
+          setState(() => _textScale = value);
+          await _updateSetting('textScale', value);
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: selected ? const Color(0xFF87CEEB) : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Center(
+            child: Text(
+              title,
+              style: TextStyle(
+                color: selected ? Colors.white : _textColor,
+                fontSize: 13,
+                fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -561,8 +873,8 @@ This Privacy Policy applies to the Human Touch app.''',
         children: [
           Text(
             tr('Companion Phone Number', 'رقم هاتف المرافق'),
-            style: const TextStyle(
-              color: Color(0xFF14181B),
+            style: TextStyle(
+              color: _textColor,
               fontSize: 14,
             ),
           ),
@@ -573,7 +885,7 @@ This Privacy Policy applies to the Human Touch app.''',
                 child: Container(
                   height: 52,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF4F4F4),
+                    color: _fieldColor,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -600,6 +912,10 @@ This Privacy Policy applies to the Human Touch app.''',
                     final phone = _companionPhoneController.text.trim();
 
                     await _updateSetting('companionPhone', phone);
+
+                    setState(() {
+                      _isPatientLinkedToCompanion = phone.isNotEmpty;
+                    });
 
                     if (!mounted) return;
 
@@ -642,9 +958,9 @@ This Privacy Policy applies to the Human Touch app.''',
         child: ElevatedButton(
           onPressed: _logout,
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.white,
+            backgroundColor: _cardColor,
             elevation: 1,
-            foregroundColor: const Color(0xFF14181B),
+            foregroundColor: _textColor,
             minimumSize: const Size(90, 40),
           ),
           child: Text(
@@ -667,180 +983,187 @@ This Privacy Policy applies to the Human Touch app.''',
       );
     }
 
-    return Directionality(
-      textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-      child: GestureDetector(
-        onTap: () {
-          FocusScope.of(context).unfocus();
-        },
-        child: Scaffold(
-          backgroundColor: const Color(0xFFF4F4F4),
-          body: SafeArea(
-            child: Column(
-              children: [
-                _buildHeader(),
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: Column(
-                      children: [
-                        _buildProfileCard(),
-                        _buildCard(
-                          children: [
-                            _buildSectionTitle(
-                              tr('Account Settings', 'إعدادات الحساب'),
-                            ),
-                            _buildDivider(),
-                            _buildSwitchRow(
-                              title: tr(
-                                'Switch to Dark Mode',
-                                'تفعيل الوضع الداكن',
+    return MediaQuery(
+      data: MediaQuery.of(context).copyWith(
+        textScaleFactor: _textScale,
+      ),
+      child: Directionality(
+        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+        child: GestureDetector(
+          onTap: () {
+            FocusScope.of(context).unfocus();
+          },
+          child: Scaffold(
+            backgroundColor: _backgroundColor,
+            body: SafeArea(
+              child: Column(
+                children: [
+                  _buildHeader(),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          _buildProfileCard(),
+                          _buildCard(
+                            children: [
+                              _buildSectionTitle(
+                                tr('Account Settings', 'إعدادات الحساب'),
                               ),
-                              value: _darkMode,
-                              onChanged: (value) async {
-                                setState(() => _darkMode = value);
-                                await _updateSetting('darkMode', value);
-                              },
-                            ),
-                            _buildDivider(),
-                            _buildSwitchRow(
-                              title: tr('Notifications', 'الإشعارات'),
-                              value: _notifications,
-                              onChanged: (value) async {
-                                setState(() => _notifications = value);
-                                await _updateSetting('notifications', value);
-                              },
-                            ),
-                            _buildDivider(),
-                            _buildSwitchRow(
-                              title: tr('Location Sharing', 'مشاركة الموقع'),
-                              value: _locationSharing,
-                              onChanged: (value) async {
-                                setState(() => _locationSharing = value);
-                                await _updateSetting('locationSharing', value);
-                              },
-                            ),
-                            _buildDivider(),
-                            _buildSimpleRow(
-                              icon: Icons.g_translate_sharp,
-                              title: tr('Language', 'اللغة'),
-                              trailingText: _language == 'ar'
-                                  ? tr('Arabic', 'العربية')
-                                  : tr('English', 'الإنجليزية'),
-                              onTap: () async {
-                                final newLang = _language == 'ar' ? 'en' : 'ar';
+                              _buildDivider(),
+                              _buildSwitchRow(
+                                title: tr(
+                                  'Switch to Dark Mode',
+                                  'تفعيل الوضع الداكن',
+                                ),
+                                value: _darkMode,
+                                onChanged: (value) async {
+                                  setState(() => _darkMode = value);
 
-                                setState(() => _language = newLang);
+                                  await AppSettingsStore.instance
+                                      .setDarkMode(value);
 
-                                AppSettingsStore.instance.changeLanguage(
-                                  newLang,
-                                );
+                                  await _updateSetting('darkMode', value);
+                                },
+                              ),
+                              _buildDivider(),
+                              _buildSwitchRow(
+                                title: tr('Notifications', 'الإشعارات'),
+                                value: _notifications,
+                                onChanged: (value) async {
+                                  setState(() => _notifications = value);
+                                  await _updateSetting('notifications', value);
+                                },
+                              ),
+                              _buildDivider(),
+                              _buildSwitchRow(
+                                title: tr('Location Sharing', 'مشاركة الموقع'),
+                                value: _locationSharing,
+                                onChanged: (value) async {
+                                  setState(() => _locationSharing = value);
+                                  await _updateSetting(
+                                      'locationSharing', value);
+                                },
+                              ),
+                              _buildDivider(),
+                              _buildSimpleRow(
+                                icon: Icons.g_translate_sharp,
+                                title: tr('Language', 'اللغة'),
+                                trailingText: _language == 'ar'
+                                    ? tr('Arabic', 'العربية')
+                                    : tr('English', 'الإنجليزية'),
+                                onTap: () async {
+                                  final newLang =
+                                      _language == 'ar' ? 'en' : 'ar';
 
-                                await _updateSetting('language', newLang);
-                              },
-                            ),
-                            _buildDivider(),
-                            _buildSwitchRow(
-                              title: tr(
-                                'Increase font size',
-                                'تكبير حجم الخط',
+                                  setState(() => _language = newLang);
+
+                                  AppSettingsStore.instance.changeLanguage(
+                                    newLang,
+                                  );
+
+                                  await _updateSetting('language', newLang);
+                                },
                               ),
-                              value: _textScale > 1.0,
-                              onChanged: (value) async {
-                                final newScale = value ? 1.15 : 1.0;
-                                setState(() => _textScale = newScale);
-                                await _updateSetting('textScale', newScale);
-                              },
-                              icon: Icons.format_size_rounded,
-                            ),
-                            _buildDivider(),
-                            _buildCompanionPhoneRow(),
-                            _buildDivider(),
-                            _buildSwitchRow(
-                              title: tr(
-                                'Call Companion in Emergency',
-                                'الاتصال بالمرافق في الطوارئ',
+                              _buildDivider(),
+                              _buildTextSizeRow(),
+                              if (_userRole == 'patient' &&
+                                  _isPatientLinkedToCompanion) ...[
+                                _buildDivider(),
+                                _buildCompanionPhoneRow(),
+                                _buildDivider(),
+                                _buildSwitchRow(
+                                  title: tr(
+                                    'Call Companion in Emergency',
+                                    'الاتصال بالمرافق في الطوارئ',
+                                  ),
+                                  value: _callCompanion,
+                                  onChanged: (value) async {
+                                    setState(() => _callCompanion = value);
+                                    await _updateSetting(
+                                      'callCompanion',
+                                      value,
+                                    );
+                                  },
+                                  icon: Icons.phone_rounded,
+                                ),
+                                _buildDivider(),
+                                _buildSwitchRow(
+                                  title: tr(
+                                    'Send SMS to Companion',
+                                    'إرسال رسالة SMS للمرافق',
+                                  ),
+                                  value: _sendSmsToCompanion,
+                                  onChanged: (value) async {
+                                    setState(
+                                      () => _sendSmsToCompanion = value,
+                                    );
+                                    await _updateSetting(
+                                      'sendSmsToCompanion',
+                                      value,
+                                    );
+                                  },
+                                  icon: Icons.sms_outlined,
+                                ),
+                                _buildDivider(),
+                                _buildSwitchRow(
+                                  title: tr(
+                                    'Alert Nearby Volunteers',
+                                    'تنبيه المتطوعين القريبين',
+                                  ),
+                                  value: _alertNearbyVolunteers,
+                                  onChanged: (value) async {
+                                    setState(
+                                      () => _alertNearbyVolunteers = value,
+                                    );
+                                    await _updateSetting(
+                                      'alertNearbyVolunteers',
+                                      value,
+                                    );
+                                  },
+                                  icon: Icons.location_on_outlined,
+                                ),
+                              ],
+                            ],
+                          ),
+                          _buildCard(
+                            children: [
+                              _buildSectionTitle(
+                                tr('Human Touch', 'Human Touch'),
                               ),
-                              value: _callCompanion,
-                              onChanged: (value) async {
-                                setState(() => _callCompanion = value);
-                                await _updateSetting('callCompanion', value);
-                              },
-                              icon: Icons.phone_rounded,
-                            ),
-                            _buildDivider(),
-                            _buildSwitchRow(
-                              title: tr(
-                                'Send SMS to Companion',
-                                'إرسال رسالة SMS للمرافق',
+                              _buildDivider(),
+                              _buildSimpleRow(
+                                icon: Icons.supervisor_account,
+                                title: tr(
+                                  'About Human Touch',
+                                  'عن Human Touch',
+                                ),
+                                onTap: _showAboutHumanTouch,
                               ),
-                              value: _sendSmsToCompanion,
-                              onChanged: (value) async {
-                                setState(() => _sendSmsToCompanion = value);
-                                await _updateSetting(
-                                  'sendSmsToCompanion',
-                                  value,
-                                );
-                              },
-                              icon: Icons.sms_outlined,
-                            ),
-                            _buildDivider(),
-                            _buildSwitchRow(
-                              title: tr(
-                                'Alert Nearby Volunteers',
-                                'تنبيه المتطوعين القريبين',
+                              _buildDivider(),
+                              _buildSimpleRow(
+                                icon: Icons.phone_paused_rounded,
+                                title: tr('Contact Us', 'تواصل معنا'),
+                                onTap: _showContactUs,
                               ),
-                              value: _alertNearbyVolunteers,
-                              onChanged: (value) async {
-                                setState(
-                                  () => _alertNearbyVolunteers = value,
-                                );
-                                await _updateSetting(
-                                  'alertNearbyVolunteers',
-                                  value,
-                                );
-                              },
-                              icon: Icons.location_on_outlined,
-                            ),
-                          ],
-                        ),
-                        _buildCard(
-                          children: [
-                            _buildSectionTitle(
-                              tr('Human Touch', 'Human Touch'),
-                            ),
-                            _buildDivider(),
-                            _buildSimpleRow(
-                              icon: Icons.supervisor_account,
-                              title: tr(
-                                'About Human Touch',
-                                'عن Human Touch',
+                              _buildDivider(),
+                              _buildSimpleRow(
+                                icon: Icons.privacy_tip_outlined,
+                                title: tr('Privacy Policy', 'سياسة الخصوصية'),
+                                onTap: _showPrivacyPolicy,
                               ),
-                              onTap: _showAboutHumanTouch,
-                            ),
-                            _buildDivider(),
-                            _buildSimpleRow(
-                              icon: Icons.phone_paused_rounded,
-                              title: tr('Contact Us', 'تواصل معنا'),
-                              onTap: _showContactUs,
-                            ),
-                            _buildDivider(),
-                            _buildSimpleRow(
-                              icon: Icons.privacy_tip_outlined,
-                              title: tr('Privacy Policy', 'سياسة الخصوصية'),
-                              onTap: _showPrivacyPolicy,
-                            ),
-                          ],
-                        ),
-                        _buildLogoutButton(),
-                        const SizedBox(height: 20),
-                      ],
+                            ],
+                          ),
+                          _buildLogoutButton(),
+                          const SizedBox(height: 20),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
+            bottomNavigationBar: _buildBottomNavigation(),
           ),
-          bottomNavigationBar: _buildBottomNavigation(),
         ),
       ),
     );

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -28,6 +29,7 @@ class _Profile2PageState extends State<Profile2Page> {
   late TextEditingController _nameController;
   late TextEditingController _phoneController;
   late TextEditingController _emailController;
+  late TextEditingController _manualPatientCodeController;
 
   late TextEditingController _volunteerSpecialtyController;
   late TextEditingController _volunteerSkillController;
@@ -37,6 +39,7 @@ class _Profile2PageState extends State<Profile2Page> {
   bool _isScanning = false;
   bool _isLoading = true;
   bool _isSaving = false;
+  bool _isLinkingPatient = false;
 
   String _userRole = 'patient';
   String _profileImageBase64 = '';
@@ -55,6 +58,12 @@ class _Profile2PageState extends State<Profile2Page> {
   bool get isArabic => AppSettingsStore.instance.isArabic;
 
   String tr(String en, String ar) => isArabic ? ar : en;
+
+  String _generatePatientCode() {
+    final random = Random();
+    final randomNumber = 100000 + random.nextInt(900000);
+    return 'HT-$randomNumber';
+  }
 
   String volunteerTypeText(String type) {
     switch (type) {
@@ -78,6 +87,7 @@ class _Profile2PageState extends State<Profile2Page> {
     _nameController = TextEditingController();
     _phoneController = TextEditingController();
     _emailController = TextEditingController();
+    _manualPatientCodeController = TextEditingController();
 
     _volunteerSpecialtyController = TextEditingController();
     _volunteerSkillController = TextEditingController();
@@ -85,6 +95,7 @@ class _Profile2PageState extends State<Profile2Page> {
     _volunteerWorkController = TextEditingController();
 
     AppSettingsStore.instance.addListener(_onLanguageChanged);
+
     _loadProfileFromFirebase();
   }
 
@@ -99,6 +110,7 @@ class _Profile2PageState extends State<Profile2Page> {
     _nameController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
+    _manualPatientCodeController.dispose();
 
     _volunteerSpecialtyController.dispose();
     _volunteerSkillController.dispose();
@@ -143,10 +155,11 @@ class _Profile2PageState extends State<Profile2Page> {
         _profileImageBase64 =
             (data['profileImageBase64'] ?? data['image'] ?? '').toString();
 
-        _patientLinkCode =
-            (data['patientLinkCode'] ?? 'PATIENT-${user.uid}').toString();
+        _patientLinkCode = (data['patientLinkCode'] ?? '').toString();
 
         _linkedPatientCode = (data['linkedPatientCode'] ?? '').toString();
+
+        _manualPatientCodeController.text = _linkedPatientCode;
 
         _volunteerSpecialtyController.text =
             (data['volunteerSpecialty'] ?? '').toString();
@@ -169,11 +182,8 @@ class _Profile2PageState extends State<Profile2Page> {
         _isLoading = false;
       });
 
-      if (!data.containsKey('patientLinkCode')) {
-        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-          'patientLinkCode': 'PATIENT-${user.uid}',
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+      if (_userRole == 'patient') {
+        await _refreshPatientCode();
       }
     } catch (e) {
       if (!mounted) return;
@@ -189,6 +199,121 @@ class _Profile2PageState extends State<Profile2Page> {
           ),
         ),
       );
+    }
+  }
+
+  Future<void> _refreshPatientCode() async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) return;
+
+    final newCode = _generatePatientCode();
+
+    if (mounted) {
+      setState(() {
+        _patientLinkCode = newCode;
+      });
+    }
+
+    await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+      'patientLinkCode': newCode,
+      'patientLinkCodeUpdatedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> _linkPatientByCode(String code) async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(tr('Please login first', 'يرجى تسجيل الدخول أولاً')),
+        ),
+      );
+      return;
+    }
+
+    final cleanCode = code.trim().toUpperCase();
+
+    if (cleanCode.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            tr('Please enter patient code', 'يرجى إدخال كود المريض'),
+          ),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLinkingPatient = true;
+    });
+
+    try {
+      final patientQuery = await FirebaseFirestore.instance
+          .collection('users')
+          .where('patientLinkCode', isEqualTo: cleanCode)
+          .where('role', isEqualTo: 'patient')
+          .limit(1)
+          .get();
+
+      if (patientQuery.docs.isEmpty) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              tr('Invalid patient code', 'كود المريض غير صحيح'),
+            ),
+          ),
+        );
+        return;
+      }
+
+      setState(() {
+        _linkedPatientCode = cleanCode;
+        _manualPatientCodeController.text = cleanCode;
+      });
+
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'linkedPatientCode': cleanCode,
+        'patientUid': patientQuery.docs.first.id,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            tr(
+              'Patient linked successfully: $cleanCode',
+              'تم ربط المريض بنجاح: $cleanCode',
+            ),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            tr(
+              'Error linking patient: $e',
+              'حدث خطأ أثناء ربط المريض: $e',
+            ),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLinkingPatient = false;
+        });
+      }
     }
   }
 
@@ -286,7 +411,8 @@ class _Profile2PageState extends State<Profile2Page> {
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text(tr('Please login first', 'يرجى تسجيل الدخول أولاً'))),
+          content: Text(tr('Please login first', 'يرجى تسجيل الدخول أولاً')),
+        ),
       );
       return;
     }
@@ -349,8 +475,9 @@ class _Profile2PageState extends State<Profile2Page> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
     } catch (e) {
       if (!mounted) return;
 
@@ -440,8 +567,9 @@ class _Profile2PageState extends State<Profile2Page> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
     }
   }
 
@@ -467,54 +595,7 @@ class _Profile2PageState extends State<Profile2Page> {
       MaterialPageRoute(
         builder: (context) => _ScanPatientQrPage(
           onScanned: (code) async {
-            final user = FirebaseAuth.instance.currentUser;
-            if (user == null) return;
-
-            final patientQuery = await FirebaseFirestore.instance
-                .collection('users')
-                .where('patientLinkCode', isEqualTo: code)
-                .where('role', isEqualTo: 'patient')
-                .limit(1)
-                .get();
-
-            if (patientQuery.docs.isEmpty) {
-              if (!mounted) return;
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    tr('Invalid patient QR code', 'رمز QR للمريض غير صحيح'),
-                  ),
-                ),
-              );
-              return;
-            }
-
-            setState(() {
-              _linkedPatientCode = code;
-            });
-
-            await FirebaseFirestore.instance
-                .collection('users')
-                .doc(user.uid)
-                .set({
-              'linkedPatientCode': code,
-              'patientUid': patientQuery.docs.first.id,
-              'updatedAt': FieldValue.serverTimestamp(),
-            }, SetOptions(merge: true));
-
-            if (!mounted) return;
-
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  tr(
-                    'Patient linked successfully: $code',
-                    'تم ربط المريض بنجاح: $code',
-                  ),
-                ),
-              ),
-            );
+            await _linkPatientByCode(code);
           },
         ),
       ),
@@ -931,24 +1012,54 @@ class _Profile2PageState extends State<Profile2Page> {
               ),
             ),
             const SizedBox(height: 14),
-            QrImageView(
-              data: _patientLinkCode,
-              version: QrVersions.auto,
-              size: 200,
-            ),
+            if (_patientLinkCode.isNotEmpty)
+              QrImageView(
+                data: _patientLinkCode,
+                version: QrVersions.auto,
+                size: 200,
+              )
+            else
+              Column(
+                children: [
+                  const CircularProgressIndicator(color: Color(0xFF87CEEB)),
+                  const SizedBox(height: 10),
+                  Text(
+                    tr('Generating code...', 'جاري توليد الكود...'),
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ],
+              ),
             const SizedBox(height: 12),
-            Text(
-              _patientLinkCode,
-              style: const TextStyle(fontSize: 14, color: Colors.black54),
+            SelectableText(
+              _patientLinkCode.isEmpty
+                  ? tr('Code is loading...', 'الكود قيد التحميل...')
+                  : _patientLinkCode,
+              style: const TextStyle(
+                fontSize: 20,
+                color: Color(0xFF14181B),
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               tr(
-                'Let your companion scan this code to link the accounts.',
-                'اجعل المرافق يمسح هذا الرمز لربط الحسابات.',
+                'Your companion can scan or manually enter this code.',
+                'يمكن للمرافق مسح الرمز أو كتابة الكود يدويًا.',
               ),
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 14),
+            ElevatedButton.icon(
+              onPressed: _refreshPatientCode,
+              icon: const Icon(Icons.refresh),
+              label: Text(
+                tr('Generate New Code', 'توليد كود جديد'),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF87CEEB),
+                foregroundColor: Colors.white,
+              ),
             ),
           ],
         ),
@@ -993,6 +1104,51 @@ class _Profile2PageState extends State<Profile2Page> {
               onPressed: _isScanning ? () {} : _openScanner,
               backgroundColor: const Color(0xFF87CEEB),
               foregroundColor: Colors.white,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              tr(
+                'Or enter patient code manually',
+                'أو أدخل كود المريض يدويًا',
+              ),
+              style: const TextStyle(fontSize: 14, color: Colors.black54),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _manualPatientCodeController,
+              textAlign: isArabic ? TextAlign.right : TextAlign.left,
+              textCapitalization: TextCapitalization.characters,
+              decoration: InputDecoration(
+                labelText: tr(
+                  'Enter Patient Code',
+                  'أدخل كود المريض',
+                ),
+                hintText: 'HT-123456',
+                prefixIcon: const Icon(Icons.password),
+                border: const OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: ElevatedButton.icon(
+                onPressed: _isLinkingPatient
+                    ? null
+                    : () {
+                        _linkPatientByCode(_manualPatientCodeController.text);
+                      },
+                icon: const Icon(Icons.link),
+                label: Text(
+                  _isLinkingPatient
+                      ? tr('Linking...', 'جاري الربط...')
+                      : tr('Link Patient', 'ربط المريض'),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF87CEEB),
+                  foregroundColor: Colors.white,
+                ),
+              ),
             ),
             if (_linkedPatientCode.isNotEmpty) ...[
               const SizedBox(height: 14),
@@ -1063,8 +1219,8 @@ class _Profile2PageState extends State<Profile2Page> {
                         ),
                         _buildActionButton(
                           text: tr(
-                            'Change / Forgot Password',
-                            'تغيير / نسيت كلمة المرور',
+                            'Change Password',
+                            'تغيير كلمة المرور',
                           ),
                           icon: Icons.lock_reset,
                           onPressed: () {

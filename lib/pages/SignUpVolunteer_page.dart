@@ -240,13 +240,10 @@ class _SignUpVolunteerPageState extends State<SignUpVolunteerPage> {
     );
 
     if (result != null && result is Map<String, dynamic>) {
-      final latValue = result['latitude'];
-      final lngValue = result['longitude'];
-
       setState(() {
         _locationController.text = result['address'] ?? '';
-        _selectedLatitude = latValue is num ? latValue.toDouble() : null;
-        _selectedLongitude = lngValue is num ? lngValue.toDouble() : null;
+        _selectedLatitude = result['latitude'] as double?;
+        _selectedLongitude = result['longitude'] as double?;
       });
     }
   }
@@ -335,26 +332,18 @@ class _SignUpVolunteerPageState extends State<SignUpVolunteerPage> {
         MaterialPageRoute(builder: (context) => const VolunteerDashboardPage()),
       );
     } on FirebaseAuthException catch (e) {
-      String message = tr(
-        'Failed to create account.',
-        'فشل إنشاء الحساب.',
-      );
+      String message = tr('Failed to create account.', 'فشل إنشاء الحساب.');
 
       if (e.code == 'email-already-in-use') {
-        message = tr(
-          'This email is already used.',
-          'هذا البريد مستخدم مسبقاً.',
-        );
+        message =
+            tr('This email is already used.', 'هذا البريد مستخدم مسبقاً.');
       } else if (e.code == 'invalid-email') {
         message = tr(
           'Please enter a valid email.',
           'يرجى إدخال بريد إلكتروني صحيح.',
         );
       } else if (e.code == 'weak-password') {
-        message = tr(
-          'Password is too weak.',
-          'كلمة المرور ضعيفة.',
-        );
+        message = tr('Password is too weak.', 'كلمة المرور ضعيفة.');
       } else if (e.message != null && e.message!.trim().isNotEmpty) {
         message = e.message!;
       }
@@ -365,9 +354,8 @@ class _SignUpVolunteerPageState extends State<SignUpVolunteerPage> {
         _isLoading = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
     } catch (e) {
       if (!mounted) return;
 
@@ -379,42 +367,6 @@ class _SignUpVolunteerPageState extends State<SignUpVolunteerPage> {
         SnackBar(content: Text(tr('Error: $e', 'حدث خطأ: $e'))),
       );
     }
-  }
-
-  Widget _languageButton() {
-    return Positioned(
-      top: 8,
-      right: isArabic ? null : 16,
-      left: isArabic ? 16 : null,
-      child: GestureDetector(
-        onTap: _toggleLanguage,
-        child: Container(
-          width: 52,
-          height: 52,
-          decoration: BoxDecoration(
-            color: const Color(0xFF87CEEB),
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.15),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Center(
-            child: Text(
-              isArabic ? 'EN' : 'AR',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
   }
 
   @override
@@ -476,7 +428,7 @@ class _SignUpVolunteerPageState extends State<SignUpVolunteerPage> {
                               const SizedBox(height: 10),
                               Center(
                                 child: Text(
-                                  tr('Sign Up Volunteer', 'تسجيل المتطوع'),
+                                  tr('Sign Up Volunteer', 'تسجيل متطوع'),
                                   textAlign: TextAlign.center,
                                   style: const TextStyle(
                                     fontSize: 40,
@@ -524,10 +476,7 @@ class _SignUpVolunteerPageState extends State<SignUpVolunteerPage> {
                                       ? TextAlign.right
                                       : TextAlign.left,
                                   decoration: _inputDecoration(
-                                    label: tr(
-                                      'Email',
-                                      'البريد الإلكتروني',
-                                    ),
+                                    label: tr('Email', 'البريد الإلكتروني'),
                                   ),
                                   style: const TextStyle(fontSize: 16),
                                   validator: (value) {
@@ -564,10 +513,7 @@ class _SignUpVolunteerPageState extends State<SignUpVolunteerPage> {
                                       ? TextAlign.right
                                       : TextAlign.left,
                                   decoration: _inputDecoration(
-                                    label: tr(
-                                      'Phone Number',
-                                      'رقم الهاتف',
-                                    ),
+                                    label: tr('Phone Number', 'رقم الهاتف'),
                                   ),
                                   style: const TextStyle(fontSize: 16),
                                   validator: (value) {
@@ -916,7 +862,10 @@ class _SignUpVolunteerPageState extends State<SignUpVolunteerPage> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Text(
-                                    tr('Have an account?', 'لديك حساب؟'),
+                                    tr(
+                                      'Have an account?',
+                                      'لديك حساب؟',
+                                    ),
                                     style: const TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.bold,
@@ -949,7 +898,39 @@ class _SignUpVolunteerPageState extends State<SignUpVolunteerPage> {
                     ),
                   ],
                 ),
-                _languageButton(),
+                Positioned(
+                  top: 8,
+                  right: isArabic ? null : 16,
+                  left: isArabic ? 16 : null,
+                  child: GestureDetector(
+                    onTap: _toggleLanguage,
+                    child: Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF87CEEB),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.15),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: Text(
+                          isArabic ? 'EN' : 'AR',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),

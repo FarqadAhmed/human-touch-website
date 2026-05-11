@@ -28,13 +28,9 @@ import 'firebase_options.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
-/// 🔥 FCM SERVICE
 import 'package:humantouch/pages/services/fcm_service.dart';
-
-/// 🔥 LANGUAGE STORE
 import 'package:humantouch/pages/app_settings_store.dart';
 
-/// 🔥 Navigator Key for Notifications → Navigation
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 final FlutterLocalNotificationsPlugin notificationsPlugin =
@@ -63,7 +59,6 @@ Future<void> main() async {
 
   await notificationsPlugin.initialize(initSettings);
 
-  /// 🔥 INIT FCM SYSTEM
   await FCMService.init(navigatorKey);
 
   runApp(const HumanTouchApp());
@@ -81,39 +76,47 @@ class _HumanTouchAppState extends State<HumanTouchApp> {
   void initState() {
     super.initState();
 
-    AppSettingsStore.instance.addListener(() {
+    AppSettingsStore.instance.addListener(_onSettingsChanged);
+  }
+
+  void _onSettingsChanged() {
+    if (mounted) {
       setState(() {});
-    });
+    }
+  }
+
+  @override
+  void dispose() {
+    AppSettingsStore.instance.removeListener(_onSettingsChanged);
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      /// 🔥 REQUIRED FOR NOTIFICATION NAVIGATION
-      navigatorKey: navigatorKey,
+    final bool isDarkMode = AppSettingsStore.instance.isDarkMode;
 
+    return MaterialApp(
+      navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
       title: 'Human Touch',
-
-      /// 🌍 LANGUAGE
       locale: AppSettingsStore.instance.locale,
-
       supportedLocales: const [
         Locale('en'),
         Locale('ar'),
       ],
-
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-
+      themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
       theme: ThemeData(
         useMaterial3: true,
+        brightness: Brightness.light,
         scaffoldBackgroundColor: const Color(0xFFF4F4F4),
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF87CEEB),
+          brightness: Brightness.light,
         ),
         appBarTheme: const AppBarTheme(
           backgroundColor: Color(0xFF87CEEB),
@@ -161,9 +164,63 @@ class _HumanTouchAppState extends State<HumanTouchApp> {
           ),
         ),
       ),
-
+      darkTheme: ThemeData(
+        useMaterial3: true,
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: Colors.black,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF87CEEB),
+          brightness: Brightness.dark,
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF87CEEB),
+          elevation: 0,
+          centerTitle: true,
+          foregroundColor: Colors.white,
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: const Color(0xFF1E1E1E),
+          hintStyle: const TextStyle(color: Colors.white70),
+          labelStyle: const TextStyle(color: Colors.white70),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: const BorderSide(
+              color: Color(0xFF87CEEB),
+              width: 1.5,
+            ),
+          ),
+          contentPadding: const EdgeInsets.all(16),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF87CEEB),
+            foregroundColor: Colors.white,
+            elevation: 0,
+            minimumSize: const Size(double.infinity, 52),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+        ),
+        cardTheme: CardThemeData(
+          color: const Color(0xFF1E1E1E),
+          elevation: 3,
+          shadowColor: Colors.black54,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+        ),
+      ),
       initialRoute: '/splash',
-
       routes: {
         '/splash': (context) => const SplashPage(),
         '/welcome': (context) => const WelcomePage(),
@@ -185,7 +242,6 @@ class _HumanTouchAppState extends State<HumanTouchApp> {
         '/profile2': (context) => const Profile2Page(),
         '/settings': (context) => const SettingsPage(),
       },
-
       onUnknownRoute: (settings) {
         return MaterialPageRoute(
           builder: (_) => const Scaffold(

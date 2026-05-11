@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:ui' as ui;
+
 import 'Reminders_page.dart';
 import 'Health_page.dart';
 import 'Communication_page.dart';
@@ -25,6 +26,19 @@ class _DashboardPageState extends State<DashboardPage> {
   String _userName = 'User';
 
   bool get isArabic => AppSettingsStore.instance.isArabic;
+  bool get isDarkMode => AppSettingsStore.instance.isDarkMode;
+
+  Color get backgroundColor =>
+      isDarkMode ? Colors.black : const Color(0xFFF4F4F4);
+
+  Color get cardColor => isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
+
+  Color get textColor => isDarkMode ? Colors.white : Colors.black;
+
+  Color get subTextColor => isDarkMode ? Colors.white70 : Colors.black54;
+
+  Color get innerBoxColor =>
+      isDarkMode ? const Color(0xFF2A2A2A) : const Color(0xFFF4F4F4);
 
   String tr(String en, String ar) {
     return isArabic ? ar : en;
@@ -119,15 +133,8 @@ class _DashboardPageState extends State<DashboardPage> {
         width: double.infinity,
         height: 180,
         decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: const [
-            BoxShadow(
-              blurRadius: 10,
-              color: Color(0x9257636C),
-              offset: Offset(0, 0),
-              spreadRadius: 1,
-            ),
-          ],
+          color: cardColor,
+          boxShadow: _shadow(),
           borderRadius: BorderRadius.circular(25),
         ),
         child: Center(
@@ -137,10 +144,10 @@ class _DashboardPageState extends State<DashboardPage> {
               'يرجى تسجيل الدخول لعرض التذكيرات',
             ),
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w500,
-              color: Colors.black54,
+              color: subTextColor,
             ),
           ),
         ),
@@ -153,15 +160,8 @@ class _DashboardPageState extends State<DashboardPage> {
       width: double.infinity,
       height: 180,
       decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: const [
-          BoxShadow(
-            blurRadius: 10,
-            color: Color(0x9257636C),
-            offset: Offset(0, 0),
-            spreadRadius: 1,
-          ),
-        ],
+        color: cardColor,
+        boxShadow: _shadow(),
         borderRadius: BorderRadius.circular(25),
       ),
       padding: const EdgeInsets.all(18),
@@ -177,10 +177,10 @@ class _DashboardPageState extends State<DashboardPage> {
               child: Text(
                 tr('Error loading reminders', 'حدث خطأ في تحميل التذكيرات'),
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
-                  color: Colors.black54,
+                  color: subTextColor,
                 ),
               ),
             );
@@ -197,10 +197,10 @@ class _DashboardPageState extends State<DashboardPage> {
               child: Text(
                 tr('No reminders for today', 'لا توجد تذكيرات لهذا اليوم'),
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
-                  color: Colors.black54,
+                  color: subTextColor,
                 ),
               ),
             );
@@ -214,10 +214,10 @@ class _DashboardPageState extends State<DashboardPage> {
             children: [
               Text(
                 tr('Today’s Reminders', 'تذكيرات اليوم'),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
-                  color: Colors.black,
+                  color: textColor,
                 ),
               ),
               const SizedBox(height: 12),
@@ -241,7 +241,7 @@ class _DashboardPageState extends State<DashboardPage> {
                         vertical: 10,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF4F4F4),
+                        color: innerBoxColor,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(
@@ -251,10 +251,10 @@ class _DashboardPageState extends State<DashboardPage> {
                               '$emoji $title • $time',
                               textAlign:
                                   isArabic ? TextAlign.right : TextAlign.left,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.black87,
+                                color: textColor,
                               ),
                             ),
                           ),
@@ -295,8 +295,9 @@ class _DashboardPageState extends State<DashboardPage> {
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: cardColor,
                 borderRadius: BorderRadius.circular(8),
+                boxShadow: isDarkMode ? _shadow() : null,
               ),
               child: Center(
                 child: ClipRRect(
@@ -326,10 +327,10 @@ class _DashboardPageState extends State<DashboardPage> {
             child: Text(
               label,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
-                color: Colors.black,
+                color: textColor,
               ),
             ),
           ),
@@ -362,7 +363,9 @@ class _DashboardPageState extends State<DashboardPage> {
   List<BoxShadow> _shadow() {
     return [
       BoxShadow(
-        color: Colors.black.withOpacity(0.08),
+        color: isDarkMode
+            ? Colors.black.withOpacity(0.35)
+            : Colors.black.withOpacity(0.08),
         blurRadius: 12,
         offset: const Offset(0, 5),
       ),
@@ -378,7 +381,7 @@ class _DashboardPageState extends State<DashboardPage> {
           FocusScope.of(context).unfocus();
         },
         child: Scaffold(
-          backgroundColor: const Color(0xFFF4F4F4),
+          backgroundColor: backgroundColor,
           body: SafeArea(
             child: Column(
               children: [
@@ -395,9 +398,9 @@ class _DashboardPageState extends State<DashboardPage> {
                       child: Container(
                         width: double.infinity,
                         height: 41,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFF4F4F4),
-                          borderRadius: BorderRadius.only(
+                        decoration: BoxDecoration(
+                          color: backgroundColor,
+                          borderRadius: const BorderRadius.only(
                             topLeft: Radius.circular(70),
                             topRight: Radius.circular(70),
                           ),
@@ -414,10 +417,10 @@ class _DashboardPageState extends State<DashboardPage> {
                     child: Text(
                       '${_getGreeting()}, $_userName',
                       textAlign: isArabic ? TextAlign.right : TextAlign.left,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 26,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black,
+                        color: textColor,
                       ),
                     ),
                   ),
@@ -499,7 +502,10 @@ class _DashboardPageState extends State<DashboardPage> {
                 _bottomItem(Icons.home_rounded, tr('Home', 'الرئيسية'), 0),
                 _bottomItem(Icons.person_rounded, tr('Profile', 'الملف'), 1),
                 _bottomItem(
-                    Icons.settings_rounded, tr('Settings', 'الإعدادات'), 2),
+                  Icons.settings_rounded,
+                  tr('Settings', 'الإعدادات'),
+                  2,
+                ),
               ],
             ),
           ),

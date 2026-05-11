@@ -48,6 +48,20 @@ class _EmergencyPageState extends State<EmergencyPage> {
   bool _alertNearbyVolunteers = true;
 
   bool get isArabic => AppSettingsStore.instance.isArabic;
+  bool get isDarkMode => AppSettingsStore.instance.isDarkMode;
+
+  Color get backgroundColor =>
+      isDarkMode ? Colors.black : const Color(0xFF87CEEB);
+
+  Color get cardColor => isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
+
+  Color get textColor => isDarkMode ? Colors.white : Colors.white;
+
+  Color get darkTextColor =>
+      isDarkMode ? Colors.white : const Color(0xFF87CEEB);
+
+  Color get infoBoxColor =>
+      isDarkMode ? const Color(0xFF1E1E1E) : const Color(0x33FFFFFF);
 
   String tr(String en, String ar) {
     return isArabic ? ar : en;
@@ -133,12 +147,12 @@ class _EmergencyPageState extends State<EmergencyPage> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: const Color(0xFF87CEEB), size: 27),
+          Icon(icon, color: darkTextColor, size: 27),
           const SizedBox(height: 3),
           Text(
             label,
-            style: const TextStyle(
-              color: Color(0xFF87CEEB),
+            style: TextStyle(
+              color: darkTextColor,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
@@ -151,7 +165,9 @@ class _EmergencyPageState extends State<EmergencyPage> {
   List<BoxShadow> _shadow() {
     return [
       BoxShadow(
-        color: Colors.black.withOpacity(0.08),
+        color: isDarkMode
+            ? Colors.black.withOpacity(0.35)
+            : Colors.black.withOpacity(0.08),
         blurRadius: 12,
         offset: const Offset(0, 5),
       ),
@@ -484,8 +500,10 @@ $locationText
       padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
       child: Container(
         decoration: BoxDecoration(
-          color: const Color(0x22FFFFFF),
+          color: infoBoxColor,
           borderRadius: BorderRadius.circular(12),
+          border:
+              isDarkMode ? Border.all(color: Colors.white12, width: 1) : null,
         ),
         padding: const EdgeInsets.all(14),
         child: Column(
@@ -564,7 +582,7 @@ $locationText
                 },
                 icon: Icon(
                   isArabic ? Icons.arrow_forward : Icons.arrow_back,
-                  color: Colors.black,
+                  color: Colors.white,
                   size: 30,
                 ),
               ),
@@ -601,9 +619,9 @@ $locationText
                 duration: const Duration(milliseconds: 200),
                 width: 250,
                 height: 250,
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: [
+                decoration: BoxDecoration(
+                  color: cardColor,
+                  boxShadow: const [
                     BoxShadow(
                       blurRadius: 20,
                       color: Color(0x40000000),
@@ -669,8 +687,11 @@ $locationText
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Container(
               decoration: BoxDecoration(
-                color: const Color(0x33FFFFFF),
+                color: infoBoxColor,
                 borderRadius: BorderRadius.circular(12),
+                border: isDarkMode
+                    ? Border.all(color: Colors.white12, width: 1)
+                    : null,
               ),
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -736,12 +757,12 @@ $locationText
       child: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
         child: Scaffold(
-          backgroundColor: const Color(0xFF87CEEB),
+          backgroundColor: backgroundColor,
           bottomNavigationBar: Container(
             margin: const EdgeInsets.all(16),
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: cardColor,
               borderRadius: BorderRadius.circular(30),
               boxShadow: _shadow(),
             ),

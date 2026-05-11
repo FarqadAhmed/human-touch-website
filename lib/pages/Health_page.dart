@@ -23,6 +23,19 @@ class _HealthPageState extends State<HealthPage> {
   bool _showAllActivities = false;
 
   bool get isArabic => AppSettingsStore.instance.isArabic;
+  bool get isDarkMode => AppSettingsStore.instance.isDarkMode;
+
+  Color get backgroundColor =>
+      isDarkMode ? const Color(0xFF121212) : const Color(0xFFF4F4F4);
+
+  Color get cardColor => isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
+
+  Color get textColor => isDarkMode ? Colors.white : Colors.black;
+
+  Color get subTextColor => isDarkMode ? Colors.white70 : Colors.black87;
+
+  Color get lightCardColor =>
+      isDarkMode ? const Color(0xFF1E1E1E) : const Color(0xFFD9F3FF);
 
   String tr(String en, String ar) => isArabic ? ar : en;
 
@@ -201,8 +214,8 @@ class _HealthPageState extends State<HealthPage> {
       if (user == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content:
-                  Text(tr('Please login first', 'يرجى تسجيل الدخول أولاً'))),
+            content: Text(tr('Please login first', 'يرجى تسجيل الدخول أولاً')),
+          ),
         );
         return;
       }
@@ -237,8 +250,10 @@ class _HealthPageState extends State<HealthPage> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text(
-                tr('Error saving mood: $e', 'حدث خطأ أثناء حفظ المزاج: $e'))),
+          content: Text(
+            tr('Error saving mood: $e', 'حدث خطأ أثناء حفظ المزاج: $e'),
+          ),
+        ),
       );
     }
   }
@@ -311,7 +326,9 @@ class _HealthPageState extends State<HealthPage> {
   List<BoxShadow> _shadow() {
     return [
       BoxShadow(
-        color: Colors.black.withOpacity(0.08),
+        color: isDarkMode
+            ? Colors.black.withOpacity(0.35)
+            : Colors.black.withOpacity(0.08),
         blurRadius: 12,
         offset: const Offset(0, 5),
       ),
@@ -352,9 +369,10 @@ class _HealthPageState extends State<HealthPage> {
             Container(
               height: 40,
               width: double.infinity,
-              decoration: const BoxDecoration(
-                color: Color(0xFFF4F4F4),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(40)),
+              decoration: BoxDecoration(
+                color: backgroundColor,
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(40)),
               ),
             ),
           ],
@@ -368,17 +386,17 @@ class _HealthPageState extends State<HealthPage> {
                 icon: Icon(
                   isArabic ? Icons.arrow_forward : Icons.arrow_back,
                   size: 28,
-                  color: const Color(0xFF263238),
+                  color: textColor,
                 ),
               ),
               Expanded(
                 child: Center(
                   child: Text(
                     tr('Health', 'الصحة'),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 25,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF1A1A1A),
+                      color: textColor,
                     ),
                   ),
                 ),
@@ -401,6 +419,7 @@ class _HealthPageState extends State<HealthPage> {
       decoration: BoxDecoration(
         color: item.color,
         borderRadius: BorderRadius.circular(24),
+        boxShadow: isDarkMode ? _shadow() : null,
       ),
       child: Row(
         children: [
@@ -416,6 +435,7 @@ class _HealthPageState extends State<HealthPage> {
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
+                    color: Colors.black,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -460,7 +480,7 @@ class _HealthPageState extends State<HealthPage> {
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.18),
+                color: Colors.black.withOpacity(isDarkMode ? 0.35 : 0.18),
                 blurRadius: 12,
                 offset: const Offset(0, 6),
               ),
@@ -486,12 +506,13 @@ class _HealthPageState extends State<HealthPage> {
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: cardColor,
               borderRadius: BorderRadius.circular(22),
+              boxShadow: _shadow(),
             ),
             child: Text(
               tr('Could not load health tips.', 'تعذر تحميل النصائح الصحية.'),
-              style: const TextStyle(fontSize: 15),
+              style: TextStyle(fontSize: 15, color: textColor),
             ),
           );
         }
@@ -512,7 +533,7 @@ class _HealthPageState extends State<HealthPage> {
             width: double.infinity,
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: cardColor,
               borderRadius: BorderRadius.circular(24),
               boxShadow: _shadow(),
             ),
@@ -521,9 +542,9 @@ class _HealthPageState extends State<HealthPage> {
                 'No health tips yet. When a volunteer writes a tip, it will appear here.',
                 'لا توجد نصائح صحية بعد. عندما يكتب المتطوع نصيحة، ستظهر هنا.',
               ),
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 15,
-                color: Colors.black87,
+                color: subTextColor,
                 height: 1.4,
               ),
             ),
@@ -567,9 +588,12 @@ class _HealthPageState extends State<HealthPage> {
                 child: Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFD9F3FF),
+                    color: lightCardColor,
                     borderRadius: BorderRadius.circular(28),
                     boxShadow: _shadow(),
+                    border: isDarkMode
+                        ? Border.all(color: Colors.white12, width: 1)
+                        : null,
                   ),
                   padding: const EdgeInsets.all(16),
                   child: Row(
@@ -585,13 +609,16 @@ class _HealthPageState extends State<HealthPage> {
                                 Container(
                                   width: 34,
                                   height: 34,
-                                  decoration: const BoxDecoration(
-                                    color: Colors.white,
+                                  decoration: BoxDecoration(
+                                    color: isDarkMode
+                                        ? const Color(0xFF2A2A2A)
+                                        : Colors.white,
                                     shape: BoxShape.circle,
                                   ),
-                                  child: const Icon(
+                                  child: Icon(
                                     Icons.volunteer_activism,
                                     size: 20,
+                                    color: textColor,
                                   ),
                                 ),
                                 const SizedBox(width: 8),
@@ -601,9 +628,10 @@ class _HealthPageState extends State<HealthPage> {
                                     textAlign: isArabic
                                         ? TextAlign.right
                                         : TextAlign.left,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600,
+                                      color: textColor,
                                     ),
                                   ),
                                 ),
@@ -614,9 +642,10 @@ class _HealthPageState extends State<HealthPage> {
                               tip.title,
                               textAlign:
                                   isArabic ? TextAlign.right : TextAlign.left,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 22,
                                 fontWeight: FontWeight.w800,
+                                color: textColor,
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -626,17 +655,19 @@ class _HealthPageState extends State<HealthPage> {
                               overflow: TextOverflow.ellipsis,
                               textAlign:
                                   isArabic ? TextAlign.right : TextAlign.left,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 15,
-                                color: Colors.black87,
+                                color: subTextColor,
                               ),
                             ),
                             const SizedBox(height: 8),
                             Text(
                               tip.category,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 13,
-                                color: Color(0xFF5D6D7E),
+                                color: isDarkMode
+                                    ? Colors.white60
+                                    : const Color(0xFF5D6D7E),
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -666,7 +697,7 @@ class _HealthPageState extends State<HealthPage> {
       child: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
         child: Scaffold(
-          backgroundColor: const Color(0xFFF4F4F4),
+          backgroundColor: backgroundColor,
           floatingActionButton: _buildAIButton(),
           body: SafeArea(
             child: ListView(
@@ -683,9 +714,10 @@ class _HealthPageState extends State<HealthPage> {
                       Text(
                         '${_getGreeting()}, $_userName',
                         textAlign: isArabic ? TextAlign.right : TextAlign.left,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.w600,
+                          color: textColor,
                         ),
                       ),
                       const SizedBox(height: 36),
@@ -694,9 +726,10 @@ class _HealthPageState extends State<HealthPage> {
                           'How are you feeling today?',
                           'كيف تشعر اليوم؟',
                         ),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w600,
+                          color: textColor,
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -720,7 +753,7 @@ class _HealthPageState extends State<HealthPage> {
                                         borderRadius: BorderRadius.circular(18),
                                         border: Border.all(
                                           color: isSelected
-                                              ? Colors.black
+                                              ? const Color(0xFF87CEEB)
                                               : Colors.transparent,
                                           width: 2,
                                         ),
@@ -735,7 +768,10 @@ class _HealthPageState extends State<HealthPage> {
                                     const SizedBox(height: 6),
                                     Text(
                                       moodName(mood.label),
-                                      style: const TextStyle(fontSize: 12),
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: textColor,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -750,9 +786,10 @@ class _HealthPageState extends State<HealthPage> {
                         children: [
                           Text(
                             tr('Today\'s Activity', 'نشاط اليوم'),
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.w600,
+                              color: textColor,
                             ),
                           ),
                           TextButton(
@@ -778,9 +815,10 @@ class _HealthPageState extends State<HealthPage> {
                       const SizedBox(height: 6),
                       Text(
                         tr('Health Tips', 'نصائح صحية'),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w600,
+                          color: textColor,
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -859,6 +897,18 @@ class HealthTipDetailsPage extends StatelessWidget {
   const HealthTipDetailsPage({super.key, required this.tip});
 
   bool get isArabic => AppSettingsStore.instance.isArabic;
+  bool get isDarkMode => AppSettingsStore.instance.isDarkMode;
+
+  Color get backgroundColor =>
+      isDarkMode ? const Color(0xFF121212) : const Color(0xFFF4F4F4);
+
+  Color get cardColor =>
+      isDarkMode ? const Color(0xFF1E1E1E) : const Color(0xFFD9F3FF);
+
+  Color get textColor => isDarkMode ? Colors.white : Colors.black;
+
+  Color get subTextColor =>
+      isDarkMode ? Colors.white70 : const Color(0xFF5D6D7E);
 
   String tr(String en, String ar) => isArabic ? ar : en;
 
@@ -892,15 +942,17 @@ class HealthTipDetailsPage extends StatelessWidget {
     return Directionality(
       textDirection: isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF4F4F4),
+        backgroundColor: backgroundColor,
         appBar: AppBar(
           backgroundColor: const Color(0xFF87CEEB),
           elevation: 0,
+          foregroundColor: Colors.white,
           leading: IconButton(
             onPressed: () => _goBack(context),
             icon: Icon(
               isArabic ? Icons.arrow_forward : Icons.arrow_back,
               size: 28,
+              color: Colors.white,
             ),
           ),
           title: Text(tr('Tip Details', 'تفاصيل النصيحة')),
@@ -911,11 +963,14 @@ class HealthTipDetailsPage extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: const Color(0xFFD9F3FF),
+              color: cardColor,
               borderRadius: BorderRadius.circular(24),
+              border: isDarkMode
+                  ? Border.all(color: Colors.white12, width: 1)
+                  : null,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
+                  color: Colors.black.withOpacity(isDarkMode ? 0.35 : 0.08),
                   blurRadius: 12,
                   offset: const Offset(0, 5),
                 ),
@@ -929,18 +984,19 @@ class HealthTipDetailsPage extends StatelessWidget {
                 const SizedBox(height: 12),
                 Text(
                   '${tip.personName} • ${isArabic && tip.personType == 'Volunteer' ? 'متطوع' : tip.personType}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
+                    color: textColor,
                   ),
                 ),
                 if (dateText.isNotEmpty) ...[
                   const SizedBox(height: 6),
                   Text(
                     dateText,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
-                      color: Color(0xFF5D6D7E),
+                      color: subTextColor,
                     ),
                   ),
                 ],
@@ -948,17 +1004,18 @@ class HealthTipDetailsPage extends StatelessWidget {
                 Text(
                   tip.title,
                   textAlign: isArabic ? TextAlign.right : TextAlign.left,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 26,
                     fontWeight: FontWeight.w800,
+                    color: textColor,
                   ),
                 ),
                 const SizedBox(height: 12),
                 Text(
                   tip.category,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
-                    color: Color(0xFF5D6D7E),
+                    color: subTextColor,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -966,9 +1023,9 @@ class HealthTipDetailsPage extends StatelessWidget {
                 Text(
                   tip.fullTip,
                   textAlign: isArabic ? TextAlign.right : TextAlign.left,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 17,
-                    color: Colors.black87,
+                    color: subTextColor,
                     height: 1.5,
                   ),
                 ),
@@ -994,6 +1051,17 @@ class _AIQuestionsPageState extends State<AIQuestionsPage> {
   double _moodValue = 2;
 
   bool get isArabic => AppSettingsStore.instance.isArabic;
+  bool get isDarkMode => AppSettingsStore.instance.isDarkMode;
+
+  Color get backgroundColor =>
+      isDarkMode ? const Color(0xFF121212) : const Color(0xFFF4F4F4);
+
+  Color get cardColor => isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
+
+  Color get textColor => isDarkMode ? Colors.white : Colors.black;
+
+  Color get subTextColor =>
+      isDarkMode ? Colors.white70 : const Color(0xFF5D6D7E);
 
   String tr(String en, String ar) => isArabic ? ar : en;
 
@@ -1066,8 +1134,10 @@ class _AIQuestionsPageState extends State<AIQuestionsPage> {
       ],
     ),
     AIQuestion(
-      title: tr('Do you need any help or support today?',
-          'هل تحتاج إلى مساعدة أو دعم اليوم؟'),
+      title: tr(
+        'Do you need any help or support today?',
+        'هل تحتاج إلى مساعدة أو دعم اليوم؟',
+      ),
       subtitle: tr(
         'Is there anything specific you need help with today?',
         'هل يوجد شيء محدد تحتاج مساعدة فيه اليوم؟',
@@ -1080,6 +1150,22 @@ class _AIQuestionsPageState extends State<AIQuestionsPage> {
       ],
     ),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    AppSettingsStore.instance.addListener(_onSettingsChanged);
+  }
+
+  void _onSettingsChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    AppSettingsStore.instance.removeListener(_onSettingsChanged);
+    super.dispose();
+  }
 
   String _buildSmartResultMessage() {
     final mood = _answers[0] ?? '';
@@ -1175,7 +1261,8 @@ class _AIQuestionsPageState extends State<AIQuestionsPage> {
         _answers[_currentIndex] == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text(tr('Please choose an answer', 'يرجى اختيار إجابة'))),
+          content: Text(tr('Please choose an answer', 'يرجى اختيار إجابة')),
+        ),
       );
       return;
     }
@@ -1225,15 +1312,20 @@ class _AIQuestionsPageState extends State<AIQuestionsPage> {
         return Directionality(
           textDirection: isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
           child: AlertDialog(
+            backgroundColor: cardColor,
             title: Center(
-              child: Text(tr('AI Result', 'نتيجة الذكاء الاصطناعي')),
+              child: Text(
+                tr('AI Result', 'نتيجة الذكاء الاصطناعي'),
+                style: TextStyle(color: textColor),
+              ),
             ),
             content: Text(
               resultMessage,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
                 height: 1.4,
+                color: subTextColor,
               ),
             ),
             actionsAlignment: MainAxisAlignment.center,
@@ -1256,8 +1348,10 @@ class _AIQuestionsPageState extends State<AIQuestionsPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          tr('Help request sent to companion',
-              'تم إرسال طلب المساعدة إلى المرافق'),
+          tr(
+            'Help request sent to companion',
+            'تم إرسال طلب المساعدة إلى المرافق',
+          ),
         ),
       ),
     );
@@ -1288,9 +1382,10 @@ class _AIQuestionsPageState extends State<AIQuestionsPage> {
             Container(
               height: 40,
               width: double.infinity,
-              decoration: const BoxDecoration(
-                color: Color(0xFFF4F4F4),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(40)),
+              decoration: BoxDecoration(
+                color: backgroundColor,
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(40)),
               ),
             ),
           ],
@@ -1304,17 +1399,17 @@ class _AIQuestionsPageState extends State<AIQuestionsPage> {
                 icon: Icon(
                   isArabic ? Icons.arrow_forward : Icons.arrow_back,
                   size: 28,
-                  color: const Color(0xFF263238),
+                  color: textColor,
                 ),
               ),
               Expanded(
                 child: Center(
                   child: Text(
                     tr('AI Health Check', 'الفحص الصحي الذكي'),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 25,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF1A1A1A),
+                      color: textColor,
                     ),
                   ),
                 ),
@@ -1335,7 +1430,7 @@ class _AIQuestionsPageState extends State<AIQuestionsPage> {
     return Directionality(
       textDirection: isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF4F4F4),
+        backgroundColor: backgroundColor,
         body: SafeArea(
           child: Column(
             children: [
@@ -1352,16 +1447,18 @@ class _AIQuestionsPageState extends State<AIQuestionsPage> {
                           'السؤال ${_currentIndex + 1}/6',
                         ),
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 15,
-                          color: Color(0xFF5D6D7E),
+                          color: subTextColor,
                         ),
                       ),
                       const SizedBox(height: 10),
                       LinearProgressIndicator(
                         value: progress,
                         minHeight: 8,
-                        backgroundColor: const Color(0xFFE2E7EC),
+                        backgroundColor: isDarkMode
+                            ? const Color(0xFF2A2A2A)
+                            : const Color(0xFFE2E7EC),
                         valueColor: const AlwaysStoppedAnimation(
                           Color(0xFF87CEEB),
                         ),
@@ -1371,19 +1468,19 @@ class _AIQuestionsPageState extends State<AIQuestionsPage> {
                       Text(
                         question.title,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.w800,
-                          color: Colors.black,
+                          color: textColor,
                         ),
                       ),
                       const SizedBox(height: 10),
                       Text(
                         question.subtitle,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
-                          color: Color(0xFF5D6D7E),
+                          color: subTextColor,
                         ),
                       ),
                       const SizedBox(height: 30),
@@ -1436,7 +1533,8 @@ class _AIQuestionsPageState extends State<AIQuestionsPage> {
         SliderTheme(
           data: SliderTheme.of(context).copyWith(
             activeTrackColor: const Color(0xFF87CEEB),
-            inactiveTrackColor: const Color(0xFFE2E7EC),
+            inactiveTrackColor:
+                isDarkMode ? const Color(0xFF2A2A2A) : const Color(0xFFE2E7EC),
             thumbColor: const Color(0xFF87CEEB),
             overlayColor: const Color(0x3387CEEB),
             trackHeight: 4,
@@ -1475,21 +1573,23 @@ class _AIQuestionsPageState extends State<AIQuestionsPage> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
               decoration: BoxDecoration(
-                color: selected ? const Color(0xFFD9F3FF) : Colors.white,
+                color: selected ? const Color(0xFFD9F3FF) : cardColor,
                 borderRadius: BorderRadius.circular(18),
                 border: Border.all(
                   color: selected
                       ? const Color(0xFF87CEEB)
-                      : const Color(0xFFE2E7EC),
+                      : isDarkMode
+                          ? Colors.white12
+                          : const Color(0xFFE2E7EC),
                   width: 2,
                 ),
               ),
               child: Text(
                 option,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 17,
-                  color: Color(0xFF5D6D7E),
+                  color: selected ? const Color(0xFF5D6D7E) : subTextColor,
                   fontWeight: FontWeight.w600,
                 ),
               ),

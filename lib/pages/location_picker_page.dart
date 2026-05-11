@@ -69,6 +69,8 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
     try {
       final bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
 
+      if (!mounted) return;
+
       if (!serviceEnabled) {
         setState(() => _isLoading = false);
         return;
@@ -76,8 +78,12 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
 
       LocationPermission permission = await Geolocator.checkPermission();
 
+      if (!mounted) return;
+
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
+
+        if (!mounted) return;
       }
 
       if (permission == LocationPermission.denied ||
@@ -92,6 +98,8 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
         ),
       );
 
+      if (!mounted) return;
+
       final LatLng currentLocation = LatLng(
         position.latitude,
         position.longitude,
@@ -105,12 +113,16 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
 
       final controller = await _mapController.future;
 
+      if (!mounted) return;
+
       await controller.animateCamera(
         CameraUpdate.newCameraPosition(
           CameraPosition(target: currentLocation, zoom: 16),
         ),
       );
     } catch (_) {
+      if (!mounted) return;
+
       setState(() => _isLoading = false);
     }
   }
@@ -122,6 +134,8 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
           accuracy: LocationAccuracy.high,
         ),
       );
+
+      if (!mounted) return;
 
       final LatLng currentLocation = LatLng(
         position.latitude,
@@ -135,12 +149,16 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
 
       final controller = await _mapController.future;
 
+      if (!mounted) return;
+
       await controller.animateCamera(
         CameraUpdate.newCameraPosition(
           CameraPosition(target: currentLocation, zoom: 16),
         ),
       );
     } catch (_) {
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -239,6 +257,8 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
       position: _selectedLocation,
       draggable: true,
       onDragEnd: (LatLng newPosition) {
+        if (!mounted) return;
+
         setState(() {
           _selectedLocation = newPosition;
           _locationText = _formatLocationText(newPosition);
@@ -275,6 +295,8 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                               }
                             },
                             onTap: (LatLng tappedLocation) {
+                              if (!mounted) return;
+
                               setState(() {
                                 _selectedLocation = tappedLocation;
                                 _locationText =

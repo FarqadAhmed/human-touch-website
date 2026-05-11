@@ -34,6 +34,21 @@ class _CommunicationPageState extends State<CommunicationPage> {
 
   bool get isArabic => AppSettingsStore.instance.isArabic;
 
+  bool get isDarkMode => AppSettingsStore.instance.isDarkMode;
+
+  Color get backgroundColor =>
+      isDarkMode ? Colors.black : const Color(0xFFF7FBFD);
+
+  Color get cardColor => isDarkMode ? const Color(0xFF1E1E1E) : Colors.white;
+
+  Color get textColor => isDarkMode ? Colors.white : const Color(0xFF333333);
+
+  Color get subTextColor =>
+      isDarkMode ? Colors.white70 : const Color(0xFF777777);
+
+  Color get fieldColor =>
+      isDarkMode ? const Color(0xFF2A2A2A) : const Color(0xFFF3F7FA);
+
   String tr(String en, String ar) {
     return isArabic ? ar : en;
   }
@@ -500,6 +515,7 @@ class _CommunicationPageState extends State<CommunicationPage> {
         return Directionality(
           textDirection: isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
           child: Dialog(
+            backgroundColor: cardColor,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(28),
             ),
@@ -510,19 +526,21 @@ class _CommunicationPageState extends State<CommunicationPage> {
                 children: [
                   Text(
                     tr('Show Message', 'عرض الرسالة'),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
+                      color: textColor,
                     ),
                   ),
                   const SizedBox(height: 18),
                   Text(
                     _generatedMessage,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.w700,
                       height: 1.4,
+                      color: textColor,
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -581,8 +599,8 @@ class _CommunicationPageState extends State<CommunicationPage> {
                   top: 18,
                   bottom: MediaQuery.of(context).viewInsets.bottom + 18,
                 ),
-                decoration: const BoxDecoration(
-                  color: Color(0xFFF7FBFD),
+                decoration: BoxDecoration(
+                  color: backgroundColor,
                   borderRadius: BorderRadius.vertical(top: Radius.circular(35)),
                 ),
                 child: Column(
@@ -598,10 +616,10 @@ class _CommunicationPageState extends State<CommunicationPage> {
                     const SizedBox(height: 16),
                     Text(
                       tr('🤖 AI Companion', '🤖 المساعد الذكي'),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF333333),
+                        color: textColor,
                       ),
                     ),
                     const SizedBox(height: 6),
@@ -611,9 +629,9 @@ class _CommunicationPageState extends State<CommunicationPage> {
                         'تحدث معي في أي وقت تشعر فيه بالوحدة أو تحتاج للمساعدة',
                       ),
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
-                        color: Color(0xFF777777),
+                        color: subTextColor,
                       ),
                     ),
                     const SizedBox(height: 18),
@@ -638,7 +656,7 @@ class _CommunicationPageState extends State<CommunicationPage> {
                               decoration: BoxDecoration(
                                 color: isUser
                                     ? const Color(0xFF87CEEB)
-                                    : Colors.white,
+                                    : cardColor,
                                 borderRadius: BorderRadius.circular(20),
                                 boxShadow: _shadow(),
                               ),
@@ -649,9 +667,7 @@ class _CommunicationPageState extends State<CommunicationPage> {
                                 style: TextStyle(
                                   fontSize: 14.5,
                                   height: 1.4,
-                                  color: isUser
-                                      ? Colors.white
-                                      : const Color(0xFF333333),
+                                  color: isUser ? Colors.white : textColor,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -670,7 +686,7 @@ class _CommunicationPageState extends State<CommunicationPage> {
                             decoration: InputDecoration(
                               hintText: tr('Type here...', 'اكتب هنا...'),
                               filled: true,
-                              fillColor: Colors.white,
+                              fillColor: cardColor,
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(22),
                                 borderSide: BorderSide.none,
@@ -809,7 +825,7 @@ class _CommunicationPageState extends State<CommunicationPage> {
     return Directionality(
       textDirection: isArabic ? ui.TextDirection.rtl : ui.TextDirection.ltr,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF7FBFD),
+        backgroundColor: backgroundColor,
         floatingActionButton: FloatingActionButton.large(
           backgroundColor: const Color(0xFF87CEEB),
           elevation: 8,
@@ -831,8 +847,8 @@ class _CommunicationPageState extends State<CommunicationPage> {
                   Container(
                     height: 40,
                     width: double.infinity,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFF7FBFD),
+                    decoration: BoxDecoration(
+                      color: backgroundColor,
                       borderRadius: BorderRadius.vertical(
                         top: Radius.circular(40),
                       ),
@@ -849,17 +865,17 @@ class _CommunicationPageState extends State<CommunicationPage> {
                       icon: Icon(
                         isArabic ? Icons.arrow_forward : Icons.arrow_back,
                         size: 28,
-                        color: const Color(0xFF263238),
+                        color: textColor,
                       ),
                     ),
                     Expanded(
                       child: Center(
                         child: Text(
                           tr('Communication', 'التواصل'),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 25,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF1A1A1A),
+                            color: textColor,
                           ),
                         ),
                       ),
@@ -905,7 +921,7 @@ class _CommunicationPageState extends State<CommunicationPage> {
                                 decoration: BoxDecoration(
                                   color: isSelected
                                       ? const Color(0xFF87CEEB)
-                                      : Colors.white,
+                                      : cardColor,
                                   borderRadius: BorderRadius.circular(24),
                                   boxShadow: _shadow(),
                                 ),
@@ -925,7 +941,7 @@ class _CommunicationPageState extends State<CommunicationPage> {
                                         fontWeight: FontWeight.bold,
                                         color: isSelected
                                             ? Colors.white
-                                            : const Color(0xFF333333),
+                                            : textColor,
                                       ),
                                     ),
                                   ],
@@ -967,7 +983,7 @@ class _CommunicationPageState extends State<CommunicationPage> {
                             child: Container(
                               padding: const EdgeInsets.all(14),
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: cardColor,
                                 borderRadius: BorderRadius.circular(22),
                                 boxShadow: _shadow(),
                               ),
@@ -975,10 +991,10 @@ class _CommunicationPageState extends State<CommunicationPage> {
                                 child: Text(
                                   phrases[index],
                                   textAlign: TextAlign.center,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 14.5,
                                     fontWeight: FontWeight.w600,
-                                    color: Color(0xFF333333),
+                                    color: textColor,
                                   ),
                                 ),
                               ),
@@ -1014,7 +1030,7 @@ class _CommunicationPageState extends State<CommunicationPage> {
                                 decoration: BoxDecoration(
                                   color: selected
                                       ? const Color(0xFF87CEEB)
-                                      : Colors.white,
+                                      : cardColor,
                                   borderRadius: BorderRadius.circular(22),
                                   boxShadow: _shadow(),
                                 ),
@@ -1029,9 +1045,8 @@ class _CommunicationPageState extends State<CommunicationPage> {
                                     Text(
                                       moodName(mood['label']!),
                                       style: TextStyle(
-                                        color: selected
-                                            ? Colors.white
-                                            : const Color(0xFF333333),
+                                        color:
+                                            selected ? Colors.white : textColor,
                                         fontSize: 12,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -1048,7 +1063,7 @@ class _CommunicationPageState extends State<CommunicationPage> {
                         width: double.infinity,
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: cardColor,
                           borderRadius: BorderRadius.circular(24),
                           boxShadow: _shadow(),
                         ),
@@ -1062,10 +1077,10 @@ class _CommunicationPageState extends State<CommunicationPage> {
                                 'Activities for ${moodName(_selectedMood)} mood',
                                 'أنشطة لحالة ${moodName(_selectedMood)}',
                               ),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFF333333),
+                                color: textColor,
                               ),
                             ),
                             const SizedBox(height: 10),
@@ -1082,10 +1097,10 @@ class _CommunicationPageState extends State<CommunicationPage> {
                                         textAlign: isArabic
                                             ? TextAlign.right
                                             : TextAlign.left,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 14,
                                           height: 1.4,
-                                          color: Color(0xFF555555),
+                                          color: subTextColor,
                                         ),
                                       ),
                                     ),
@@ -1132,7 +1147,7 @@ class _CommunicationPageState extends State<CommunicationPage> {
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: cardColor,
                           borderRadius: BorderRadius.circular(26),
                           boxShadow: _shadow(),
                         ),
@@ -1150,7 +1165,7 @@ class _CommunicationPageState extends State<CommunicationPage> {
                                   'مثال: أشعر بالدوار / تعبان / أحتاج ماء...',
                                 ),
                                 filled: true,
-                                fillColor: const Color(0xFFF3F7FA),
+                                fillColor: fieldColor,
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(20),
                                   borderSide: BorderSide.none,
@@ -1203,8 +1218,10 @@ class _CommunicationPageState extends State<CommunicationPage> {
                           padding: const EdgeInsets.all(18),
                           decoration: BoxDecoration(
                             color: _isEmergency
-                                ? const Color(0xFFFFF0F0)
-                                : Colors.white,
+                                ? (isDarkMode
+                                    ? const Color(0xFF3A1E1E)
+                                    : const Color(0xFFFFF0F0))
+                                : cardColor,
                             borderRadius: BorderRadius.circular(26),
                             border: Border.all(
                               color: _isEmergency
@@ -1244,11 +1261,11 @@ class _CommunicationPageState extends State<CommunicationPage> {
                               Text(
                                 _generatedMessage,
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w700,
                                   height: 1.5,
-                                  color: Color(0xFF333333),
+                                  color: textColor,
                                 ),
                               ),
                               const SizedBox(height: 18),
@@ -1322,10 +1339,10 @@ class _CommunicationPageState extends State<CommunicationPage> {
       child: Text(
         title,
         textAlign: isArabic ? TextAlign.right : TextAlign.left,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 19,
           fontWeight: FontWeight.bold,
-          color: Color(0xFF333333),
+          color: textColor,
         ),
       ),
     );
@@ -1344,7 +1361,7 @@ class _CommunicationPageState extends State<CommunicationPage> {
         height: 140,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
         decoration: BoxDecoration(
-          color: color,
+          color: isDarkMode ? cardColor : color,
           borderRadius: BorderRadius.circular(26),
           boxShadow: _shadow(),
         ),
@@ -1357,10 +1374,10 @@ class _CommunicationPageState extends State<CommunicationPage> {
             Text(
               title,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF333333),
+                color: textColor,
               ),
             ),
             const SizedBox(height: 5),
@@ -1369,7 +1386,7 @@ class _CommunicationPageState extends State<CommunicationPage> {
               textAlign: TextAlign.center,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 12, color: Color(0xFF777777)),
+              style: TextStyle(fontSize: 12, color: subTextColor),
             ),
           ],
         ),
@@ -1387,7 +1404,8 @@ class _CommunicationPageState extends State<CommunicationPage> {
       icon: Icon(icon, size: 17),
       label: Text(text, style: const TextStyle(fontSize: 12)),
       style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFFE8F6FF),
+        backgroundColor:
+            isDarkMode ? const Color(0xFF1E1E1E) : const Color(0xFFE8F6FF),
         foregroundColor: const Color(0xFF2B8DBD),
         elevation: 0,
         padding: const EdgeInsets.symmetric(vertical: 13),
@@ -1421,7 +1439,7 @@ class _CommunicationPageState extends State<CommunicationPage> {
   List<BoxShadow> _shadow() {
     return [
       BoxShadow(
-        color: Colors.black.withOpacity(0.08),
+        color: Colors.black.withOpacity(isDarkMode ? 0.25 : 0.08),
         blurRadius: 12,
         offset: const Offset(0, 5),
       ),
