@@ -21,21 +21,15 @@ body{
     background:linear-gradient(135deg,#87CEEB,#5CB9E8);
     position:relative;
     overflow:hidden;
-    padding:30px 8% 180px;
+    padding:30px 8% 150px;
 }
-
-/* NAVBAR */
 
 .navbar{
     display:flex;
-    justify-content:space-between;
+    justify-content:flex-end;
     align-items:center;
-}
-
-.logo{
-    color:white;
-    font-size:30px;
-    font-weight:bold;
+    position:relative;
+    z-index:10;
 }
 
 .menu-btn{
@@ -48,55 +42,67 @@ body{
     border-radius:16px;
     font-size:30px;
     cursor:pointer;
+    box-shadow:0 8px 20px rgba(0,0,0,0.12);
 }
 
 .nav-links{
     display:none;
 }
 
-/* HERO CONTENT */
-
 .hero-content{
+    max-width:980px;
+    margin:75px auto 0;
     text-align:center;
-    max-width:950px;
-    margin:auto;
-    margin-top:100px;
     position:relative;
     z-index:5;
 }
 
-.hero-logo{
-    width:160px;
-    margin-bottom:35px;
-    filter:drop-shadow(0 10px 20px rgba(0,0,0,0.15));
+.hero-card{
+    background:rgba(255,255,255,0.24);
+    backdrop-filter:blur(14px);
+    border:1px solid rgba(255,255,255,0.45);
+    border-radius:42px;
+    padding:55px 50px;
+    box-shadow:0 25px 50px rgba(31,53,88,0.18);
 }
-
+.hero-logo{
+    width:clamp(240px, 35vw, 480px);
+    height:auto;
+    display:block;
+    margin:0 auto 35px;
+    object-fit:contain;
+    filter:drop-shadow(0 12px 25px rgba(0,0,0,0.20));
+}
 .hero-content h1{
     color:white;
-    font-size:85px;
+    font-size:72px;
     margin-bottom:20px;
+    letter-spacing:1px;
 }
 
 .subtitle{
-    color:white;
-    font-size:30px;
+    color:#1F3558;
+    background:white;
+    display:inline-block;
+    padding:14px 28px;
+    border-radius:30px;
+    font-size:24px;
     font-weight:bold;
-    margin-bottom:30px;
+    margin-bottom:28px;
 }
 
 .description{
     color:white;
-    font-size:22px;
+    font-size:21px;
     line-height:1.9;
-    margin-bottom:50px;
+    margin:0 auto 42px;
+    max-width:830px;
 }
-
-/* BUTTONS */
 
 .buttons{
     display:flex;
     justify-content:center;
-    gap:20px;
+    gap:22px;
     flex-wrap:wrap;
     position:relative;
     z-index:5;
@@ -105,22 +111,20 @@ body{
 .btn-primary{
     background:white;
     color:#5CB9E8;
-    padding:18px 35px;
+    padding:18px 38px;
     border-radius:40px;
     text-decoration:none;
     font-weight:bold;
     font-size:18px;
     transition:0.3s;
-}
-
-.btn-primary:hover{
-    transform:translateY(-5px);
+    box-shadow:0 10px 25px rgba(0,0,0,0.12);
 }
 
 .btn-secondary{
-    border:2px solid white;
+    background:#1F3558;
     color:white;
-    padding:18px 35px;
+    border:2px solid #1F3558;
+    padding:18px 38px;
     border-radius:40px;
     text-decoration:none;
     font-weight:bold;
@@ -128,16 +132,14 @@ body{
     transition:0.3s;
 }
 
+.btn-primary:hover,
 .btn-secondary:hover{
-    background:white;
-    color:#5CB9E8;
+    transform:translateY(-5px);
 }
-
-/* WAVE */
 
 .wave{
     position:absolute;
-    bottom:-210px;
+    bottom:-230px;
     left:-10%;
     width:120%;
     height:300px;
@@ -491,19 +493,23 @@ body{
 .team-card:hover{
     transform:translateY(-8px);
 }
-
 .member-img{
-    width:95px;
-    height:95px;
+    width:140px;
+    height:140px;
     background:#EAF8FC;
     border-radius:50%;
     display:flex;
     align-items:center;
     justify-content:center;
-    margin:0 auto 20px;
-    font-size:45px;
+    margin:0 auto 22px;
+    overflow:hidden;
 }
-
+.member-img img{
+    width:135px;
+    height:135px;
+    object-fit:contain;
+    display:block;
+}
 .team-card h3{
     color:#1F3558;
     font-size:22px;
@@ -617,27 +623,33 @@ footer p{
 @media(max-width:900px){
 
     .hero{
-        padding:25px 6% 160px;
+        padding:25px 6% 140px;
     }
 
     .hero-content{
-        margin-top:80px;
+        margin-top:55px;
+    }
+
+    .hero-card{
+        padding:40px 24px;
+        border-radius:32px;
     }
 
     .hero-content h1{
-        font-size:55px;
+        font-size:48px;
     }
 
     .subtitle{
-        font-size:24px;
+        font-size:19px;
+        padding:12px 20px;
     }
 
     .description{
-        font-size:18px;
+        font-size:17px;
     }
 
     .hero-logo{
-        width:120px;
+        width:110px;
     }
 
     .side-menu{
@@ -677,4 +689,13 @@ footer p{
     .tech-category-title{
         font-size:26px;
     }
+}
+.hero-logo{
+    width:clamp(220px, 40vw, 420px);
+}
+.member-img img{
+    width:70px !important;
+    height:70px !important;
+    object-fit:contain;
+    display:block;
 }
